@@ -313,6 +313,37 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmitting ? null : _handleFacebookLogin,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1877F2),
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Text(
+                      'f',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                        fontFamily: 'Inter',
+                      ),
+                    ),
+                    label: const Text(
+                      'Continuar con Facebook',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 18),
                 TextButton.icon(
                   onPressed: _isSubmitting ? null : widget.state.enterDemoMode,
@@ -395,6 +426,21 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     final error = await widget.state.loginWithGoogle();
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
+  }
+
+  Future<void> _handleFacebookLogin() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.state.loginWithFacebook();
 
     if (!mounted) return;
     setState(() {

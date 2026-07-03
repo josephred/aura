@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -310,6 +311,29 @@ class AppState extends ChangeNotifier {
     }
 
     return _loginWithSocialCredential('google', idToken);
+  }
+
+  // Sign in with Facebook and exchange the access token with the backend.
+  // Returns null on success or an error message.
+  Future<String?> loginWithFacebook() async {
+    try {
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['public_profile', 'email'],
+      );
+
+      if (result.status == LoginStatus.success) {
+        final AccessToken? accessToken = result.accessToken;
+        if (accessToken != null) {
+          return _loginWithSocialCredential('facebook', accessToken.tokenString);
+        }
+      } else if (result.status == LoginStatus.cancelled) {
+        return null; // User cancelled
+      }
+      return 'No se pudo iniciar sesión con Facebook (Estado: ${result.status})';
+    } catch (e) {
+      debugPrint('Facebook Sign-In failed. Error: $e');
+      return 'Facebook Sign-In no está disponible en esta build. Usa correo y contraseña.';
+    }
   }
 
   // Exchange a provider credential for an Aura session token.
