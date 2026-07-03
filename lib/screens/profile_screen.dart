@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
+import '../models/saved_payment_method.dart';
 import '../state/app_state.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // Add Dependent Form controllers
   bool _showAddDep = false;
+  Dependent? _editingDependent;
   final TextEditingController _depNameController = TextEditingController();
   String _depRel = 'Madre';
   final TextEditingController _depAgeController = TextEditingController();
@@ -25,8 +27,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Add Address Form controllers
   bool _showAddAddr = false;
+  SavedAddress? _editingAddress;
   final TextEditingController _addrLabelController = TextEditingController();
   final TextEditingController _addrTextController = TextEditingController();
+
+  // Add Payment Method Form controllers
+  bool _showAddPay = false;
+  String _payType = 'visa';
+  final TextEditingController _payLast4Controller = TextEditingController();
 
   @override
   void dispose() {
@@ -36,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _depObsController.dispose();
     _addrLabelController.dispose();
     _addrTextController.dispose();
+    _payLast4Controller.dispose();
     super.dispose();
   }
 
@@ -46,18 +55,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final age = int.tryParse(ageStr) ?? 40;
 
-    widget.state.addDependent(
-      Dependent(
-        id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
-        name: name,
-        relationship: _depRel,
-        age: age,
-        healthInsurance: _depInsuranceController.text.trim(),
-        medicalConditions: _depObsController.text.trim().isEmpty
-            ? 'Ninguna condición declarada.'
-            : _depObsController.text.trim(),
-      ),
-    );
+    if (_editingDependent != null) {
+      widget.state.updateDependent(
+        _editingDependent!.copyWith(
+          name: name,
+          relationship: _depRel,
+          age: age,
+          healthInsurance: _depInsuranceController.text.trim(),
+          medicalConditions: _depObsController.text.trim().isEmpty
+              ? 'Ninguna condición declarada.'
+              : _depObsController.text.trim(),
+        ),
+      );
+    } else {
+      widget.state.addDependent(
+        Dependent(
+          id: 'dep_${DateTime.now().millisecondsSinceEpoch}',
+          name: name,
+          relationship: _depRel,
+          age: age,
+          healthInsurance: _depInsuranceController.text.trim(),
+          medicalConditions: _depObsController.text.trim().isEmpty
+              ? 'Ninguna condición declarada.'
+              : _depObsController.text.trim(),
+        ),
+      );
+    }
 
     // Reset Form
     _depNameController.clear();
@@ -65,6 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _depObsController.clear();
     setState(() {
       _showAddDep = false;
+      _editingDependent = null;
     });
   }
 
@@ -73,19 +97,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final text = _addrTextController.text.trim();
     if (label.isEmpty || text.isEmpty) return;
 
-    widget.state.addAddress(
-      SavedAddress(
-        id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
-        label: label,
-        text: text,
-      ),
-    );
+    if (_editingAddress != null) {
+      widget.state.updateAddress(
+        _editingAddress!.copyWith(
+          label: label,
+          text: text,
+        ),
+      );
+    } else {
+      widget.state.addAddress(
+        SavedAddress(
+          id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
+          label: label,
+          text: text,
+        ),
+      );
+    }
 
     // Reset Form
     _addrLabelController.clear();
     _addrTextController.clear();
     setState(() {
       _showAddAddr = false;
+      _editingAddress = null;
+    });
+  }
+
+  void _createPaymentMethod() {
+    final last4 = _payLast4Controller.text.trim();
+    if (_payType != 'mercadopago' && (last4.isEmpty || last4.length != 4)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, ingresa los últimos 4 dígitos de la tarjeta.')),
+      );
+      return;
+    }
+
+    widget.state.addPaymentMethod(
+      SavedPaymentMethod(
+        id: 'pay_${DateTime.now().millisecondsSinceEpoch}',
+        type: _payType,
+        last4: _payType == 'mercadopago' ? null : last4,
+      ),
+    );
+
+    // Reset Form
+    _payLast4Controller.clear();
+    setState(() {
+      _showAddPay = false;
     });
   }
 
@@ -415,7 +473,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     GestureDetector(
-                      onTap: () => setState(() => _showAddDep = !_showAddDep),
+                      onTap: () => setState(() {
+                        _showAddDep = !_showAddDep;
+                        if (!_showAddDep) {
+                          _editingDependent = null;
+                          _depNameController.clear();
+                          _depAgeController.clear();
+                          _depObsController.clear();
+                        }
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -460,9 +526,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Registrar Nuevo Familiar Paciente',
-                          style: TextStyle(
+                        Text(
+                          _editingDependent != null ? 'Editar Familiar Paciente' : 'Registrar Nuevo Familiar Paciente',
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F766E),
@@ -573,9 +639,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              'Guardar Familiar Dependiente',
-                              style: TextStyle(
+                            child: Text(
+                              _editingDependent != null ? 'Actualizar Familiar Dependiente' : 'Guardar Familiar Dependiente',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -635,19 +701,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () => state.deleteDependent(dep.id),
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Color(0xFFF43F5E),
-                              size: 18,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFF1F2),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _editingDependent = dep;
+                                    _showAddDep = true;
+                                    _depNameController.text = dep.name;
+                                    _depAgeController.text = dep.age.toString();
+                                    _depRel = dep.relationship;
+                                    _depInsuranceController.text = dep.healthInsurance;
+                                    _depObsController.text = dep.medicalConditions;
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Color(0xFF0D9488),
+                                  size: 18,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE6F6F4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 6),
+                              IconButton(
+                                onPressed: () => state.deleteDependent(dep.id),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Color(0xFFF43F5E),
+                                  size: 18,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -692,7 +788,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     GestureDetector(
-                      onTap: () => setState(() => _showAddAddr = !_showAddAddr),
+                      onTap: () => setState(() {
+                        _showAddAddr = !_showAddAddr;
+                        if (!_showAddAddr) {
+                          _editingAddress = null;
+                          _addrLabelController.clear();
+                          _addrTextController.clear();
+                        }
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -712,7 +815,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _showAddAddr ? 'Cerrar' : 'Nueva',
+                              _showAddAddr ? 'Ocultar' : 'Agregar',
                               style: const TextStyle(
                                 color: Color(0xFF0D9488),
                                 fontSize: 10,
@@ -737,6 +840,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          _editingAddress != null ? 'Editar Dirección Frecuente' : 'Registrar Nueva Dirección',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F766E),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         _buildLabel('Etiqueta (ej: Oficina, Clínica)'),
                         _buildTextField(_addrLabelController, 'Ej: Oficina'),
                         const SizedBox(height: 8),
@@ -758,9 +870,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
-                              'Agregar Dirección',
-                              style: TextStyle(
+                            child: Text(
+                              _editingAddress != null ? 'Actualizar Dirección' : 'Agregar Dirección',
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -785,10 +897,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Color(0xFF0D9488),
-                            size: 16,
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2.0),
+                            child: Icon(
+                              Icons.location_on,
+                              color: Color(0xFF0D9488),
+                              size: 16,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -815,6 +930,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _editingAddress = addr;
+                                    _showAddAddr = true;
+                                    _addrLabelController.text = addr.label;
+                                    _addrTextController.text = addr.text;
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Color(0xFF0D9488),
+                                  size: 18,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFE6F6F4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              IconButton(
+                                onPressed: () => state.deleteAddress(addr.id),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Color(0xFFF43F5E),
+                                  size: 18,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     );
@@ -836,20 +993,148 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Medios de Pago Vinculados',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                    const Row(
+                      children: [
+                        Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Medios de Pago Vinculados',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _showAddPay = !_showAddPay;
+                        if (!_showAddPay) {
+                          _payLast4Controller.clear();
+                        }
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _showAddPay ? Icons.close : Icons.add,
+                              size: 12,
+                              color: const Color(0xFF0284C7),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _showAddPay ? 'Ocultar' : 'Agregar',
+                              style: const TextStyle(
+                                color: Color(0xFF0284C7),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
+                if (_showAddPay) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2FE).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vincular Nuevo Medio de Pago',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0369A1),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildLabel('Tipo de Medio de Pago'),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _payType,
+                              decoration: const InputDecoration(border: InputBorder.none),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0F172A),
+                                fontWeight: FontWeight.bold,
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'visa', child: Text('Visa')),
+                                DropdownMenuItem(value: 'mastercard', child: Text('Mastercard')),
+                                DropdownMenuItem(value: 'mercadopago', child: Text('Mercado Pago')),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() => _payType = val);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        if (_payType != 'mercadopago') ...[
+                          const SizedBox(height: 8),
+                          _buildLabel('Últimos 4 dígitos de la tarjeta'),
+                          _buildTextField(
+                            _payLast4Controller,
+                            'Ej: 1234',
+                            isNum: true,
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 38,
+                          child: ElevatedButton(
+                            onPressed: _createPaymentMethod,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              'Guardar Medio de Pago',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 Column(
                   children: state.paymentMethods.map((pay) {
@@ -921,13 +1206,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ],
                           ),
-                          const Text(
-                            'PREDETERMINADO',
-                            style: TextStyle(
-                              color: Color(0xFF059669),
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'PREDETERMINADO',
+                                style: TextStyle(
+                                  color: Color(0xFF059669),
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () => state.deletePaymentMethod(pay.id),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Color(0xFFF43F5E),
+                                  size: 16,
+                                ),
+                                style: IconButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(28, 28),
+                                  fixedSize: const Size(28, 28),
+                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

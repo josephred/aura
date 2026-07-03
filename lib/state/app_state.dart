@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/mock_data.dart';
@@ -12,10 +11,14 @@ import '../models/saved_payment_method.dart';
 import '../models/service_request.dart';
 import '../models/chat_message.dart';
 import '../models/past_service.dart';
+import '../services/api_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
   final String _baseUrl = kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api';
+
+  // API Service
+  late final ApiService _apiService;
 
   // Authentication state
   String? _authToken;
@@ -49,16 +52,30 @@ class AppState extends ChangeNotifier {
   final List<ChatMessage> _chatMessages = [];
 
   AppState() {
+    _apiService = ApiService(
+      baseUrl: _baseUrl,
+      onUnauthorized: _handleUnauthorized,
+    );
     _initializeChat();
     _restoreSession();
   }
 
-  // Headers for every API call; includes the bearer token once logged in
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (_authToken != null) 'Authorization': 'Bearer $_authToken',
-      };
+  // Global handler for token revocation (401 response)
+  void _handleUnauthorized() {
+    if (_authToken == null) return; // Prevent infinite loop
+    _authToken = null;
+    _apiService.authToken = null;
+    _userName = '';
+    _userEmail = '';
+    _isDemoMode = false;
+    _isOnboarded = false;
+    _currentRequest = null;
+    _pendingMessages = 0;
+    _activeTab = 'home';
+    _initializeChat();
+    _persistSession();
+    notifyListeners();
+  }
 
   // Restore a previously saved session token and load data
   Future<void> _restoreSession() async {
@@ -67,9 +84,14 @@ class AppState extends ChangeNotifier {
       final token = prefs.getString('auth_token');
       if (token != null) {
         _authToken = token;
+        _apiService.authToken = token;
         _userName = prefs.getString('user_name') ?? '';
         _userEmail = prefs.getString('user_email') ?? '';
-        await _loadInitialData();
+        
+        final validated = await _validateSession();
+        if (validated) {
+          await _loadInitialData();
+        }
       } else {
         // Only the public catalog is available before login
         await fetchServices();
@@ -79,6 +101,22 @@ class AppState extends ChangeNotifier {
     }
     _isRestoringSession = false;
     notifyListeners();
+  }
+
+  Future<bool> _validateSession() async {
+    try {
+      final response = await _apiService.get('/auth/me', timeout: const Duration(seconds: 6));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        _userName = data['name'] ?? _userName;
+        _userEmail = data['email'] ?? _userEmail;
+        return true;
+      }
+      return false; // Will trigger _handleUnauthorized if 401
+    } catch (e) {
+      debugPrint('Offline or connection error during session validation. Retaining session. Error: $e');
+      return true; // Keep local session offline fallback
+    }
   }
 
   Future<void> _persistSession() async {
@@ -97,11 +135,11 @@ class AppState extends ChangeNotifier {
   // Register a new account. Returns null on success or an error message.
   Future<String?> register(String name, String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/auth/register'),
-        headers: _headers,
-        body: json.encode({'name': name, 'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 6));
+      final response = await _apiService.post(
+        '/auth/register',
+        body: {'name': name, 'email': email, 'password': password},
+        timeout: const Duration(seconds: 6),
+      );
 
       final Map<String, dynamic> data = json.decode(response.body);
       if (response.statusCode == 201) {
@@ -118,11 +156,11 @@ class AppState extends ChangeNotifier {
   // Log in with existing credentials. Returns null on success or an error message.
   Future<String?> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/auth/login'),
-        headers: _headers,
-        body: json.encode({'email': email, 'password': password}),
-      ).timeout(const Duration(seconds: 6));
+      final response = await _apiService.post(
+        '/auth/login',
+        body: {'email': email, 'password': password},
+        timeout: const Duration(seconds: 6),
+      );
 
       final Map<String, dynamic> data = json.decode(response.body);
       if (response.statusCode == 200) {
@@ -138,6 +176,7 @@ class AppState extends ChangeNotifier {
 
   void _applyAuthResponse(Map<String, dynamic> data) {
     _authToken = data['token'];
+    _apiService.authToken = _authToken;
     _userName = data['user']?['name'] ?? '';
     _userEmail = data['user']?['email'] ?? '';
     _isDemoMode = false;
@@ -156,12 +195,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      await http.post(Uri.parse('$_baseUrl/auth/logout'), headers: _headers)
-          .timeout(const Duration(seconds: 4));
+      await _apiService.post('/auth/logout', timeout: const Duration(seconds: 4));
     } catch (e) {
       debugPrint('Backend logout failed (token cleared locally). Error: $e');
     }
     _authToken = null;
+    _apiService.authToken = null;
     _userName = '';
     _userEmail = '';
     _isDemoMode = false;
@@ -179,6 +218,7 @@ class AppState extends ChangeNotifier {
     await fetchServices();
     await fetchDependents();
     await fetchAddresses();
+    await fetchPaymentMethods();
     await fetchActiveRequest();
     await fetchHistory();
   }
@@ -228,7 +268,7 @@ class AppState extends ChangeNotifier {
   // API Fetching methods
   Future<void> fetchServices() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/services'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/services');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _services = data.map((s) => ClinicalService.fromJson(s)).toList();
@@ -241,7 +281,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchDependents() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/dependents'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/dependents');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _dependents.clear();
@@ -255,7 +295,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchAddresses() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/addresses'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/addresses');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _addresses.clear();
@@ -267,9 +307,23 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchPaymentMethods() async {
+    try {
+      final response = await _apiService.get('/payment-methods');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        _paymentMethods.clear();
+        _paymentMethods.addAll(data.map((p) => SavedPaymentMethod.fromJson(p)).toList());
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Backend fetchPaymentMethods failed, using local memory. Error: $e');
+    }
+  }
+
   Future<void> fetchActiveRequest() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/bookings/active'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/bookings/active');
       if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
         final Map<String, dynamic> data = json.decode(response.body);
         _currentRequest = ServiceRequest.fromJson(data);
@@ -285,7 +339,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchChatMessages(String requestId) async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/bookings/$requestId/chat'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/bookings/$requestId/chat');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _chatMessages.clear();
@@ -299,7 +353,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchHistory() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/history'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.get('/history');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         _pastServices.clear();
@@ -342,17 +396,29 @@ class AppState extends ChangeNotifier {
 
     // 2. Sync with backend
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/dependents'),
-        headers: _headers,
-        body: json.encode(dep.toJson()),
-      ).timeout(const Duration(seconds: 4));
-
+      final response = await _apiService.post('/dependents', body: dep.toJson());
       if (response.statusCode == 201) {
         await fetchDependents();
       }
     } catch (e) {
       debugPrint('Backend addDependent failed, kept in local memory. Error: $e');
+    }
+  }
+
+  Future<void> updateDependent(Dependent dep) async {
+    final idx = _dependents.indexWhere((d) => d.id == dep.id);
+    if (idx != -1) {
+      _dependents[idx] = dep;
+      notifyListeners();
+    }
+
+    try {
+      final response = await _apiService.put('/dependents/${dep.id}', body: dep.toJson());
+      if (response.statusCode == 200) {
+        await fetchDependents();
+      }
+    } catch (e) {
+      debugPrint('Backend updateDependent failed, kept in local memory. Error: $e');
     }
   }
 
@@ -363,7 +429,7 @@ class AppState extends ChangeNotifier {
 
     // 2. Sync with backend
     try {
-      final response = await http.delete(Uri.parse('$_baseUrl/dependents/$id'), headers: _headers).timeout(const Duration(seconds: 4));
+      final response = await _apiService.delete('/dependents/$id');
       if (response.statusCode == 200) {
         await fetchDependents();
       }
@@ -379,12 +445,7 @@ class AppState extends ChangeNotifier {
 
     // 2. Sync with backend
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/addresses'),
-        headers: _headers,
-        body: json.encode(addr.toJson()),
-      ).timeout(const Duration(seconds: 4));
-
+      final response = await _apiService.post('/addresses', body: addr.toJson());
       if (response.statusCode == 201) {
         await fetchAddresses();
       }
@@ -393,10 +454,63 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void addPaymentMethod(SavedPaymentMethod pay) {
-    // Kept in local memory as simulated method
+  Future<void> updateAddress(SavedAddress addr) async {
+    final idx = _addresses.indexWhere((a) => a.id == addr.id);
+    if (idx != -1) {
+      _addresses[idx] = addr;
+      notifyListeners();
+    }
+
+    try {
+      final response = await _apiService.put('/addresses/${addr.id}', body: addr.toJson());
+      if (response.statusCode == 200) {
+        await fetchAddresses();
+      }
+    } catch (e) {
+      debugPrint('Backend updateAddress failed, kept in local memory. Error: $e');
+    }
+  }
+
+  Future<void> deleteAddress(String id) async {
+    _addresses.removeWhere((a) => a.id == id);
+    notifyListeners();
+
+    try {
+      final response = await _apiService.delete('/addresses/$id');
+      if (response.statusCode == 200) {
+        await fetchAddresses();
+      }
+    } catch (e) {
+      debugPrint('Backend deleteAddress failed. Error: $e');
+    }
+  }
+
+  Future<void> addPaymentMethod(SavedPaymentMethod pay) async {
     _paymentMethods.add(pay);
     notifyListeners();
+
+    try {
+      final response = await _apiService.post('/payment-methods', body: pay.toJson());
+      if (response.statusCode == 201) {
+        await fetchPaymentMethods();
+      }
+    } catch (e) {
+      debugPrint('Backend addPaymentMethod failed, kept in local memory. Error: $e');
+    }
+  }
+
+  Future<void> deletePaymentMethod(String id) async {
+    _paymentMethods.removeWhere((p) => p.id == id);
+    notifyListeners();
+
+    try {
+      final response = await _apiService.delete('/payment-methods/$id');
+      if (response.statusCode == 200) {
+        await fetchPaymentMethods();
+      }
+    } catch (e) {
+      debugPrint('Backend deletePaymentMethod failed. Error: $e');
+    }
   }
 
   void selectService(ClinicalService? service) {
@@ -446,10 +560,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/bookings'),
-        headers: _headers,
-        body: json.encode({
+      final response = await _apiService.post(
+        '/bookings',
+        body: {
           'service_id': _selectedService!.id,
           'patient_type': patientType,
           'dependent_id': dependentId,
@@ -462,8 +575,8 @@ class AppState extends ChangeNotifier {
           'prescription_preview': prescriptionPreview,
           'final_price': finalPrice,
           'eta_minutes': etaMinutes,
-        }),
-      ).timeout(const Duration(seconds: 4));
+        },
+      );
 
       _isSearchingDoctor = false;
 
@@ -535,10 +648,7 @@ class AppState extends ChangeNotifier {
     if (_currentRequest == null) return;
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/bookings/${_currentRequest!.id}/simulate-step'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: 4));
+      final response = await _apiService.post('/bookings/${_currentRequest!.id}/simulate-step');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -625,10 +735,7 @@ class AppState extends ChangeNotifier {
     if (_currentRequest == null) return;
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/bookings/${_currentRequest!.id}/cancel'),
-        headers: _headers,
-      ).timeout(const Duration(seconds: 4));
+      final response = await _apiService.post('/bookings/${_currentRequest!.id}/cancel');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -660,11 +767,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/bookings/${_currentRequest!.id}/chat'),
-        headers: _headers,
-        body: json.encode({'text': text}),
-      ).timeout(const Duration(seconds: 4));
+      final response = await _apiService.post(
+        '/bookings/${_currentRequest!.id}/chat',
+        body: {'text': text},
+      );
 
       _isChatTyping = false;
 

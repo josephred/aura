@@ -9,6 +9,18 @@ class SavedAddress {
     required this.text,
   });
 
+  SavedAddress copyWith({
+    String? id,
+    String? label,
+    String? text,
+  }) {
+    return SavedAddress(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      text: text ?? this.text,
+    );
+  }
+
   factory SavedAddress.fromJson(Map<String, dynamic> json) {
     return SavedAddress(
       id: json['id'] as String,
