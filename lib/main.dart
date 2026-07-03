@@ -80,10 +80,57 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     // While restoring a saved session, show a lightweight splash
     if (_appState.isRestoringSession) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF8FAFC),
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF0D9488)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                height: 84,
+                width: 84,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.25),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.shield,
+                  color: Colors.white,
+                  size: 44,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'AURA Salud',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 40),
+              const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Color(0xFF0D9488),
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

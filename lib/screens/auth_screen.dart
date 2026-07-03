@@ -282,7 +282,62 @@ class _AuthScreenState extends State<AuthScreen> {
                     const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSocialButton(
+                      child: const Text(
+                        'G',
+                        style: TextStyle(
+                          color: Color(0xFFEA4335),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          fontFamily: 'Inter',
+                        ),
+                      ),
+                      color: Colors.white,
+                      borderColor: const Color(0xFFE2E8F0),
+                      onPressed: () => _handleSocialLogin(
+                        'google',
+                        'google_${DateTime.now().millisecondsSinceEpoch}',
+                        'google_test@aura.cl',
+                        'Google Paciente',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    _buildSocialButton(
+                      child: const Icon(
+                        Icons.facebook,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      color: const Color(0xFF1877F2),
+                      onPressed: () => _handleSocialLogin(
+                        'facebook',
+                        'facebook_${DateTime.now().millisecondsSinceEpoch}',
+                        'facebook_test@aura.cl',
+                        'Facebook Paciente',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    _buildSocialButton(
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      color: const Color(0xFFE1306C),
+                      onPressed: () => _handleSocialLogin(
+                        'instagram',
+                        'instagram_${DateTime.now().millisecondsSinceEpoch}',
+                        'instagram_test@aura.cl',
+                        'Instagram Paciente',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
                 TextButton.icon(
                   onPressed: _isSubmitting ? null : widget.state.enterDemoMode,
                   icon: const Icon(
@@ -352,6 +407,58 @@ class _AuthScreenState extends State<AuthScreen> {
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleSocialLogin(String provider, String providerId, String email, String name) async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.state.loginWithSocial(
+      provider: provider,
+      providerId: providerId,
+      email: email,
+      name: name,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
+  }
+
+  Widget _buildSocialButton({
+    required Widget child,
+    required Color color,
+    Color? borderColor,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 48,
+          width: 48,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(14),
+            border: borderColor != null ? Border.all(color: borderColor) : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(child: child),
         ),
       ),
     );

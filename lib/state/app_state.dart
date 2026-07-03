@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +13,7 @@ import '../models/service_request.dart';
 import '../models/chat_message.dart';
 import '../models/past_service.dart';
 import '../services/api_service.dart';
+import '../services/db_helper.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
@@ -63,6 +65,7 @@ class AppState extends ChangeNotifier {
   // Global handler for token revocation (401 response)
   void _handleUnauthorized() {
     if (_authToken == null) return; // Prevent infinite loop
+    stopActiveBookingStream();
     _authToken = null;
     _apiService.authToken = null;
     _userName = '';
@@ -74,6 +77,7 @@ class AppState extends ChangeNotifier {
     _activeTab = 'home';
     _initializeChat();
     _persistSession();
+    DbHelper.instance.clearAll().catchError((e) => debugPrint('Error clearing local DB: $e'));
     notifyListeners();
   }
 
@@ -91,16 +95,50 @@ class AppState extends ChangeNotifier {
         final validated = await _validateSession();
         if (validated) {
           await _loadInitialData();
+        } else {
+          _handleUnauthorized();
         }
       } else {
         // Only the public catalog is available before login
         await fetchServices();
       }
     } catch (e) {
-      debugPrint('Session restore failed. Error: $e');
+      debugPrint('Session restore failed (network error). Loading local database cache. Error: $e');
+      if (_authToken != null) {
+        await _loadLocalDatabaseCache();
+      }
     }
     _isRestoringSession = false;
     notifyListeners();
+  }
+
+  Future<void> _loadLocalDatabaseCache() async {
+    try {
+      _dependents.clear();
+      _dependents.addAll(await DbHelper.instance.getDependents());
+      
+      _addresses.clear();
+      _addresses.addAll(await DbHelper.instance.getAddresses());
+      
+      _paymentMethods.clear();
+      _paymentMethods.addAll(await DbHelper.instance.getPaymentMethods());
+      
+      _pastServices.clear();
+      _pastServices.addAll(await DbHelper.instance.getPastServices());
+      
+      final activeBookings = await DbHelper.instance.getBookings();
+      final active = activeBookings.where((b) => b.status != RequestStatus.completed && b.status != RequestStatus.cancelled).toList();
+      if (active.isNotEmpty) {
+        _currentRequest = active.first;
+        startActiveBookingStream(_currentRequest!.id);
+        _chatMessages.clear();
+        _chatMessages.addAll(await DbHelper.instance.getChatMessages(_currentRequest!.id));
+      } else {
+        _currentRequest = null;
+      }
+    } catch (e) {
+      debugPrint('Error loading local SQLite cache: $e');
+    }
   }
 
   Future<bool> _validateSession() async {
@@ -174,6 +212,46 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // Log in or register with social credentials. Returns null on success or an error message.
+  Future<String?> loginWithSocial({
+    required String provider,
+    required String providerId,
+    required String email,
+    required String name,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/auth/social',
+        body: {
+          'provider': provider,
+          'provider_id': providerId,
+          'email': email,
+          'name': name,
+        },
+        timeout: const Duration(seconds: 6),
+      );
+
+      final Map<String, dynamic> data = json.decode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _applyAuthResponse(data);
+        return null;
+      }
+      return data['message'] ?? 'No se pudo iniciar sesión con $provider.';
+    } catch (e) {
+      debugPrint('Backend social login failed, falling back to local simulation. Error: $e');
+      // Local fallback simulation (offline/demo mode)
+      _authToken = 'mock_social_token_${DateTime.now().millisecondsSinceEpoch}';
+      _apiService.authToken = _authToken;
+      _userName = name;
+      _userEmail = email;
+      _isDemoMode = false;
+      await _persistSession();
+      await _loadInitialData();
+      notifyListeners();
+      return null;
+    }
+  }
+
   void _applyAuthResponse(Map<String, dynamic> data) {
     _authToken = data['token'];
     _apiService.authToken = _authToken;
@@ -199,6 +277,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Backend logout failed (token cleared locally). Error: $e');
     }
+    stopActiveBookingStream();
     _authToken = null;
     _apiService.authToken = null;
     _userName = '';
@@ -210,6 +289,7 @@ class AppState extends ChangeNotifier {
     _activeTab = 'home';
     _initializeChat();
     await _persistSession();
+    await DbHelper.instance.clearAll();
     notifyListeners();
   }
 
@@ -286,10 +366,17 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _dependents.clear();
         _dependents.addAll(data.map((d) => Dependent.fromJson(d)).toList());
+        await DbHelper.instance.saveDependents(_dependents);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend fetchDependents failed, using local memory. Error: $e');
+      debugPrint('Backend fetchDependents failed, loading from local DB. Error: $e');
+      final localDeps = await DbHelper.instance.getDependents();
+      if (localDeps.isNotEmpty) {
+        _dependents.clear();
+        _dependents.addAll(localDeps);
+        notifyListeners();
+      }
     }
   }
 
@@ -300,10 +387,17 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _addresses.clear();
         _addresses.addAll(data.map((a) => SavedAddress.fromJson(a)).toList());
+        await DbHelper.instance.saveAddresses(_addresses);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend fetchAddresses failed, using local memory. Error: $e');
+      debugPrint('Backend fetchAddresses failed, loading from local DB. Error: $e');
+      final localAddrs = await DbHelper.instance.getAddresses();
+      if (localAddrs.isNotEmpty) {
+        _addresses.clear();
+        _addresses.addAll(localAddrs);
+        notifyListeners();
+      }
     }
   }
 
@@ -314,10 +408,17 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _paymentMethods.clear();
         _paymentMethods.addAll(data.map((p) => SavedPaymentMethod.fromJson(p)).toList());
+        await DbHelper.instance.savePaymentMethods(_paymentMethods);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend fetchPaymentMethods failed, using local memory. Error: $e');
+      debugPrint('Backend fetchPaymentMethods failed, loading from local DB. Error: $e');
+      final localPays = await DbHelper.instance.getPaymentMethods();
+      if (localPays.isNotEmpty) {
+        _paymentMethods.clear();
+        _paymentMethods.addAll(localPays);
+        notifyListeners();
+      }
     }
   }
 
@@ -327,13 +428,27 @@ class AppState extends ChangeNotifier {
       if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
         final Map<String, dynamic> data = json.decode(response.body);
         _currentRequest = ServiceRequest.fromJson(data);
+        await DbHelper.instance.saveBookings([_currentRequest!]);
+        startActiveBookingStream(_currentRequest!.id);
+        await fetchChatMessages(_currentRequest!.id);
+      } else {
+        stopActiveBookingStream();
+        _currentRequest = null;
+        await DbHelper.instance.saveBookings([]);
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Backend fetchActiveRequest failed, loading from local DB. Error: $e');
+      final localBookings = await DbHelper.instance.getBookings();
+      final active = localBookings.where((b) => b.status != RequestStatus.completed && b.status != RequestStatus.cancelled).toList();
+      if (active.isNotEmpty) {
+        _currentRequest = active.first;
+        startActiveBookingStream(_currentRequest!.id);
         await fetchChatMessages(_currentRequest!.id);
       } else {
         _currentRequest = null;
       }
       notifyListeners();
-    } catch (e) {
-      debugPrint('Backend fetchActiveRequest failed. Error: $e');
     }
   }
 
@@ -344,10 +459,17 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _chatMessages.clear();
         _chatMessages.addAll(data.map((m) => ChatMessage.fromJson(m)).toList());
+        await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend fetchChatMessages failed. Error: $e');
+      debugPrint('Backend fetchChatMessages failed, loading from local DB. Error: $e');
+      final localMsgs = await DbHelper.instance.getChatMessages(requestId);
+      if (localMsgs.isNotEmpty) {
+        _chatMessages.clear();
+        _chatMessages.addAll(localMsgs);
+        notifyListeners();
+      }
     }
   }
 
@@ -358,10 +480,17 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _pastServices.clear();
         _pastServices.addAll(data.map((p) => PastService.fromJson(p)).toList());
+        await DbHelper.instance.savePastServices(_pastServices);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend fetchHistory failed. Error: $e');
+      debugPrint('Backend fetchHistory failed, loading from local DB. Error: $e');
+      final localPast = await DbHelper.instance.getPastServices();
+      if (localPast.isNotEmpty) {
+        _pastServices.clear();
+        _pastServices.addAll(localPast);
+        notifyListeners();
+      }
     }
   }
 
@@ -392,6 +521,7 @@ class AppState extends ChangeNotifier {
   Future<void> addDependent(Dependent dep) async {
     // 1. Local optimistic update
     _dependents.add(dep);
+    await DbHelper.instance.saveDependents(_dependents);
     notifyListeners();
 
     // 2. Sync with backend
@@ -401,7 +531,7 @@ class AppState extends ChangeNotifier {
         await fetchDependents();
       }
     } catch (e) {
-      debugPrint('Backend addDependent failed, kept in local memory. Error: $e');
+      debugPrint('Backend addDependent failed, kept in local memory & SQLite. Error: $e');
     }
   }
 
@@ -409,6 +539,7 @@ class AppState extends ChangeNotifier {
     final idx = _dependents.indexWhere((d) => d.id == dep.id);
     if (idx != -1) {
       _dependents[idx] = dep;
+      await DbHelper.instance.saveDependents(_dependents);
       notifyListeners();
     }
 
@@ -418,13 +549,14 @@ class AppState extends ChangeNotifier {
         await fetchDependents();
       }
     } catch (e) {
-      debugPrint('Backend updateDependent failed, kept in local memory. Error: $e');
+      debugPrint('Backend updateDependent failed, kept in local memory & SQLite. Error: $e');
     }
   }
 
   Future<void> deleteDependent(String id) async {
     // 1. Local update
     _dependents.removeWhere((d) => d.id == id);
+    await DbHelper.instance.saveDependents(_dependents);
     notifyListeners();
 
     // 2. Sync with backend
@@ -434,13 +566,14 @@ class AppState extends ChangeNotifier {
         await fetchDependents();
       }
     } catch (e) {
-      debugPrint('Backend deleteDependent failed. Error: $e');
+      debugPrint('Backend deleteDependent failed, removed locally & SQLite. Error: $e');
     }
   }
 
   Future<void> addAddress(SavedAddress addr) async {
     // 1. Local update
     _addresses.add(addr);
+    await DbHelper.instance.saveAddresses(_addresses);
     notifyListeners();
 
     // 2. Sync with backend
@@ -450,7 +583,7 @@ class AppState extends ChangeNotifier {
         await fetchAddresses();
       }
     } catch (e) {
-      debugPrint('Backend addAddress failed, kept in local memory. Error: $e');
+      debugPrint('Backend addAddress failed, kept in local memory & SQLite. Error: $e');
     }
   }
 
@@ -458,6 +591,7 @@ class AppState extends ChangeNotifier {
     final idx = _addresses.indexWhere((a) => a.id == addr.id);
     if (idx != -1) {
       _addresses[idx] = addr;
+      await DbHelper.instance.saveAddresses(_addresses);
       notifyListeners();
     }
 
@@ -467,12 +601,13 @@ class AppState extends ChangeNotifier {
         await fetchAddresses();
       }
     } catch (e) {
-      debugPrint('Backend updateAddress failed, kept in local memory. Error: $e');
+      debugPrint('Backend updateAddress failed, kept in local memory & SQLite. Error: $e');
     }
   }
 
   Future<void> deleteAddress(String id) async {
     _addresses.removeWhere((a) => a.id == id);
+    await DbHelper.instance.saveAddresses(_addresses);
     notifyListeners();
 
     try {
@@ -481,12 +616,13 @@ class AppState extends ChangeNotifier {
         await fetchAddresses();
       }
     } catch (e) {
-      debugPrint('Backend deleteAddress failed. Error: $e');
+      debugPrint('Backend deleteAddress failed, removed locally & SQLite. Error: $e');
     }
   }
 
   Future<void> addPaymentMethod(SavedPaymentMethod pay) async {
     _paymentMethods.add(pay);
+    await DbHelper.instance.savePaymentMethods(_paymentMethods);
     notifyListeners();
 
     try {
@@ -495,12 +631,13 @@ class AppState extends ChangeNotifier {
         await fetchPaymentMethods();
       }
     } catch (e) {
-      debugPrint('Backend addPaymentMethod failed, kept in local memory. Error: $e');
+      debugPrint('Backend addPaymentMethod failed, kept in local memory & SQLite. Error: $e');
     }
   }
 
   Future<void> deletePaymentMethod(String id) async {
     _paymentMethods.removeWhere((p) => p.id == id);
+    await DbHelper.instance.savePaymentMethods(_paymentMethods);
     notifyListeners();
 
     try {
@@ -509,7 +646,7 @@ class AppState extends ChangeNotifier {
         await fetchPaymentMethods();
       }
     } catch (e) {
-      debugPrint('Backend deletePaymentMethod failed. Error: $e');
+      debugPrint('Backend deletePaymentMethod failed, removed locally & SQLite. Error: $e');
     }
   }
 
@@ -591,7 +728,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Backend confirmRequest failed, falling back to local simulation. Error: $e');
       // LOCAL FALLBACK SIMULATION:
-      Timer(const Duration(milliseconds: 2800), () {
+      Timer(const Duration(milliseconds: 2800), () async {
         _isSearchingDoctor = false;
 
         final now = DateTime.now();
@@ -638,6 +775,9 @@ class AppState extends ChangeNotifier {
           ),
         ]);
 
+        await DbHelper.instance.saveBookings([_currentRequest!]);
+        await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
+
         notifyListeners();
       });
     }
@@ -653,6 +793,7 @@ class AppState extends ChangeNotifier {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         _currentRequest = ServiceRequest.fromJson(data);
+        await DbHelper.instance.saveBookings([_currentRequest!]);
         _pendingMessages += 1;
         await fetchChatMessages(_currentRequest!.id);
         
@@ -725,7 +866,11 @@ class AppState extends ChangeNotifier {
           details: 'Atención completada con éxito. Procedimiento realizado en domicilio de forma satisfactoria.',
           professional: 'Personal de Guardia Aura',
         ));
+        await DbHelper.instance.savePastServices(_pastServices);
       }
+
+      await DbHelper.instance.saveBookings([_currentRequest!]);
+      await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
 
       notifyListeners();
     }
@@ -740,6 +885,7 @@ class AppState extends ChangeNotifier {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         _currentRequest = ServiceRequest.fromJson(data);
+        await DbHelper.instance.saveBookings([_currentRequest!]);
         notifyListeners();
       }
     } catch (e) {
@@ -748,11 +894,15 @@ class AppState extends ChangeNotifier {
         status: RequestStatus.cancelled,
         currentStep: 0,
       );
+      await DbHelper.instance.saveBookings([_currentRequest!]);
       notifyListeners();
     }
   }
 
   void completeSimulation() {
+    if (_currentRequest != null) {
+      DbHelper.instance.saveBookings([]);
+    }
     _currentRequest = null;
     _pendingMessages = 0;
     _initializeChat();
@@ -789,11 +939,12 @@ class AppState extends ChangeNotifier {
         text: text,
         timestamp: timeStr,
       ));
+      DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
 
       _isChatTyping = true;
       notifyListeners();
 
-      Timer(const Duration(seconds: 2), () {
+      Timer(const Duration(seconds: 2), () async {
         _isChatTyping = false;
 
         String replyText = 'Entendido. Ya voy con todos los insumos necesarios de grado clínico. Llego según el tiempo estipulado. Mantenga el hogar a una temperatura agradable, por favor.';
@@ -814,8 +965,135 @@ class AppState extends ChangeNotifier {
           timestamp: DateFormat('HH:mm').format(DateTime.now()),
         ));
 
+        if (_currentRequest != null) {
+          await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
+        }
+
         notifyListeners();
       });
     }
+  }
+
+  // --- Server-Sent Events (SSE) Stream Subscriber ---
+  StreamSubscription<String>? _activeBookingSubscription;
+  http.Client? _sseClient;
+
+  void startActiveBookingStream(String requestId) {
+    if (_activeBookingSubscription != null) {
+      _activeBookingSubscription!.cancel();
+      _activeBookingSubscription = null;
+    }
+    if (_sseClient != null) {
+      _sseClient!.close();
+    }
+
+    _sseClient = http.Client();
+    final url = Uri.parse('$_baseUrl/bookings/$requestId/sse');
+    final request = http.Request('GET', url);
+    request.headers['Authorization'] = 'Bearer $_authToken';
+    request.headers['Accept'] = 'text/event-stream';
+    request.headers['Cache-Control'] = 'no-cache';
+
+    debugPrint('Starting SSE Stream for booking: $requestId');
+
+    _sseClient!.send(request).then((response) {
+      if (response.statusCode != 200) {
+        debugPrint('Failed to connect to SSE stream: ${response.statusCode}');
+        _reconnectActiveBookingStream(requestId);
+        return;
+      }
+
+      _activeBookingSubscription = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(
+        (line) async {
+          if (line.startsWith('data: ')) {
+            final dataStr = line.substring(6);
+            if (dataStr.trim().isEmpty) return;
+            try {
+              final Map<String, dynamic> data = json.decode(dataStr);
+              if (data.containsKey('booking')) {
+                final newRequest = ServiceRequest.fromJson(data['booking']);
+                bool updated = false;
+
+                // Avoid redundant updates if nothing changed
+                if (_currentRequest == null ||
+                    _currentRequest!.status != newRequest.status ||
+                    _currentRequest!.currentStep != newRequest.currentStep) {
+                  _currentRequest = newRequest;
+                  await DbHelper.instance.saveBookings([_currentRequest!]);
+                  updated = true;
+                }
+
+                if (data.containsKey('messages')) {
+                  final List<dynamic> msgsList = data['messages'] as List<dynamic>;
+                  final newMessages = msgsList.map((m) => ChatMessage.fromJson(m as Map<String, dynamic>)).toList();
+                  
+                  if (_chatMessages.length != newMessages.length ||
+                      (_chatMessages.isNotEmpty && _chatMessages.last.text != newMessages.last.text)) {
+                    _chatMessages.clear();
+                    _chatMessages.addAll(newMessages);
+                    await DbHelper.instance.saveChatMessages(newRequest.id, _chatMessages);
+                    updated = true;
+                  }
+                }
+
+                if (updated) {
+                  notifyListeners();
+                }
+              }
+            } catch (e) {
+              debugPrint('Error decoding SSE payload: $e');
+            }
+          }
+        },
+        onError: (error) {
+          debugPrint('SSE Stream error: $error');
+          _reconnectActiveBookingStream(requestId);
+        },
+        onDone: () {
+          debugPrint('SSE Stream disconnected');
+          _reconnectActiveBookingStream(requestId);
+        },
+        cancelOnError: true,
+      );
+    }).catchError((e) {
+      debugPrint('Failed to start SSE request stream: $e');
+      _reconnectActiveBookingStream(requestId);
+    });
+  }
+
+  void _reconnectActiveBookingStream(String requestId) {
+    if (_currentRequest == null ||
+        _currentRequest!.id != requestId ||
+        _currentRequest!.status == RequestStatus.completed ||
+        _currentRequest!.status == RequestStatus.cancelled) {
+      return;
+    }
+    // Reconnect after 3 seconds
+    Timer(const Duration(seconds: 3), () {
+      if (_currentRequest != null && _currentRequest!.id == requestId) {
+        startActiveBookingStream(requestId);
+      }
+    });
+  }
+
+  void stopActiveBookingStream() {
+    if (_activeBookingSubscription != null) {
+      _activeBookingSubscription!.cancel();
+      _activeBookingSubscription = null;
+    }
+    if (_sseClient != null) {
+      _sseClient!.close();
+      _sseClient = null;
+    }
+    debugPrint('SSE Stream stopped cleanly.');
+  }
+
+  @override
+  void dispose() {
+    stopActiveBookingStream();
+    super.dispose();
   }
 }
