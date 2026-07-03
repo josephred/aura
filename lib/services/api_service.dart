@@ -57,10 +57,11 @@ class ApiService {
     return response;
   }
 
-  Future<http.Response> delete(String path, {Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> delete(String path, {dynamic body, Duration timeout = const Duration(seconds: 4)}) async {
     final response = await http.delete(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
+      body: body != null ? json.encode(body) : null,
     ).timeout(timeout);
 
     if (response.statusCode == 401) {

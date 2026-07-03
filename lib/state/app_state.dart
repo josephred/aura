@@ -17,6 +17,7 @@ import '../models/past_service.dart';
 import '../services/api_service.dart';
 import '../services/db_helper.dart';
 import '../services/outbox_service.dart';
+import '../services/push_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
@@ -27,6 +28,9 @@ class AppState extends ChangeNotifier {
 
   // Offline outbox (queued CRUD mutations replayed when back online)
   late final OutboxService _outboxService;
+
+  // FCM push notifications
+  late final PushService _pushService;
 
   // Authentication state
   String? _authToken;
@@ -69,8 +73,21 @@ class AppState extends ChangeNotifier {
       onFlushed: _onOutboxFlushed,
     );
     _outboxService.start();
+    _pushService = PushService(
+      apiService: _apiService,
+      onForegroundMessage: _onPushMessage,
+    );
     _initializeChat();
     _restoreSession();
+  }
+
+  // A push arrived with the app in foreground: refresh the affected data
+  Future<void> _onPushMessage(Map<String, dynamic> data) async {
+    await fetchActiveRequest();
+    if (_currentRequest != null && data['type'] == 'chat') {
+      _pendingMessages += 1;
+      await fetchChatMessages(_currentRequest!.id);
+    }
   }
 
   // After queued offline mutations reach the server, refresh synced lists
@@ -120,6 +137,7 @@ class AppState extends ChangeNotifier {
         final validated = await _validateSession();
         if (validated) {
           await _loadInitialData();
+          _pushService.register();
         } else {
           _handleUnauthorized();
         }
@@ -298,6 +316,7 @@ class AppState extends ChangeNotifier {
     _isDemoMode = false;
     _persistSession();
     _loadInitialData();
+    _pushService.register();
     notifyListeners();
   }
 
@@ -310,6 +329,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Remove this device from push notifications while the token is valid
+    await _pushService.unregister();
     try {
       await _apiService.post('/auth/logout', timeout: const Duration(seconds: 4));
     } catch (e) {
