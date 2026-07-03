@@ -1,4 +1,8 @@
-import 'package:sqflite/sqflite.dart';
+import 'dart:io';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
@@ -19,16 +23,49 @@ class DbHelper {
     return _database!;
   }
 
+  // Returns the SQLCipher key from secure storage, generating a random
+  // 256-bit key on first launch.
+  Future<String> _encryptionKey() async {
+    const storage = FlutterSecureStorage();
+    var key = await storage.read(key: 'aura_db_key');
+    if (key == null) {
+      final random = Random.secure();
+      key = List.generate(32, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+      await storage.write(key: 'aura_db_key', value: key);
+    }
+    return key;
+  }
+
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
+    final password = await _encryptionKey();
 
-    return await openDatabase(
-      path,
-      version: 3,
-      onCreate: _createDB,
-      onUpgrade: _upgradeDB,
-    );
+    try {
+      return await openDatabase(
+        path,
+        password: password,
+        version: 3,
+        onCreate: _createDB,
+        onUpgrade: _upgradeDB,
+      );
+    } on DatabaseException catch (e) {
+      // A pre-encryption plaintext database (or one keyed with a lost
+      // secret) cannot be opened with SQLCipher. It only holds a cache of
+      // server data, so drop it and start a fresh encrypted database.
+      debugPrint('Local DB not readable with encryption key, recreating. Error: $e');
+      await deleteDatabase(path);
+      if (await File(path).exists()) {
+        await File(path).delete();
+      }
+      return await openDatabase(
+        path,
+        password: password,
+        version: 3,
+        onCreate: _createDB,
+        onUpgrade: _upgradeDB,
+      );
+    }
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/mock_data.dart';
@@ -236,23 +237,45 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Log in or register with social credentials. Returns null on success or an error message.
-  Future<String?> loginWithSocial({
-    required String provider,
-    required String providerId,
-    required String email,
-    required String name,
-  }) async {
+  // Sign in with Google and exchange the verified id_token with the
+  // backend. Returns null on success or an error message.
+  Future<String?> loginWithGoogle() async {
+    final String? idToken;
+    try {
+      final googleSignIn = GoogleSignIn(
+        // Web/server OAuth client id; injected at build time with
+        // --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
+        serverClientId: const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID') == ''
+            ? null
+            : const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID'),
+      );
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        return null; // User dismissed the picker: not an error
+      }
+      idToken = (await account.authentication).idToken;
+    } catch (e) {
+      debugPrint('Google Sign-In failed. Error: $e');
+      return 'Google Sign-In no está disponible en esta build. Usa correo y contraseña.';
+    }
+
+    if (idToken == null) {
+      return 'No se pudo obtener la credencial de Google. Intenta de nuevo.';
+    }
+
+    return _loginWithSocialCredential('google', idToken);
+  }
+
+  // Exchange a provider credential for an Aura session token.
+  Future<String?> _loginWithSocialCredential(String provider, String credential) async {
     try {
       final response = await _apiService.post(
         '/auth/social',
         body: {
           'provider': provider,
-          'provider_id': providerId,
-          'email': email,
-          'name': name,
+          'credential': credential,
         },
-        timeout: const Duration(seconds: 6),
+        timeout: const Duration(seconds: 8),
       );
 
       final Map<String, dynamic> data = json.decode(response.body);
@@ -262,17 +285,8 @@ class AppState extends ChangeNotifier {
       }
       return data['message'] ?? 'No se pudo iniciar sesión con $provider.';
     } catch (e) {
-      debugPrint('Backend social login failed, falling back to local simulation. Error: $e');
-      // Local fallback simulation (offline/demo mode)
-      _authToken = 'mock_social_token_${DateTime.now().millisecondsSinceEpoch}';
-      _apiService.authToken = _authToken;
-      _userName = name;
-      _userEmail = email;
-      _isDemoMode = false;
-      await _persistSession();
-      await _loadInitialData();
-      notifyListeners();
-      return null;
+      debugPrint('Backend social login failed. Error: $e');
+      return 'No se pudo conectar con el servidor. Verifica tu conexión o usa el modo demo.';
     }
   }
 
