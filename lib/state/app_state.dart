@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/mock_data.dart';
 import '../models/clinical_service.dart';
@@ -31,6 +32,9 @@ class AppState extends ChangeNotifier {
 
   // FCM push notifications
   late final PushService _pushService;
+
+  // Secure storage for sensitive session tokens
+  final _secureStorage = const FlutterSecureStorage();
 
   // Authentication state
   String? _authToken;
@@ -126,11 +130,11 @@ class AppState extends ChangeNotifier {
   // Restore a previously saved session token and load data
   Future<void> _restoreSession() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
         _authToken = token;
         _apiService.authToken = token;
+        final prefs = await SharedPreferences.getInstance();
         _userName = prefs.getString('user_name') ?? '';
         _userEmail = prefs.getString('user_email') ?? '';
         
@@ -142,8 +146,30 @@ class AppState extends ChangeNotifier {
           _handleUnauthorized();
         }
       } else {
-        // Only the public catalog is available before login
-        await fetchServices();
+        // Fallback: migrate from legacy SharedPreferences if exists
+        final prefs = await SharedPreferences.getInstance();
+        final legacyToken = prefs.getString('auth_token');
+        if (legacyToken != null) {
+          _authToken = legacyToken;
+          _apiService.authToken = legacyToken;
+          _userName = prefs.getString('user_name') ?? '';
+          _userEmail = prefs.getString('user_email') ?? '';
+          
+          // Migrate to secure storage and remove from prefs
+          await _secureStorage.write(key: 'auth_token', value: legacyToken);
+          await prefs.remove('auth_token');
+          
+          final validated = await _validateSession();
+          if (validated) {
+            await _loadInitialData();
+            _pushService.register();
+          } else {
+            _handleUnauthorized();
+          }
+        } else {
+          // Only the public catalog is available before login
+          await fetchServices();
+        }
       }
     } catch (e) {
       debugPrint('Session restore failed (network error). Loading local database cache. Error: $e');
@@ -203,11 +229,12 @@ class AppState extends ChangeNotifier {
   Future<void> _persistSession() async {
     final prefs = await SharedPreferences.getInstance();
     if (_authToken != null) {
-      await prefs.setString('auth_token', _authToken!);
+      await _secureStorage.write(key: 'auth_token', value: _authToken!);
       await prefs.setString('user_name', _userName);
       await prefs.setString('user_email', _userEmail);
     } else {
-      await prefs.remove('auth_token');
+      await _secureStorage.delete(key: 'auth_token');
+      await prefs.remove('auth_token'); // Ensure legacy token is deleted
       await prefs.remove('user_name');
       await prefs.remove('user_email');
     }
