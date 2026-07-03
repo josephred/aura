@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../data/mock_data.dart';
 import '../models/clinical_service.dart';
 import '../models/dependent.dart';
@@ -752,9 +753,19 @@ class AppState extends ChangeNotifier {
 
       if (response.statusCode == 201) {
         _selectedService = null;
-        _activeTab = 'home';
-        _pendingMessages = 1;
         await fetchActiveRequest();
+
+        if (_currentRequest?.status == RequestStatus.pendingPayment) {
+          // Real gateway flow: take the user to the payment screen and
+          // open the Mercado Pago checkout in the browser
+          _activeTab = 'appointments';
+          notifyListeners();
+          await launchPaymentCheckout();
+        } else {
+          _activeTab = 'home';
+          _pendingMessages = 1;
+          notifyListeners();
+        }
       } else {
         notifyListeners();
       }
@@ -907,6 +918,45 @@ class AppState extends ChangeNotifier {
 
       notifyListeners();
     }
+  }
+
+  // Open the Mercado Pago checkout for the current pending-payment booking
+  Future<void> launchPaymentCheckout() async {
+    final url = _currentRequest?.paymentUrl;
+    if (url == null) return;
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not open payment checkout URL. Error: $e');
+    }
+  }
+
+  // Ask the backend to (re)check the payment with Mercado Pago.
+  // Returns true once the payment is approved and the booking activated.
+  Future<bool> verifyPayment() async {
+    if (_currentRequest == null) return false;
+
+    try {
+      final response = await _apiService.get(
+        '/bookings/${_currentRequest!.id}/payment-status',
+        timeout: const Duration(seconds: 8),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        _currentRequest = ServiceRequest.fromJson(data);
+
+        if (_currentRequest!.status != RequestStatus.pendingPayment) {
+          _pendingMessages = 1;
+          await fetchChatMessages(_currentRequest!.id);
+        }
+        notifyListeners();
+        return _currentRequest!.status == RequestStatus.accepted;
+      }
+    } catch (e) {
+      debugPrint('Backend verifyPayment failed. Error: $e');
+    }
+    return false;
   }
 
   Future<void> cancelRequest() async {

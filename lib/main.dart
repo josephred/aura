@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/payment_pending_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/service_form_screen.dart';
 import 'screens/active_tracking_screen.dart';
@@ -202,7 +203,13 @@ class _MainShellState extends State<MainShell> {
           );
           break;
         case 'appointments':
-          if (currentRequest != null) {
+          if (currentRequest != null &&
+              currentRequest.status == RequestStatus.pendingPayment) {
+            body = PaymentPendingScreen(
+              state: _appState,
+              request: currentRequest,
+            );
+          } else if (currentRequest != null) {
             final dep = currentRequest.patientType == 'dependent'
                 ? _appState.dependents.firstWhere(
                     (d) => d.id == currentRequest.dependentId,

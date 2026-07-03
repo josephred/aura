@@ -1,5 +1,6 @@
 enum RequestStatus {
   pending,
+  pendingPayment,
   accepted,
   enCamino,
   enAtencion,
@@ -10,6 +11,8 @@ enum RequestStatus {
     switch (this) {
       case RequestStatus.pending:
         return 'pending';
+      case RequestStatus.pendingPayment:
+        return 'pending_payment';
       case RequestStatus.accepted:
         return 'accepted';
       case RequestStatus.enCamino:
@@ -27,6 +30,8 @@ enum RequestStatus {
     switch (value) {
       case 'pending':
         return RequestStatus.pending;
+      case 'pending_payment':
+        return RequestStatus.pendingPayment;
       case 'accepted':
         return RequestStatus.accepted;
       case 'en_camino':
@@ -59,6 +64,8 @@ class ServiceRequest {
   final String? prescriptionFile;
   final String? examRequired;
   final String paymentMethod; // 'credit' | 'mercadopago' | 'cash'
+  final String? paymentUrl; // Mercado Pago checkout link while pending_payment
+  final String? paymentStatus; // 'pending' | 'approved' | 'rejected'
   final int finalPrice;
   final String startTime;
   final int etaMinutes;
@@ -80,6 +87,8 @@ class ServiceRequest {
     this.prescriptionFile,
     this.examRequired,
     required this.paymentMethod,
+    this.paymentUrl,
+    this.paymentStatus,
     required this.finalPrice,
     required this.startTime,
     required this.etaMinutes,
@@ -102,6 +111,8 @@ class ServiceRequest {
     String? prescriptionFile,
     String? examRequired,
     String? paymentMethod,
+    String? paymentUrl,
+    String? paymentStatus,
     int? finalPrice,
     String? startTime,
     int? etaMinutes,
@@ -123,6 +134,8 @@ class ServiceRequest {
       prescriptionFile: prescriptionFile ?? this.prescriptionFile,
       examRequired: examRequired ?? this.examRequired,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentUrl: paymentUrl ?? this.paymentUrl,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
       finalPrice: finalPrice ?? this.finalPrice,
       startTime: startTime ?? this.startTime,
       etaMinutes: etaMinutes ?? this.etaMinutes,
@@ -147,6 +160,8 @@ class ServiceRequest {
       prescriptionFile: (json['prescription_file'] ?? json['prescriptionFile']) as String?,
       examRequired: (json['exam_required'] ?? json['examRequired']) as String?,
       paymentMethod: (json['payment_method'] ?? json['paymentMethod']) as String,
+      paymentUrl: (json['payment_url'] ?? json['paymentUrl']) as String?,
+      paymentStatus: (json['payment_status'] ?? json['paymentStatus']) as String?,
       finalPrice: (json['final_price'] ?? json['finalPrice']) as int,
       startTime: (json['start_time'] ?? json['startTime']) as String,
       etaMinutes: (json['eta_minutes'] ?? json['etaMinutes']) as int,
@@ -171,6 +186,8 @@ class ServiceRequest {
       'prescription_file': prescriptionFile,
       'exam_required': examRequired,
       'payment_method': paymentMethod,
+      'payment_url': paymentUrl,
+      'payment_status': paymentStatus,
       'final_price': finalPrice,
       'start_time': startTime,
       'eta_minutes': etaMinutes,

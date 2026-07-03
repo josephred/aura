@@ -25,7 +25,7 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -34,6 +34,10 @@ class DbHelper {
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createOutboxTable(db);
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE service_requests ADD COLUMN payment_url TEXT');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN payment_status TEXT');
     }
   }
 
@@ -94,6 +98,8 @@ class DbHelper {
         prescription_file TEXT,
         exam_required TEXT,
         payment_method TEXT,
+        payment_url TEXT,
+        payment_status TEXT,
         final_price INTEGER,
         start_time TEXT,
         eta_minutes INTEGER,
