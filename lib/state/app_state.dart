@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -288,11 +289,11 @@ class AppState extends ChangeNotifier {
     final String? idToken;
     try {
       final googleSignIn = GoogleSignIn(
-        // Web/server OAuth client id; injected at build time with
-        // --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
-        serverClientId: const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID') == ''
-            ? null
-            : const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID'),
+        serverClientId: AppConfig.googleServerClientId.isNotEmpty
+            ? AppConfig.googleServerClientId
+            : (const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID') == ''
+                ? null
+                : const String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID')),
       );
       final account = await googleSignIn.signIn();
       if (account == null) {

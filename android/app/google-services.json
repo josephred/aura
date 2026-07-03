@@ -12,7 +12,20 @@
           "package_name": "com.example.aura"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "932839695266-msq5o5psrfjfh72blnppfqerh66jpclb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.aura",
+            "certificate_hash": "828c335870366cdff8e60faae62b1443a5c9f51c"
+          }
+        },
+        {
+          "client_id": "932839695266-7ocgk36gsgifbl7etokb67v2mc90ub5v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB36hCLIsfMk_gY5AqyPzJ_B1dOgSvPISI"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "932839695266-7ocgk36gsgifbl7etokb67v2mc90ub5v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
