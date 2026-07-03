@@ -25,9 +25,28 @@ class DbHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createOutboxTable(db);
+    }
+  }
+
+  Future<void> _createOutboxTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE offline_outbox (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT,
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        body TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -105,6 +124,29 @@ class DbHelper {
         professional TEXT
       )
     ''');
+
+    await _createOutboxTable(db);
+  }
+
+  // --- Offline Outbox (queued CRUD requests awaiting connectivity) ---
+  Future<void> enqueueOutbox(String method, String path, String? body) async {
+    final db = await database;
+    await db.insert('offline_outbox', {
+      'method': method,
+      'path': path,
+      'body': body,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getOutbox() async {
+    final db = await database;
+    return db.query('offline_outbox', orderBy: 'seq ASC');
+  }
+
+  Future<void> deleteOutboxEntry(int seq) async {
+    final db = await database;
+    await db.delete('offline_outbox', where: 'seq = ?', whereArgs: [seq]);
   }
 
   // --- Dependents ---
@@ -229,6 +271,7 @@ class DbHelper {
       await txn.delete('service_requests');
       await txn.delete('chat_messages');
       await txn.delete('past_services');
+      await txn.delete('offline_outbox');
     });
   }
 }

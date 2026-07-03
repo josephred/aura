@@ -14,6 +14,7 @@ import '../models/chat_message.dart';
 import '../models/past_service.dart';
 import '../services/api_service.dart';
 import '../services/db_helper.dart';
+import '../services/outbox_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
@@ -21,6 +22,9 @@ class AppState extends ChangeNotifier {
 
   // API Service
   late final ApiService _apiService;
+
+  // Offline outbox (queued CRUD mutations replayed when back online)
+  late final OutboxService _outboxService;
 
   // Authentication state
   String? _authToken;
@@ -58,8 +62,27 @@ class AppState extends ChangeNotifier {
       baseUrl: _baseUrl,
       onUnauthorized: _handleUnauthorized,
     );
+    _outboxService = OutboxService(
+      apiService: _apiService,
+      onFlushed: _onOutboxFlushed,
+    );
+    _outboxService.start();
     _initializeChat();
     _restoreSession();
+  }
+
+  // After queued offline mutations reach the server, refresh synced lists
+  Future<void> _onOutboxFlushed() async {
+    await fetchDependents();
+    await fetchAddresses();
+    await fetchPaymentMethods();
+  }
+
+  // Queue a CRUD mutation that failed offline (real accounts only;
+  // demo mode keeps data local by design)
+  Future<void> _queueOffline(String method, String path, [Object? body]) async {
+    if (_authToken == null) return;
+    await _outboxService.enqueue(method, path, body != null ? json.encode(body) : null);
   }
 
   // Global handler for token revocation (401 response)
@@ -295,6 +318,8 @@ class AppState extends ChangeNotifier {
 
   // Load backend data on startup
   Future<void> _loadInitialData() async {
+    // Deliver any mutations queued while offline before refreshing lists
+    await _outboxService.flush();
     await fetchServices();
     await fetchDependents();
     await fetchAddresses();
@@ -532,6 +557,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend addDependent failed, kept in local memory & SQLite. Error: $e');
+      await _queueOffline('POST', '/dependents', dep.toJson());
     }
   }
 
@@ -550,6 +576,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend updateDependent failed, kept in local memory & SQLite. Error: $e');
+      await _queueOffline('PUT', '/dependents/${dep.id}', dep.toJson());
     }
   }
 
@@ -567,6 +594,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend deleteDependent failed, removed locally & SQLite. Error: $e');
+      await _queueOffline('DELETE', '/dependents/$id');
     }
   }
 
@@ -584,6 +612,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend addAddress failed, kept in local memory & SQLite. Error: $e');
+      await _queueOffline('POST', '/addresses', addr.toJson());
     }
   }
 
@@ -602,6 +631,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend updateAddress failed, kept in local memory & SQLite. Error: $e');
+      await _queueOffline('PUT', '/addresses/${addr.id}', addr.toJson());
     }
   }
 
@@ -617,6 +647,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend deleteAddress failed, removed locally & SQLite. Error: $e');
+      await _queueOffline('DELETE', '/addresses/$id');
     }
   }
 
@@ -632,6 +663,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend addPaymentMethod failed, kept in local memory & SQLite. Error: $e');
+      await _queueOffline('POST', '/payment-methods', pay.toJson());
     }
   }
 
@@ -647,6 +679,7 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Backend deletePaymentMethod failed, removed locally & SQLite. Error: $e');
+      await _queueOffline('DELETE', '/payment-methods/$id');
     }
   }
 

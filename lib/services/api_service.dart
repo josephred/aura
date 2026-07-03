@@ -31,11 +31,11 @@ class ApiService {
     return response;
   }
 
-  Future<http.Response> post(String path, {dynamic body, Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> post(String path, {dynamic body, Duration timeout = const Duration(seconds: 4), bool isRawBody = false}) async {
     final response = await http.post(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
-      body: body != null ? json.encode(body) : null,
+      body: isRawBody ? body : (body != null ? json.encode(body) : null),
     ).timeout(timeout);
 
     if (response.statusCode == 401) {
@@ -44,11 +44,11 @@ class ApiService {
     return response;
   }
 
-  Future<http.Response> put(String path, {dynamic body, Duration timeout = const Duration(seconds: 4)}) async {
+  Future<http.Response> put(String path, {dynamic body, Duration timeout = const Duration(seconds: 4), bool isRawBody = false}) async {
     final response = await http.put(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
-      body: body != null ? json.encode(body) : null,
+      body: isRawBody ? body : (body != null ? json.encode(body) : null),
     ).timeout(timeout);
 
     if (response.statusCode == 401) {
