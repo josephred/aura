@@ -2,8 +2,7 @@
 <resources>
     <!-- Facebook Login Credentials (placeholder values for user customization) -->
     <string name="facebook_app_id">1031805472872888</string>
-    <!-- Get it in Meta for Developers: App settings > Advanced > Client token -->
-    <string name="facebook_client_token">YOUR_FACEBOOK_CLIENT_TOKEN</string>
+    <string name="facebook_client_token">540f6f342199892c00b32c60081e287b</string>
     <string name="fb_login_protocol_scheme">fb1031805472872888</string>
     <string name="app_name">Aura Salud</string>
 </resources>
