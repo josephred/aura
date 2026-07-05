@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config.dart';
+import '../models/appointment.dart';
+import '../models/professional.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,7 +26,7 @@ import '../services/push_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
-  final String _baseUrl = kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api';
+  final String _baseUrl = kReleaseMode ? 'https://aura.hstn.me/api' : (kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api');
 
   // API Service
   late final ApiService _apiService;
@@ -1004,6 +1006,150 @@ class AppState extends ChangeNotifier {
       await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
 
       notifyListeners();
+    }
+  }
+
+  // ==================== Scheduled appointments ====================
+
+  List<Professional> _professionals = [];
+  List<Appointment> _appointments = [];
+
+  List<Professional> get professionals => _professionals;
+  List<Appointment> get appointments => _appointments;
+
+  Future<void> fetchProfessionals() async {
+    try {
+      final response = await _apiService.get('/professionals');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        _professionals = data
+            .map((j) => Professional.fromJson(j as Map<String, dynamic>))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchProfessionals failed. Error: $e');
+    }
+  }
+
+  Future<List<DateTime>> fetchSlots(String professionalId, DateTime date) async {
+    try {
+      final dateStr =
+          '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final response = await _apiService.get(
+        '/professionals/$professionalId/slots?date=$dateStr',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return (data['slots'] as List<dynamic>)
+            .map((iso) => DateTime.parse(iso as String).toLocal())
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('fetchSlots failed. Error: $e');
+    }
+    return [];
+  }
+
+  Future<void> fetchAppointments() async {
+    try {
+      final response = await _apiService.get('/appointments');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        _appointments = data
+            .map((j) => Appointment.fromJson(j as Map<String, dynamic>))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchAppointments failed. Error: $e');
+    }
+  }
+
+  // Book an appointment. Returns (appointment, null) on success or
+  // (null, error message) on failure.
+  Future<(Appointment?, String?)> createAppointment({
+    required String professionalId,
+    required DateTime scheduledAt,
+    String? reason,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/appointments',
+        body: {
+          'professional_id': professionalId,
+          'scheduled_at': scheduledAt.toIso8601String(),
+          if (reason != null && reason.isNotEmpty) 'reason': reason,
+        },
+        timeout: const Duration(seconds: 12),
+      );
+
+      if (response.statusCode == 201) {
+        final appointment = Appointment.fromJson(
+          json.decode(response.body) as Map<String, dynamic>,
+        );
+        await fetchAppointments();
+        return (appointment, null);
+      }
+
+      if (response.statusCode == 409) {
+        return (null, 'Ese horario acaba de ser tomado. Elige otro.');
+      }
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      return (null, (body['error'] ?? 'No se pudo agendar la cita.') as String);
+    } catch (e) {
+      debugPrint('createAppointment failed. Error: $e');
+      return (null, 'Sin conexión. Intenta de nuevo.');
+    }
+  }
+
+  // Re-check an appointment payment with the backend.
+  // Returns true once it is confirmed.
+  Future<bool> verifyAppointmentPayment(String id) async {
+    try {
+      final response = await _apiService.get(
+        '/appointments/$id/payment-status',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final appointment = Appointment.fromJson(
+          json.decode(response.body) as Map<String, dynamic>,
+        );
+        final index = _appointments.indexWhere((a) => a.id == id);
+        if (index >= 0) {
+          _appointments[index] = appointment;
+          notifyListeners();
+        }
+        return appointment.status == AppointmentStatus.confirmed;
+      }
+    } catch (e) {
+      debugPrint('verifyAppointmentPayment failed. Error: $e');
+    }
+    return false;
+  }
+
+  Future<String?> cancelAppointment(String id) async {
+    try {
+      final response = await _apiService.post('/appointments/$id/cancel');
+      if (response.statusCode == 200) {
+        await fetchAppointments();
+        return null;
+      }
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      return (body['error'] ?? 'No se pudo cancelar la cita.') as String;
+    } catch (e) {
+      debugPrint('cancelAppointment failed. Error: $e');
+      return 'Sin conexión. Intenta de nuevo.';
+    }
+  }
+
+  // Open an external checkout URL (Mercado Pago) for an appointment
+  Future<void> openCheckoutUrl(String url) async {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not open checkout URL. Error: $e');
     }
   }
 
