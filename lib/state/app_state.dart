@@ -1073,6 +1073,7 @@ class AppState extends ChangeNotifier {
     required String professionalId,
     required DateTime scheduledAt,
     String? reason,
+    String type = 'presencial',
   }) async {
     try {
       final response = await _apiService.post(
@@ -1080,6 +1081,7 @@ class AppState extends ChangeNotifier {
         body: {
           'professional_id': professionalId,
           'scheduled_at': scheduledAt.toIso8601String(),
+          'type': type,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
         },
         timeout: const Duration(seconds: 12),
@@ -1140,6 +1142,30 @@ class AppState extends ChangeNotifier {
       return (body['error'] ?? 'No se pudo cancelar la cita.') as String;
     } catch (e) {
       debugPrint('cancelAppointment failed. Error: $e');
+      return 'Sin conexión. Intenta de nuevo.';
+    }
+  }
+
+  // Join a video consultation: fetches a fresh meeting token and opens
+  // the Daily room. Returns null on success or an error message.
+  Future<String?> joinVideoCall(String appointmentId) async {
+    try {
+      final response = await _apiService.get(
+        '/appointments/$appointmentId/video-join',
+        timeout: const Duration(seconds: 10),
+      );
+      final Map<String, dynamic> data = json.decode(response.body);
+
+      if (response.statusCode == 200 && data['join_url'] != null) {
+        await launchUrl(
+          Uri.parse(data['join_url'] as String),
+          mode: LaunchMode.externalApplication,
+        );
+        return null;
+      }
+      return (data['error'] ?? 'No se pudo abrir la videoconsulta.') as String;
+    } catch (e) {
+      debugPrint('joinVideoCall failed. Error: $e');
       return 'Sin conexión. Intenta de nuevo.';
     }
   }

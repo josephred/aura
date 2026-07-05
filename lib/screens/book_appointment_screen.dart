@@ -30,6 +30,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   DateTime _date = DateTime.now();
   List<DateTime> _slots = [];
   DateTime? _slot;
+  String _type = 'presencial';
 
   @override
   void initState() {
@@ -84,6 +85,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       professionalId: _professional!.id,
       scheduledAt: _slot!,
       reason: _reasonController.text.trim(),
+      type: _type,
     );
 
     if (!mounted) return;
@@ -174,6 +176,28 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
+                _sectionTitle('Tipo de consulta'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTypeOption(
+                        'presencial',
+                        Icons.home_filled,
+                        'Presencial',
+                        'En tu domicilio o consulta',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTypeOption(
+                        'video',
+                        Icons.videocam,
+                        'Videoconsulta',
+                        'Por videollamada segura',
+                      ),
+                    ),
+                  ],
+                ),
                 _sectionTitle('1 · Profesional'),
                 ...widget.state.professionals.map(_buildProfessionalCard),
                 if (widget.state.professionals.isEmpty)
@@ -225,6 +249,50 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           ),
         ),
       );
+
+  Widget _buildTypeOption(
+      String value, IconData icon, String title, String subtitle) {
+    final selected = _type == value;
+    return GestureDetector(
+      onTap: () => setState(() => _type = value),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF0D9488) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon,
+                size: 22,
+                color: selected ? Colors.white : const Color(0xFF0D9488)),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                color: selected ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 10.5,
+                color:
+                    selected ? const Color(0xFFCCFBF1) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildProfessionalCard(Professional professional) {
     final selected = _professional?.id == professional.id;

@@ -92,6 +92,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
+  Future<void> _joinVideo(Appointment appointment) async {
+    final error = await widget.state.joinVideoCall(appointment.id);
+    if (!mounted || error == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error)),
+    );
+  }
+
   Future<void> _verifyPayment(Appointment appointment) async {
     final approved = await widget.state.verifyAppointmentPayment(appointment.id);
     if (!mounted) return;
@@ -243,9 +251,32 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            appointment.specialty ?? '',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          Row(
+            children: [
+              if (appointment.isVideo) ...[
+                const Icon(Icons.videocam, size: 14, color: Color(0xFF7C3AED)),
+                const SizedBox(width: 4),
+                const Text(
+                  'Videoconsulta',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF7C3AED),
+                  ),
+                ),
+                const Text(
+                  ' · ',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+              Expanded(
+                child: Text(
+                  appointment.specialty ?? '',
+                  style:
+                      const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Row(
@@ -272,6 +303,24 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ],
           ),
           if (isPendingPayment || canCancel) const SizedBox(height: 12),
+          if (appointment.canJoinVideo) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () => _joinVideo(appointment),
+                icon: const Icon(Icons.videocam, size: 18),
+                label: const Text(
+                  'Unirse a la videoconsulta',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           if (isPendingPayment)
             Row(
               children: [
