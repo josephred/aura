@@ -20,7 +20,6 @@ class Appointment {
   final String? paymentUrl;
   final String? paymentStatus;
   final String type; // 'presencial' | 'video'
-  final bool hasVideoRoom;
 
   Appointment({
     required this.id,
@@ -35,7 +34,6 @@ class Appointment {
     this.paymentUrl,
     this.paymentStatus,
     this.type = 'presencial',
-    this.hasVideoRoom = false,
   });
 
   static AppointmentStatus _statusFrom(String? raw) {
@@ -69,7 +67,6 @@ class Appointment {
       paymentUrl: json['payment_url'] as String?,
       paymentStatus: json['payment_status'] as String?,
       type: (json['type'] as String?) ?? 'presencial',
-      hasVideoRoom: (json['has_video_room'] as bool?) ?? false,
     );
   }
 
@@ -83,7 +80,7 @@ class Appointment {
   // Join window mirrors the backend: 15 min before start until 30 min
   // after the scheduled end
   bool get canJoinVideo {
-    if (!isVideo || !hasVideoRoom || status != AppointmentStatus.confirmed) {
+    if (!isVideo || status != AppointmentStatus.confirmed) {
       return false;
     }
     final now = DateTime.now();

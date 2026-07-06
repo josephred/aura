@@ -1146,9 +1146,10 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Join a video consultation: fetches a fresh meeting token and opens
-  // the Daily room. Returns null on success or an error message.
-  Future<String?> joinVideoCall(String appointmentId) async {
+  // Ask the backend for the WebRTC session config of a video consultation.
+  // Returns (iceServers, null) on success or (null, error message).
+  Future<(List<Map<String, dynamic>>?, String?)> fetchVideoJoinConfig(
+      String appointmentId) async {
     try {
       final response = await _apiService.get(
         '/appointments/$appointmentId/video-join',
@@ -1156,18 +1157,51 @@ class AppState extends ChangeNotifier {
       );
       final Map<String, dynamic> data = json.decode(response.body);
 
-      if (response.statusCode == 200 && data['join_url'] != null) {
-        await launchUrl(
-          Uri.parse(data['join_url'] as String),
-          mode: LaunchMode.externalApplication,
-        );
-        return null;
+      if (response.statusCode == 200) {
+        final servers = (data['ice_servers'] as List<dynamic>)
+            .map((s) => Map<String, dynamic>.from(s as Map))
+            .toList();
+        return (servers, null);
       }
-      return (data['error'] ?? 'No se pudo abrir la videoconsulta.') as String;
+      return (null, (data['error'] ?? 'No se pudo abrir la videoconsulta.') as String);
     } catch (e) {
-      debugPrint('joinVideoCall failed. Error: $e');
-      return 'Sin conexión. Intenta de nuevo.';
+      debugPrint('fetchVideoJoinConfig failed. Error: $e');
+      return (null, 'Sin conexión. Intenta de nuevo.');
     }
+  }
+
+  // Push a WebRTC signal (answer/candidate/ready/hangup) to the backend.
+  Future<void> postVideoSignal(String appointmentId, String type,
+      [Map<String, dynamic>? payload]) async {
+    try {
+      await _apiService.post(
+        '/appointments/$appointmentId/video-signals',
+        body: {'type': type, 'payload': ?payload},
+        timeout: const Duration(seconds: 8),
+      );
+    } catch (e) {
+      debugPrint('postVideoSignal($type) failed. Error: $e');
+    }
+  }
+
+  // Poll signals sent by the clinical staff, newer than [afterId].
+  Future<List<Map<String, dynamic>>> fetchVideoSignals(
+      String appointmentId, int afterId) async {
+    try {
+      final response = await _apiService.get(
+        '/appointments/$appointmentId/video-signals?after=$afterId',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return (data['signals'] as List<dynamic>)
+            .map((s) => Map<String, dynamic>.from(s as Map))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('fetchVideoSignals failed. Error: $e');
+    }
+    return [];
   }
 
   // Open an external checkout URL (Mercado Pago) for an appointment

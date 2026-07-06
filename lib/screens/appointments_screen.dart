@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/appointment.dart';
 import '../state/app_state.dart';
 import 'book_appointment_screen.dart';
+import 'video_call_screen.dart';
 
 const _kDaysEs = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 const _kMonthsEs = [
@@ -93,10 +94,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _joinVideo(Appointment appointment) async {
-    final error = await widget.state.joinVideoCall(appointment.id);
-    if (!mounted || error == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error)),
+    final (iceServers, error) =
+        await widget.state.fetchVideoJoinConfig(appointment.id);
+    if (!mounted) return;
+
+    if (iceServers == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error ?? 'No se pudo abrir la videoconsulta.')),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VideoCallScreen(
+          state: widget.state,
+          appointment: appointment,
+          iceServers: iceServers,
+        ),
+      ),
     );
   }
 
