@@ -295,6 +295,17 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!isMe && msg.senderName != null) ...[
+                  Text(
+                    msg.senderName!,
+                    style: const TextStyle(
+                      color: Color(0xFF0D9488),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                ],
                 Text(
                   msg.text,
                   style: TextStyle(

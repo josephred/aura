@@ -45,7 +45,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 3,
+        version: 4,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -61,7 +61,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 3,
+        version: 4,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -75,6 +75,9 @@ class DbHelper {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE service_requests ADD COLUMN payment_url TEXT');
       await db.execute('ALTER TABLE service_requests ADD COLUMN payment_status TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE chat_messages ADD COLUMN sender_name TEXT');
     }
   }
 
@@ -149,6 +152,7 @@ class DbHelper {
         id TEXT PRIMARY KEY,
         service_request_id TEXT,
         sender TEXT,
+        sender_name TEXT,
         text TEXT,
         timestamp TEXT
       )

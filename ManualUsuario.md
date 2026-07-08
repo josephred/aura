@@ -19,6 +19,10 @@
    - [F. Historial y Repetición de Servicios](#f-historial-y-repetición-de-servicios)
 5. [Mecanismos Técnicos Avanzados](#-mecanismos-técnicos-avanzados)
 6. [Respuesta ante Emergencias Vitales](#-respuesta-ante-emergencias-vitales)
+7. [Guía de Instalación y Despliegue (Entorno Técnico)](#-guía-de-instalación-y-despliegue-entorno-técnico)
+   - [A. Arquitectura del Sistema](#a-arquitectura-del-sistema)
+   - [B. Backend (API Laravel)](#b-backend-api-laravel)
+   - [C. Aplicación Móvil (Flutter)](#c-aplicación-móvil-flutter)
 
 ---
 
@@ -158,6 +162,9 @@ Aura Salud integra tecnologías pensadas para proteger la continuidad de la aten
 1. **Modo Sin Conexión (Offline Support):** Si estás editando direcciones o agregando dependientes y tu señal celular falla, la aplicación guarda temporalmente los cambios en su base de datos local SQLite. Una cola de salida en segundo plano (*Outbox*) se encargará de sincronizar los cambios con los servidores de manera automática tan pronto como se recupere la conexión a internet.
 2. **Seguridad y Encriptación:** Toda la comunicación entre la aplicación móvil y los servidores centrales viaja encriptada mediante protocolos seguros HTTPS. Los tokens de autenticación de usuario se guardan localmente bajo medidas de seguridad avanzada (*Secure Storage*).
 3. **Notificaciones Push Activas (FCM):** El sistema te alertará en tiempo real sobre cambios de estado en tu pedido o nuevos mensajes en el chat, incluso si tienes la aplicación cerrada.
+4. **Gestión Inteligente de Entornos:** La aplicación móvil detecta de forma automática en qué modo se está ejecutando. En modo productivo o APK final (Release), direcciona las peticiones al backend oficial en la nube (`https://aura.hstn.me/api`). En fase de desarrollo o depuración, enruta localmente al emulador o servidor de pruebas para facilitar el trabajo técnico.
+5. **Arquitectura de Backend Escalable:** El sistema central de Aura (basado en Laravel) es flexible. Puede operar en plataformas de *hosting* tradicionales (como cPanel con base de datos unificada) o escalar a infraestructuras en la nube de alto rendimiento como Google Cloud Platform (GCP) utilizando contenedores (Cloud Run) o máquinas virtuales (Compute Engine).
+6. **Autenticación Segura (Laravel Sanctum):** El sistema incluye autenticación basada en tokens nativa y probada de extremo a extremo. Garantiza que las sesiones sean manejadas con altos estándares y la información (dependientes, pagos, historial) se encuentre completamente aislada por usuario. El token de sesión se guarda localmente en el dispositivo de forma persistente.
 
 ---
 
@@ -174,3 +181,69 @@ Aura Salud integra tecnologías pensadas para proteger la continuidad de la aten
 > * Pérdida de fuerza o parálisis facial repentina (sospecha de ataque cerebrovascular).
 >
 > **Por favor, NO intente solicitar un servicio por esta aplicación.** Llame de inmediato al número de emergencias públicas de su país (ej: **131 (SAMU)** en Chile, o **107** en Argentina) o traslade de urgencia al paciente al centro hospitalario más cercano.
+
+---
+
+## 🛠 Guía de Instalación y Despliegue (Entorno Técnico)
+
+El ecosistema de **Aura Salud** se divide en dos proyectos principales que se integran mediante una API REST. A continuación, se detallan los requisitos e instrucciones de ejecución local para ambientes de desarrollo.
+
+### A. Arquitectura del Sistema
+*   **Aplicación Móvil (Frontend):** Desarrollada en **Flutter**, encargada de la interfaz de usuario, flujos de reserva, tracking y modo offline simulado.
+*   **Backend (API REST):** Desarrollado en **Laravel 13** con PHP 8.3 y base de datos MySQL, encargado de persistir usuarios, servicios, historial clínico y procesar la autenticación (Sanctum).
+
+### B. Backend (API Laravel)
+
+Ubicado en el directorio: `aura_backend`
+
+#### Requisitos Previos
+*   PHP 8.3+
+*   Composer
+*   Base de Datos MySQL (o SQLite para pruebas locales)
+*   Node.js y npm
+
+#### Instalación y Ejecución
+1. Navegar al directorio del backend:
+   ```bash
+   cd aura_backend
+   ```
+2. Instalar dependencias de PHP y generar el entorno (utilizando el comando de setup incorporado en `composer.json`):
+   ```bash
+   composer setup
+   ```
+   *(Esto instala las dependencias, copia el archivo `.env`, genera la llave de cifrado, ejecuta migraciones de base de datos e instala los paquetes de Node).*
+3. Iniciar el servidor local:
+   ```bash
+   php artisan serve
+   ```
+   > El sistema se levantará por defecto y estará disponible en `http://localhost:8000`.
+
+#### Usuarios de Prueba
+El sistema incluye usuarios pre-creados mediante *seeders* para facilitar las pruebas de flujos autenticados en la aplicación móvil:
+*   **Email:** `test@aura.cl` o `otro@aura.cl`
+*   **Contraseña:** `password123`
+
+### C. Aplicación Móvil (Flutter)
+
+Ubicada en el directorio: `aura`
+
+#### Requisitos Previos
+*   Flutter SDK (recomendado canal *Stable*)
+*   Android Studio (para levantar el emulador de Android) o Xcode (para iOS)
+
+#### Instalación y Ejecución
+1. Navegar al directorio del frontend:
+   ```bash
+   cd aura
+   ```
+2. Instalar o actualizar las dependencias de Dart/Flutter:
+   ```bash
+   flutter pub get
+   ```
+3. Ejecutar la aplicación en el emulador de Android, simulador de iOS o dispositivo físico conectado:
+   ```bash
+   flutter run
+   ```
+
+> **Nota importante sobre entornos locales:** 
+> Por defecto, si utiliza un emulador de Android, este buscará el backend utilizando la dirección especial `http://10.0.2.2:8000`. Asegúrese de que el servidor local de Laravel esté corriendo simultáneamente en el puerto 8000.

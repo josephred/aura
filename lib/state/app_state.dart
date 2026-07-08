@@ -26,7 +26,7 @@ import '../services/push_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
-  final String _baseUrl = kReleaseMode ? 'https://aura.hstn.me/api' : (kIsWeb ? 'http://localhost:8000/api' : 'http://10.0.2.2:8000/api');
+  final String _baseUrl = kReleaseMode ? 'https://aura.hstn.me/api' : (kIsWeb ? 'http://localhost:8000/api' : 'http://181.162.128.173:8000/api');
 
   // API Service
   late final ApiService _apiService;
