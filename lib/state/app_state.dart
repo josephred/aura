@@ -26,7 +26,17 @@ import '../services/push_service.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
-  final String _baseUrl = kReleaseMode ? 'https://aura.hstn.me/api' : (kIsWeb ? 'http://localhost:8000/api' : 'http://181.162.128.173:8000/api');
+  // NOTA: Cambia el puerto '8000' en 'https://aura-salud.redirectme.net:8000/api' por el puerto externo abierto en tu router.
+  // Override at build time with: --dart-define=API_BASE=https://tu-host/api
+  // Physical-device debug/profile builds default to the ngrok tunnel so the
+  // backend is reachable over HTTPS from any network.
+  final String _baseUrl = const String.fromEnvironment('API_BASE').isNotEmpty
+      ? const String.fromEnvironment('API_BASE')
+      : (kReleaseMode
+          ? 'https://aura.hstn.me/api'
+          : (kIsWeb
+              ? 'http://localhost:8000/api'
+              : 'https://emphatic-ranking-posh.ngrok-free.dev/api'));
 
   // API Service
   late final ApiService _apiService;
@@ -1080,7 +1090,7 @@ class AppState extends ChangeNotifier {
         '/appointments',
         body: {
           'professional_id': professionalId,
-          'scheduled_at': scheduledAt.toIso8601String(),
+          'scheduled_at': scheduledAt.toUtc().toIso8601String(),
           'type': type,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
         },
@@ -1176,7 +1186,7 @@ class AppState extends ChangeNotifier {
     try {
       await _apiService.post(
         '/appointments/$appointmentId/video-signals',
-        body: {'type': type, 'payload': ?payload},
+        body: {'type': type, 'payload': payload},
         timeout: const Duration(seconds: 8),
       );
     } catch (e) {

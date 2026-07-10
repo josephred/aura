@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'screens/auth_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -13,7 +15,21 @@ import 'state/app_state.dart';
 import 'models/service_request.dart';
 import 'data/mock_data.dart';
 
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() {
+  // Accept self-signed certs only outside release (e.g. a local SSL proxy).
+  // ngrok and production serve valid certificates, so no override is needed
+  // there — and it must never weaken TLS in a shipped app.
+  if (!kReleaseMode) {
+    HttpOverrides.global = MyHttpOverrides();
+  }
   runApp(const MainApp());
 }
 

@@ -16,6 +16,8 @@ class ApiService {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        // Skip ngrok's browser interstitial so the API returns JSON, not HTML
+        'ngrok-skip-browser-warning': 'true',
         if (authToken != null) 'Authorization': 'Bearer $authToken',
       };
 
