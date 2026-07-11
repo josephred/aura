@@ -190,6 +190,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           'candidate': candidate.candidate,
           'sdpMid': candidate.sdpMid,
           'sdpMLineIndex': candidate.sdpMLineIndex,
+        }).then((error) {
+          if (error != null) {
+            debugPrint('ICE candidate POST failed: $error');
+          }
         });
       }
     };
