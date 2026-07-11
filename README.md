@@ -69,3 +69,27 @@ To run this project locally, you will need to run both the Laravel backend and t
 * `lib/models/`: Data models representing core entities (e.g., ServiceRequest).
 * `lib/state/`: State management logic for the app.
 * `lib/data/`: Mock data for testing and development.
+
+
+
+
+# Terminal 1 — backend en HTTP plano
+php artisan serve --port=8000
+
+# Terminal 2 — ngrok con tu dominio fijo apuntando al 8000
+ngrok http --url=emphatic-ranking-posh.ngrok-free.dev 8000
+(Si tu versión de ngrok es antigua, el flag es --domain= en vez de --url=.)
+
+Con eso, https://emphatic-ranking-posh.ngrok-free.dev queda visible desde cualquier red (datos móviles, PC externo), con certificado válido.
+
+Para la APK de prueba (profile o preview):
+
+
+flutter build apk --profile
+# o el debug que ya usas — ambos apuntan solo al ngrok por defecto
+No necesitas tocar nada más; si algún día cambias de túnel, flutter build apk --profile --dart-define=API_BASE=https://otro-host/api.
+
+Dos cosas a tener presente
+El portal del doctor en el navegador: la primera vez ngrok muestra una pantalla de advertencia "You are about to visit…" — haces clic en Visit Site una vez y listo (la app no la ve porque le pusimos el header).
+
+La videollamada: ngrok arregla el acceso y los POST, pero recuerda que php artisan serve es de un solo hilo. Para uso normal (login, agendar, chat) funciona perfecto. Si al probar la videoconsulta los dos siguen sin verse, ahí sí sería la concurrencia → ese es el momento de RoadRunner/Octane. Vale la pena probar primero sobre ngrok: es posible que el problema anterior fuera el local-ssl-proxy rompiendo los POST, y que ahora ya funcione.

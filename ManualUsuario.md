@@ -1,34 +1,38 @@
 # Manual del Usuario Completo — Aura Salud
 
-¡Bienvenido a **Aura Salud**! Esta es la guía de usuario definitiva para comprender, configurar y operar la aplicación móvil de atención de salud a domicilio.
+¡Bienvenido a **Aura Salud**! Esta es la guía de usuario definitiva para comprender, configurar y operar la aplicación móvil y el panel médico de atención de salud.
 
-**Aura Salud** es una aplicación móvil multiplataforma desarrollada en Flutter que conecta de manera directa a los pacientes y sus cargas familiares con profesionales de la salud capacitados para realizar consultas, tratamientos, exámenes e inyecciones en la comodidad del hogar.
+**Aura Salud** es un ecosistema de salud digital compuesto por una aplicación móvil multiplataforma desarrollada en Flutter (para pacientes) y un portal web administrativo/médico desarrollado en Laravel (para profesionales). Permite conectar a pacientes con especialistas para atenciones a domicilio o de manera remota mediante videollamadas integradas de alta definición.
 
 ---
 
 ## 📌 Tabla de Contenidos
 1. [Introducción y Propósito](#-introducción-y-propósito)
 2. [Perfiles y Roles en la Plataforma](#-perfiles-y-roles-en-la-plataforma)
-3. [Catálogo de Servicios Clínicos](#-catálogo-de-servicios-clínicos)
+3. [Catálogo de Servicios Clínicos y Telemedicina](#-catálogo-de-servicios-clínicos-y-telemedicina)
 4. [Guía de Uso de la Aplicación Paso a Paso](#-guía-de-uso-de-la-aplicación-paso-a-paso)
    - [A. Onboarding y Registro](#a-onboarding-y-registro)
    - [B. Configuración del Perfil (Pacientes, Direcciones y Pagos)](#b-configuración-del-perfil-pacientes-direcciones-y-pagos)
    - [C. Solicitud de un Servicio Clínico](#c-solicitud-de-un-servicio-clínico)
    - [D. Monitoreo y Seguimiento en Tiempo Real](#d-monitoreo-y-seguimiento-en-tiempo-real)
    - [E. Chat con el Especialista Clínico](#e-chat-con-el-especialista-clínico)
-   - [F. Historial y Repetición de Servicios](#f-historial-y-repetición-de-servicios)
+   - [F. Atención Remota (Videollamada WebRTC)](#f-atención-remota-videollamada-webrtc)
+   - [G. Historial y Repetición de Servicios](#g-historial-y-repetición-de-servicios)
 5. [Mecanismos Técnicos Avanzados](#-mecanismos-técnicos-avanzados)
 6. [Respuesta ante Emergencias Vitales](#-respuesta-ante-emergencias-vitales)
 7. [Guía de Instalación y Despliegue (Entorno Técnico)](#-guía-de-instalación-y-despliegue-entorno-técnico)
    - [A. Arquitectura del Sistema](#a-arquitectura-del-sistema)
    - [B. Backend (API Laravel)](#b-backend-api-laravel)
    - [C. Aplicación Móvil (Flutter)](#c-aplicación-móvil-flutter)
+   - [D. Configuración de Pruebas Globales (HTTPS, DDNS No-IP y SSL Bypass)](#d-configuración-de-pruebas-globales-https-ddns-no-ip-y-ssl-bypass)
 
 ---
 
 ## 🏥 Introducción y Propósito
 
-El sistema de **Aura Salud** está diseñado con un enfoque "móvil primero" y una interfaz moderna basada en **Material 3 (Teal #0D9488)**. Su objetivo principal es facilitar el acceso a la salud, ahorrando traslados y esperas innecesarias en clínicas u hospitales.
+El sistema de **Aura Salud** está diseñado con un enfoque moderno y fluido, implementando la guía de diseño **Material 3 (Teal #0D9488)** en la app móvil y un portal web de administración médica con diseño **Glassmorphism Oscuro** adaptable a múltiples resoluciones. 
+
+Su propósito principal es simplificar el agendamiento médico, permitiendo telemedicina o atención presencial a domicilio en pocos minutos.
 
 ```mermaid
 sequenceDiagram
@@ -38,133 +42,98 @@ sequenceDiagram
     participant BD as Backend Laravel
     actor Doc as Profesional Médico
     
-    Cliente->>App: Selecciona servicio y adjunta orden médica
-    App->>BD: Envía solicitud (API)
-    BD->>Doc: Notifica solicitud en zona geográfica
-    Doc->>BD: Acepta solicitud y sale en trayecto
-    BD-->>App: Notifica asignación y ETA al paciente
-    App->>Cliente: Muestra mapa de seguimiento y habilita Chat
-    Doc->>Cliente: Llega al domicilio y realiza atención
-    Doc->>App: Finaliza atención
-    App->>Cliente: Habilita encuesta e Historial
+    Cliente->>App: Selecciona servicio (ej: Videollamada)
+    App->>BD: Reserva hora y realiza pago seguro
+    BD->>Doc: Muestra cita en la agenda del doctor
+    Doc->>BD: Inicia atención / videollamada
+    BD-->>App: Habilita botón de "Unirse a Videollamada"
+    Cliente->>App: Entra a la videollamada desde el celular
+    Note over App, Doc: Intercambio WebRTC (Video/Audio HD)
+    Doc->>BD: Finaliza atención
 ```
 
 ---
 
 ## 👥 Perfiles y Roles en la Plataforma
 
-Para probar y simular la interacción completa, la aplicación implementa los siguientes roles dentro de su lógica:
+El ecosistema integra diferentes roles para simular el ciclo de vida completo de la atención médica:
 
-1. **Paciente Principal (Usuario Titular):** Persona natural que registra la cuenta, administra el método de pago predeterminado y las direcciones del hogar. Puede solicitar servicios clínicos para sí mismo.
-2. **Tutor o Apoderado:** El mismo usuario titular cuando solicita atenciones para sus familiares registrados (ej: sus hijos o padres de la tercera edad).
-3. **Profesional Clínico (Prestador):** Médicos, enfermeros, kinesiólogos, radiólogos y técnicos de laboratorio autorizados que viajan al domicilio. Pueden conversar por chat interno con el paciente para coordinar detalles prácticos.
-4. **Conductor de Ambulancia:** Personal encargado de los traslados programados que actualiza la ruta y el estado de la ambulancia.
-5. **Operador / Administrador:** Monitorea la correcta asignación del personal, valida que las órdenes médicas adjuntas sean legibles y válidas antes de despachar al profesional.
+1. **Paciente Principal (Usuario Titular):** Administra la cuenta, métodos de pago, direcciones y cargas familiares. Solicita servicios y realiza videollamadas desde el celular.
+2. **Tutor o Apoderado:** El usuario titular cuando gestiona o solicita citas para sus familiares registrados (hijos, padres de la tercera edad).
+3. **Profesional Clínico (Prestador):** Médicos y enfermeros que atienden a domicilio o de manera virtual. Acceden al portal médico, gestionan su agenda y atienden videollamadas.
+4. **Operador / Administrador:** Encargado de la validación de órdenes médicas y soporte administrativo del sistema.
 
 ---
 
-## 📋 Catálogo de Servicios Clínicos
+## 📋 Catálogo de Servicios Clínicos y Telemedicina
 
-La aplicación cuenta con una cartera diversa de especialidades clínicas. Dependiendo de las normativas de salud locales, algunos servicios requieren estrictamente subir una **orden o receta médica digitalizada** para poder ser confirmados:
+La aplicación cuenta con una cartera diversa de especialidades clínicas. Algunos servicios requieren adjuntar una **orden o receta médica digitalizada**, y otros admiten la modalidad de **Telemedicina (Videollamada)**:
 
-| Icono | Servicio | Descripción | Requiere Orden Médica | Precio Base | ETA Estimada (Min) |
-| :---: | :--- | :--- | :---: | :---: | :---: |
-| 💉 | **Enfermería** | Inyecciones, sueros, curaciones de heridas operatorias o complejas, colocación de sondas. | **Sí** | $15.000 | 30 - 50 |
-| 🩺 | **Consulta Médica** | Evaluación general en casa de síntomas agudos comunes (fiebre, gripe, dolor estomacal). | No | $40.000 | 45 - 60 |
-| 🚶‍♂️ | **Kinesiología Motora** | Sesiones de rehabilitación física para fracturas, esguinces o apoyo a adultos mayores. | **Sí** | $22.000 | 60 - 90 |
-| 🫁 | **Kine Respiratoria** | Terapia de drenaje bronquial para pacientes pediátricos y adultos mayores. | **Sí** | $24.000 | 45 - 75 |
-| 🤝 | **Cuidados Domiciliarios** | Asistencia en la higiene, alimentación y acompañamiento clínico menor (Mínimo 3 horas). | No | $12.000 | 120 - 180 |
-| 🚑 | **Ambulancia** | Traslados programados de pacientes en camilla o silla de ruedas. *(Básico o Medicalizado)* | No | $18.500 | 15 - 30 |
-| 🩻 | **Radiología** | Toma de placas de rayos X en casa con un equipo digital portátil. | **Sí** | $35.000 | 90 - 120 |
-| 🧪 | **Toma de Muestras** | Extracción de sangre para exámenes de laboratorio clínicos habituales. | **Sí** | $19.500 | 60 - 90 |
-| ❤️ | **Electrocardiograma** | Toma de ECG de 12 derivaciones con informe firmado por cardiólogo. | **Sí** | $21.000 | 45 - 60 |
+| Icono | Servicio | Modalidades | Requiere Orden | Precio Base | ETA Estimada (Min) |
+| :---: | :--- | :---: | :---: | :---: | :---: |
+| 💉 | **Enfermería** | Domicilio | **Sí** | $15.000 | 30 - 50 |
+| 🩺 | **Consulta Médica** | Domicilio / Videocall | No | $40.000 | 45 - 60 |
+| 🚶‍♂️ | **Kinesiología Motora** | Domicilio | **Sí** | $22.000 | 60 - 90 |
+| 🫁 | **Kine Respiratoria** | Domicilio | **Sí** | $24.000 | 45 - 75 |
+| 🤝 | **Cuidados Domiciliarios**| Domicilio | No | $12.000 | 120 - 180 |
+| 🚑 | **Ambulancia** | Domicilio (Traslado) | No | $18.500 | 15 - 30 |
+| 🩻 | **Radiología** | Domicilio | **Sí** | $35.000 | 90 - 120 |
+| 🧪 | **Toma de Muestras** | Domicilio | **Sí** | $19.500 | 60 - 90 |
+| ❤️ | **Electrocardiograma** | Domicilio | **Sí** | $21.000 | 45 - 60 |
 
 ---
 
 ## 📱 Guía de Uso de la Aplicación Paso a Paso
 
 ### A. Onboarding y Registro
-1. **Pantallas de Introducción:** Al abrir la aplicación por primera vez, se te presentarán pantallas informativas detallando el alcance de Aura Salud. Presiona **Comenzar**.
-2. **Método de Autenticación:** 
-   * Puedes registrarte e iniciar sesión rápidamente utilizando tus redes sociales (**Google o Facebook**).
-   * También puedes crear una cuenta clásica mediante tu **correo electrónico** y una contraseña.
-   * **Modo Demo (Pruebas):** Si solo deseas conocer la navegación de la aplicación sin ingresar datos reales, presiona el botón **Ingresar en Modo Demo**. El sistema cargará información simulada al instante.
-
----
+1. **Onboarding:** Explora las pantallas informativas de Aura Salud y presiona **Comenzar**.
+2. **Autenticación:** Inicia sesión con redes sociales (**Google / Facebook**) o cuenta clásica de correo electrónico.
+3. **Modo Demo:** Si deseas probar la aplicación sin registrar datos reales, haz clic en **Ingresar en Modo Demo**.
 
 ### B. Configuración del Perfil (Pacientes, Direcciones y Pagos)
-Antes de pedir tu primer servicio, te recomendamos ingresar a la pestaña **Perfil** en la barra de navegación inferior para configurar tus datos base:
-
-#### 1. Registrar Dependientes (Cargas Familiares)
-1. Toca en el botón **Agregar Dependiente / Familiar**.
-2. Ingresa el nombre completo, edad, parentesco (Hijo, Padre/Madre, Cónyuge), previsión de salud (Fonasa/Isapre) y detalla si tiene alergias o condiciones crónicas de importancia.
-3. Haz clic en **Guardar**. Esta información estará disponible de inmediato en los formularios de solicitud.
-
-#### 2. Configurar Direcciones Guardadas
-1. Presiona **Agregar Dirección**.
-2. Escribe una etiqueta que recuerdes fácilmente (ej: "Mi Casa", "Trabajo", "Casa Abuelos").
-3. Escribe la dirección completa o utiliza el mapa interactivo para clavar el pin de geolocalización.
-4. Presiona **Guardar**.
-
-#### 3. Añadir Métodos de Pago
-1. Toca en **Agregar Tarjeta**.
-2. Digita los datos requeridos o vincula tu billetera digital Mercado Pago para compras integradas directas en un toque.
-
----
+1. **Registrar Dependientes:** En la pestaña **Perfil**, toca en *Agregar Dependiente / Familiar* para guardar los datos médicos de tus cargas.
+2. **Configurar Direcciones Guardadas:** Agrega etiquetas como "Mi Casa" o "Trabajo" fijando el marcador de posición en el mapa.
+3. **Añadir Métodos de Pago:** Registra tu tarjeta de crédito/débito o vincula tu billetera de **Mercado Pago** para una facturación integrada directa.
 
 ### C. Solicitud de un Servicio Clínico
-1. En la pestaña de inicio (**Home**), explora el catálogo de especialidades. Si buscas algo específico, utiliza la barra de búsqueda superior o los filtros (ej: "Requiere Orden Médica" / "Sin Orden Médica").
-2. Haz clic en el servicio deseado para abrir la ficha de solicitud.
-3. **Rellena los campos esenciales:**
-   * **¿Para quién es el servicio?:** Selecciona si es para ti (*Paciente Titular*) o elige un familiar de tu lista de *Dependientes*.
-   * **Dirección de Atención:** Elige una dirección de tu lista o escribe una nueva. *(Si solicitas una Ambulancia, deberás indicar tanto la Dirección de Origen como la Dirección de Destino).*
-   * **Síntomas o Indicaciones:** Escribe brevemente el cuadro clínico o el motivo de la consulta.
-   * **Cargar Orden Médica (Si aplica):** 
-     * Puedes usar la cámara del celular para tomar una fotografía de la receta/orden médica en papel.
-     * O seleccionar un archivo PDF/Imagen desde la galería de tu dispositivo.
-4. **Verificación de Tarifas y Tiempos:** El sistema calculará el total (en base a la tarifa estándar o tipo de ambulancia requerida) y te mostrará el tiempo de llegada estimado (ETA).
-5. Presiona **Confirmar Solicitud**.
-
----
+1. En la pestaña **Home**, haz clic en el servicio que deseas solicitar.
+2. Selecciona para quién es la cita (Tú o un Dependiente) y la dirección.
+3. Si el servicio lo requiere, utiliza la cámara o tu galería para **cargar la orden médica**.
+4. Selecciona la fecha y la hora del calendario de bloques disponibles.
+5. Confirma la solicitud y completa el pago a través de la pasarela de Mercado Pago.
 
 ### D. Monitoreo y Seguimiento en Tiempo Real
-Una vez enviado el pedido, la pantalla cambiará automáticamente a la pestaña de **Seguimiento Activo**:
-
-1. **Estado de la Solicitud:** El progreso se visualizará paso a paso:
-   * **Solicitado:** Buscando y asignando al especialista clínico disponible más cercano.
-   * **Confirmado:** El profesional ha aceptado tu caso y se encuentra preparando su maletín clínico. Verás su nombre completo, fotografía, número de registro en el colegio médico y número telefónico de contacto.
-   * **En Camino:** Visualiza la ubicación aproximada del profesional clínico en tiempo real en el mapa, junto con un cronómetro de cuenta regresiva con los minutos estimados de llegada.
-   * **En Atención:** El profesional ha llegado a tu domicilio. La aplicación bloquea nuevos pedidos para esta cuenta hasta terminar el procedimiento.
-   * **Completado:** El servicio ha terminado exitosamente.
-2. **Simulador de Progreso:** Si estás utilizando la aplicación en modo de pruebas, verás en la parte superior derecha el botón **Avanzar Simulación** para forzar el cambio de estados y experimentar el ciclo de vida completo.
-
----
+1. Una vez confirmada tu cita presencial a domicilio, se abrirá la pestaña de **Seguimiento Activo**.
+2. Podrás ver en tiempo real en el mapa la ubicación del profesional clínico, su fotografía, cédula profesional y el cronómetro de llegada estimado (ETA).
+3. Utiliza el botón **Avanzar Simulación** si estás probando la app para saltar rápidamente por los diferentes estados de atención (*Solicitado -> Confirmado -> En Camino -> En Atención -> Completado*).
 
 ### E. Chat con el Especialista Clínico
-1. Mientras la solicitud esté en los estados *Confirmado, En Camino o En Atención*, se habilitará un botón de **Mensajería (Chat)** en la pantalla de tracking.
-2. Podrás chatear de manera directa y confidencial con el profesional clínico asignado.
-3. Es ideal para dar indicaciones adicionales (ej: *"El timbre no funciona, favor golpear la puerta"* o *"Hay estacionamiento disponible dentro del condominio"*).
+1. Durante los estados activos de una cita presencial, puedes chatear directamente con tu profesional clínico asignado para coordinar detalles prácticos de llegada (ej: *"El timbre está roto, por favor llámeme al llegar"*).
 
----
+### F. Atención Remota (Videollamada WebRTC)
+Si agendaste una consulta médica en modalidad **Video (Telemedicina)**:
+1. Al llegar la hora acordada, abre la aplicación. En la pestaña de seguimiento o citas verás habilitado el botón **Unirse a Videollamada**.
+2. Haz clic en él para abrir la pantalla de llamada. La app solicitará permisos de **Cámara** y **Micrófono**.
+3. En el portal web del médico, el profesional hará clic en "Unirse" desde su Agenda.
+4. Ambos dispositivos se conectarán por protocolo seguro HTTPS / WebRTC, transmitiendo video y audio en tiempo real en alta definición con baja latencia.
+5. Al terminar la consulta, el doctor cerrará la videollamada y la aplicación te redireccionará al historial médico.
 
-### F. Historial y Repetición de Servicios
-1. Dirígete a la pestaña **Historial** en la barra inferior.
-2. Aquí verás todas las atenciones médicas completadas en el pasado.
-3. Al tocar cualquier registro anterior, podrás ver el resumen completo de la atención, recetas generadas y los informes de laboratorio o radiología digitalizados.
-4. **Botón Repetir Servicio:** Si necesitas volver a agendar la misma atención (ej: una nueva sesión de Kinesiología), presiona el botón **Repetir Servicio**. La app rellenará los campos del formulario con los mismos datos del historial para agilizar tu solicitud.
+### G. Historial y Repetición de Servicios
+1. Dirígete a la pestaña **Historial** para ver tus atenciones pasadas.
+2. Podrás descargar informes, recetas médicas digitales y resultados de exámenes.
+3. **Repetir Servicio:** Toca el botón de repetir en cualquier atención del historial para rellenar de inmediato un nuevo formulario con los mismos datos y agilizar el proceso.
 
 ---
 
 ## 🔒 Mecanismos Técnicos Avanzados
 
-Aura Salud integra tecnologías pensadas para proteger la continuidad de la atención médica y tu privacidad:
+Aura Salud integra tecnologías robustas para asegurar la continuidad y confidencialidad del servicio:
 
-1. **Modo Sin Conexión (Offline Support):** Si estás editando direcciones o agregando dependientes y tu señal celular falla, la aplicación guarda temporalmente los cambios en su base de datos local SQLite. Una cola de salida en segundo plano (*Outbox*) se encargará de sincronizar los cambios con los servidores de manera automática tan pronto como se recupere la conexión a internet.
-2. **Seguridad y Encriptación:** Toda la comunicación entre la aplicación móvil y los servidores centrales viaja encriptada mediante protocolos seguros HTTPS. Los tokens de autenticación de usuario se guardan localmente bajo medidas de seguridad avanzada (*Secure Storage*).
-3. **Notificaciones Push Activas (FCM):** El sistema te alertará en tiempo real sobre cambios de estado en tu pedido o nuevos mensajes en el chat, incluso si tienes la aplicación cerrada.
-4. **Gestión Inteligente de Entornos:** La aplicación móvil detecta de forma automática en qué modo se está ejecutando. En modo productivo o APK final (Release), direcciona las peticiones al backend oficial en la nube (`https://aura.hstn.me/api`). En fase de desarrollo o depuración, enruta localmente al emulador o servidor de pruebas para facilitar el trabajo técnico.
-5. **Arquitectura de Backend Escalable:** El sistema central de Aura (basado en Laravel) es flexible. Puede operar en plataformas de *hosting* tradicionales (como cPanel con base de datos unificada) o escalar a infraestructuras en la nube de alto rendimiento como Google Cloud Platform (GCP) utilizando contenedores (Cloud Run) o máquinas virtuales (Compute Engine).
-6. **Autenticación Segura (Laravel Sanctum):** El sistema incluye autenticación basada en tokens nativa y probada de extremo a extremo. Garantiza que las sesiones sean manejadas con altos estándares y la información (dependientes, pagos, historial) se encuentre completamente aislada por usuario. El token de sesión se guarda localmente en el dispositivo de forma persistente.
+1. **Modo Offline con Cola de Salida (Outbox):** Los cambios realizados sin conexión a internet se almacenan localmente en SQLite y se sincronizan automáticamente con la API REST cuando retorna la señal celular.
+2. **Videollamadas P2P Seguras (WebRTC):** La transmisión de video y audio se realiza directamente entre dispositivos utilizando WebRTC. La señalización SDP y candidatos ICE son procesados de forma segura por Laravel.
+3. **Compatibilidad con Proxy Inverso e HTTPS Seguro:** El backend se adapta a configuraciones con proxies de seguridad (`local-ssl-proxy`, Caddy o Cloudflare) y detecta cabeceras `X-Forwarded-Proto` para forzar automáticamente todas las redirecciones y enlaces mediante HTTPS seguro.
+4. **Sincronización de Husos Horarios (UTC/Local):** La app móvil realiza la conversión de zonas horarias en el cliente (`toLocal()`) y envía las fechas en formato estándar UTC (`toUtc().toIso8601String()`) para evitar desfases de horario al agendar citas entre regiones.
+5. **Bypass de Validación SSL para Pruebas:** La app móvil incorpora una sobreescritura global (`MyHttpOverrides`) para admitir certificados SSL auto-firmados en etapas de desarrollo o pruebas externas, eliminando el error `HandshakeException` en Android.
 
 ---
 
@@ -173,77 +142,80 @@ Aura Salud integra tecnologías pensadas para proteger la continuidad de la aten
 > [!WARNING]
 > **Aura Salud NO es un servicio de urgencia médica de riesgo vital.**
 >
-> Si el paciente presenta síntomas graves o potencialmente mortales como:
-> * Dolor de pecho opresivo o sospecha de infarto cardíaco.
-> * Dificultad severa para respirar (asfixia).
-> * Pérdida súbita del conocimiento.
-> * Sangrado profuso no controlado.
-> * Pérdida de fuerza o parálisis facial repentina (sospecha de ataque cerebrovascular).
+> Si el paciente presenta síntomas graves como dolor opresivo en el pecho, dificultad severa para respirar, pérdida de conocimiento, parálisis facial repentina o sangrado abundante:
 >
-> **Por favor, NO intente solicitar un servicio por esta aplicación.** Llame de inmediato al número de emergencias públicas de su país (ej: **131 (SAMU)** en Chile, o **107** en Argentina) o traslade de urgencia al paciente al centro hospitalario más cercano.
+> **NO intente agendar un servicio en esta aplicación.** Llame de inmediato al número de emergencias públicas de su país (ej: **131 (SAMU)** en Chile, **107** en Argentina, o **911** en otros países) o trasládese de urgencia al centro hospitalario más cercano.
 
 ---
 
 ## 🛠 Guía de Instalación y Despliegue (Entorno Técnico)
 
-El ecosistema de **Aura Salud** se divide en dos proyectos principales que se integran mediante una API REST. A continuación, se detallan los requisitos e instrucciones de ejecución local para ambientes de desarrollo.
+El ecosistema de **Aura Salud** se compone de una API REST de Laravel (Backend) y un cliente de Flutter (Frontend).
 
 ### A. Arquitectura del Sistema
-*   **Aplicación Móvil (Frontend):** Desarrollada en **Flutter**, encargada de la interfaz de usuario, flujos de reserva, tracking y modo offline simulado.
-*   **Backend (API REST):** Desarrollado en **Laravel 13** con PHP 8.3 y base de datos MySQL, encargado de persistir usuarios, servicios, historial clínico y procesar la autenticación (Sanctum).
+*   **Backend:** Laravel 11, PHP 8.3, Base de Datos MySQL.
+*   **Frontend:** Flutter SDK (iOS, Android, Web).
+*   **Servicios Externos:** Firebase Cloud Messaging (Push), Mercado Pago SDK.
 
 ### B. Backend (API Laravel)
-
 Ubicado en el directorio: `aura_backend`
 
-#### Requisitos Previos
-*   PHP 8.3+
-*   Composer
-*   Base de Datos MySQL (o SQLite para pruebas locales)
-*   Node.js y npm
-
-#### Instalación y Ejecución
-1. Navegar al directorio del backend:
-   ```bash
-   cd aura_backend
-   ```
-2. Instalar dependencias de PHP y generar el entorno (utilizando el comando de setup incorporado en `composer.json`):
+#### Instalación y Ejecución:
+1. Instalar dependencias de PHP e inicializar el entorno:
    ```bash
    composer setup
    ```
-   *(Esto instala las dependencias, copia el archivo `.env`, genera la llave de cifrado, ejecuta migraciones de base de datos e instala los paquetes de Node).*
-3. Iniciar el servidor local:
+2. Iniciar el servidor local:
    ```bash
    php artisan serve
    ```
-   > El sistema se levantará por defecto y estará disponible en `http://localhost:8000`.
+   *El backend estará disponible localmente en `http://127.0.0.1:8000`.*
 
-#### Usuarios de Prueba
-El sistema incluye usuarios pre-creados mediante *seeders* para facilitar las pruebas de flujos autenticados en la aplicación móvil:
-*   **Email:** `test@aura.cl` o `otro@aura.cl`
-*   **Contraseña:** `password123`
+---
 
 ### C. Aplicación Móvil (Flutter)
-
 Ubicada en el directorio: `aura`
 
-#### Requisitos Previos
-*   Flutter SDK (recomendado canal *Stable*)
-*   Android Studio (para levantar el emulador de Android) o Xcode (para iOS)
-
-#### Instalación y Ejecución
-1. Navegar al directorio del frontend:
-   ```bash
-   cd aura
-   ```
-2. Instalar o actualizar las dependencias de Dart/Flutter:
+#### Instalación y Ejecución:
+1. Instalar las dependencias de Dart:
    ```bash
    flutter pub get
    ```
-3. Ejecutar la aplicación en el emulador de Android, simulador de iOS o dispositivo físico conectado:
+2. Iniciar la aplicación:
    ```bash
    flutter run
    ```
 
-> **Nota importante sobre entornos locales:** 
-> Por defecto, si utiliza un emulador de Android, este buscará el backend utilizando la dirección especial `http://10.0.2.2:8000`. Asegúrese de que el servidor local de Laravel esté corriendo simultáneamente en el puerto 8000.
+---
+
+### D. Configuración de Pruebas Globales (HTTPS, DDNS No-IP y SSL Bypass)
+
+Para realizar una prueba global real donde el backend corre en tu PC local y el teléfono celular se conecta desde datos móviles externos (sin Wi-Fi) usando HTTPS seguro:
+
+#### Paso 1: Configurar un Dominio DDNS (No-IP)
+1. Crea un Hostname gratuito en [No-IP.com](https://www.no-ip.com/) (ejemplo: `aura-salud.redirectme.net`).
+2. Descarga e instala la utilidad de actualización de No-IP (**DUC**) en tu PC para sincronizar tu IP pública dinámica de manera automática.
+3. Abre el puerto **`8000`** en tu router e indícale que redirija el tráfico a la dirección IP local de tu PC (ej: `192.168.10.81`).
+
+#### Paso 2: Levantar Laravel y el Proxy HTTPS en tu PC
+1. Levanta tu servidor Laravel en un puerto local interno (ej: `8001`):
+   ```powershell
+   php artisan serve --port=8001
+   ```
+2. Levanta un proxy SSL que escuche conexiones externas (puerto `8000`) y redirija a Laravel (`8001`):
+   ```powershell
+   npx local-ssl-proxy --source 8000 --target 8001 --hostname 0.0.0.0
+   ```
+
+#### Paso 3: Configurar y Compilar la APK
+1. En el archivo `lib/state/app_state.dart`, define la URL de la API apuntando a tu dominio de No-IP:
+   ```dart
+   final String _baseUrl = 'https://aura-salud.redirectme.net:8000/api';
+   ```
+2. Genera la APK en modo profile:
+   ```powershell
+   flutter build apk --profile
+   ```
+3. Instala la APK generada en tu teléfono. El bypass de SSL en `main.dart` admitirá el certificado del proxy sin lanzar excepciones.
+4. **Para el médico (PC):** Ingresa por navegador seguro a `https://localhost:8000/doctor` para unirte a la llamada.
+5. **Para el paciente (Celular):** Abre la app móvil usando tus datos móviles y únete a la videollamada.
