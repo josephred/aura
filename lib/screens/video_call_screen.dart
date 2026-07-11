@@ -221,7 +221,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         }
       };
 
-      await pc.setRemoteDescription(RTCSessionDescription(sdp, 'offer'));
+      final cleanSdp = sdp
+          .replaceAll('\r\n', '\n')
+          .replaceAll('\n', '\r\n')
+          .trim();
+      await pc.setRemoteDescription(RTCSessionDescription(cleanSdp, 'offer'));
 
       for (final candidate in _queuedCandidates) {
         try {
