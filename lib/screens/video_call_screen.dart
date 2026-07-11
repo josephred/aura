@@ -145,6 +145,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             break;
         }
       }
+    } catch (e, stack) {
+      debugPrint('Error in _poll: $e\n$stack');
     } finally {
       _polling = false;
     }
@@ -160,86 +162,93 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   // A (new) offer arrived: build a fresh peer connection and answer it
   Future<void> _handleOffer(String sdp) async {
-    if (mounted) setState(() => _status = 'Conectando video…');
+    try {
+      if (mounted) setState(() => _status = 'Conectando video…');
 
-    final oldPc = _pc;
-    _pc = null;
-    if (oldPc != null) {
-      try {
-        await oldPc.close();
-      } catch (_) {}
-    }
-    _queuedCandidates.clear();
-
-    final pc = await createPeerConnection({
-      'iceServers': widget.iceServers,
-      'sdpSemantics': 'unified-plan',
-    });
-    _pc = pc;
-
-    final stream = _localStream;
-    if (stream != null) {
-      for (final track in stream.getTracks()) {
-        await pc.addTrack(track, stream);
+      final oldPc = _pc;
+      _pc = null;
+      if (oldPc != null) {
+        try {
+          await oldPc.close();
+        } catch (_) {}
       }
-    }
+      _queuedCandidates.clear();
 
-    pc.onIceCandidate = (candidate) {
-      if (candidate.candidate != null) {
-        widget.state.postVideoSignal(widget.appointment.id, 'candidate', {
-          'candidate': candidate.candidate,
-          'sdpMid': candidate.sdpMid,
-          'sdpMLineIndex': candidate.sdpMLineIndex,
-        }).then((error) {
-          if (error != null) {
-            debugPrint('ICE candidate POST failed: $error');
-          }
-        });
+      final pc = await createPeerConnection({
+        'iceServers': widget.iceServers,
+        'sdpSemantics': 'unified-plan',
+      });
+      _pc = pc;
+
+      final stream = _localStream;
+      if (stream != null) {
+        for (final track in stream.getTracks()) {
+          await pc.addTrack(track, stream);
+        }
       }
-    };
-    pc.onTrack = (event) {
-      if (event.streams.isNotEmpty && mounted) {
-        _remoteRenderer.srcObject = event.streams[0];
-        setState(() {
-          _connected = true;
-          _status = '';
-        });
+
+      pc.onIceCandidate = (candidate) {
+        if (candidate.candidate != null) {
+          widget.state.postVideoSignal(widget.appointment.id, 'candidate', {
+            'candidate': candidate.candidate,
+            'sdpMid': candidate.sdpMid,
+            'sdpMLineIndex': candidate.sdpMLineIndex,
+          }).then((error) {
+            if (error != null) {
+              debugPrint('ICE candidate POST failed: $error');
+            }
+          });
+        }
+      };
+      pc.onTrack = (event) {
+        if (event.streams.isNotEmpty && mounted) {
+          _remoteRenderer.srcObject = event.streams[0];
+          setState(() {
+            _connected = true;
+            _status = '';
+          });
+        }
+      };
+      pc.onConnectionState = (state) {
+        if (_ended || !mounted) return;
+        if (state ==
+            RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+          setState(() => _status = '');
+        } else if (state ==
+                RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
+            state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          setState(() => _status = 'Conexión perdida. Reconectando…');
+        }
+      };
+
+      await pc.setRemoteDescription(RTCSessionDescription(sdp, 'offer'));
+
+      for (final candidate in _queuedCandidates) {
+        try {
+          await pc.addCandidate(candidate);
+        } catch (e) {
+          debugPrint('flush candidate failed. Error: $e');
+        }
       }
-    };
-    pc.onConnectionState = (state) {
-      if (_ended || !mounted) return;
-      if (state ==
-          RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        setState(() => _status = '');
-      } else if (state ==
-              RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-        setState(() => _status = 'Conexión perdida. Reconectando…');
+      _queuedCandidates.clear();
+
+      final answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      final error = await widget.state.postVideoSignal(
+          widget.appointment.id, 'answer', {'sdp': answer.sdp});
+
+      if (error != null && mounted && !_ended) {
+        // The professional will never see our answer: report it on screen
+        // and allow a fresh session to start via the ready re-announce
+        setState(() =>
+            _status = 'No se pudo enviar la respuesta al servidor.\n$error');
+        _lastOfferId = 0;
       }
-    };
-
-    await pc.setRemoteDescription(RTCSessionDescription(sdp, 'offer'));
-
-    for (final candidate in _queuedCandidates) {
-      try {
-        await pc.addCandidate(candidate);
-      } catch (e) {
-        debugPrint('flush candidate failed. Error: $e');
+    } catch (e, stack) {
+      debugPrint('Error inside _handleOffer: $e\n$stack');
+      if (mounted) {
+        setState(() => _status = 'Error al conectar llamada: $e');
       }
-    }
-    _queuedCandidates.clear();
-
-    final answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    final error = await widget.state.postVideoSignal(
-        widget.appointment.id, 'answer', {'sdp': answer.sdp});
-
-    if (error != null && mounted && !_ended) {
-      // The professional will never see our answer: report it on screen
-      // and allow a fresh session to start via the ready re-announce
-      setState(() =>
-          _status = 'No se pudo enviar la respuesta al servidor.\n$error');
-      _lastOfferId = 0;
     }
   }
 
