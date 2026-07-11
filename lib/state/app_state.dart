@@ -1181,17 +1181,32 @@ class AppState extends ChangeNotifier {
   }
 
   // Push a WebRTC signal (answer/candidate/ready/hangup) to the backend.
-  Future<void> postVideoSignal(String appointmentId, String type,
+  // Retries transient failures. Returns null on success or a short
+  // description of the failure so the call screen can surface it.
+  Future<String?> postVideoSignal(String appointmentId, String type,
       [Map<String, dynamic>? payload]) async {
-    try {
-      await _apiService.post(
-        '/appointments/$appointmentId/video-signals',
-        body: {'type': type, 'payload': payload},
-        timeout: const Duration(seconds: 8),
-      );
-    } catch (e) {
-      debugPrint('postVideoSignal($type) failed. Error: $e');
+    Object? lastError;
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final response = await _apiService.post(
+          '/appointments/$appointmentId/video-signals',
+          body: {'type': type, 'payload': payload},
+          timeout: const Duration(seconds: 8),
+        );
+        if (response.statusCode == 201) return null;
+
+        lastError = 'HTTP ${response.statusCode} ${response.body}';
+        debugPrint('postVideoSignal($type) rejected: $lastError');
+        if (response.statusCode >= 400 && response.statusCode < 500) {
+          return lastError.toString(); // definitive rejection: do not retry
+        }
+      } catch (e) {
+        lastError = e;
+        debugPrint('postVideoSignal($type) attempt $attempt failed. Error: $e');
+      }
+      await Future.delayed(Duration(milliseconds: 400 * attempt));
     }
+    return lastError?.toString() ?? 'sin respuesta del servidor';
   }
 
   // Poll signals sent by the clinical staff, newer than [afterId].

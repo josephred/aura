@@ -36,6 +36,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   int _lastSignalId = 0;
   int _lastOfferId = 0;
+  DateTime _lastReadyAt = DateTime.now();
   final List<RTCIceCandidate> _queuedCandidates = [];
 
   bool _micOn = true;
@@ -76,15 +77,34 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
     // Announce ourselves: if the professional is already in, they will
     // (re)send a fresh offer
-    await widget.state.postVideoSignal(widget.appointment.id, 'ready');
+    await _announceReady();
 
     _pollTimer = Timer.periodic(const Duration(milliseconds: 900), (_) => _poll());
+  }
+
+  // Send the `ready` signal, surfacing failures on screen. Re-announces
+  // periodically from the poll loop while the handshake has not started,
+  // so a lost signal self-heals instead of hanging the call forever.
+  Future<void> _announceReady() async {
+    _lastReadyAt = DateTime.now();
+    final error = await widget.state.postVideoSignal(widget.appointment.id, 'ready');
+    if (error != null && mounted && !_connected && !_ended) {
+      setState(() => _status = 'No se pudo avisar al servidor.\n$error');
+    }
   }
 
   Future<void> _poll() async {
     if (_ended || _polling) return;
     _polling = true;
     try {
+      // Handshake never started (no offer yet): re-announce every 8s in
+      // case the previous `ready` was lost in transit
+      if (!_connected &&
+          _lastOfferId == 0 &&
+          DateTime.now().difference(_lastReadyAt).inSeconds >= 8) {
+        await _announceReady();
+      }
+
       final signals = await widget.state
           .fetchVideoSignals(widget.appointment.id, _lastSignalId);
 
@@ -207,8 +227,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
     final answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    await widget.state.postVideoSignal(
+    final error = await widget.state.postVideoSignal(
         widget.appointment.id, 'answer', {'sdp': answer.sdp});
+
+    if (error != null && mounted && !_ended) {
+      // The professional will never see our answer: report it on screen
+      // and allow a fresh session to start via the ready re-announce
+      setState(() =>
+          _status = 'No se pudo enviar la respuesta al servidor.\n$error');
+      _lastOfferId = 0;
+    }
   }
 
   void _onRemoteHangup() {
