@@ -213,11 +213,18 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         if (_ended || !mounted) return;
         if (state ==
             RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-          setState(() => _status = '');
+          setState(() {
+            _connected = true;
+            _status = '';
+          });
         } else if (state ==
                 RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-          setState(() => _status = 'Conexión perdida. Reconectando…');
+          setState(() {
+            _connected = false;
+            _lastOfferId = 0;
+            _status = 'Conexión perdida. Reconectando…';
+          });
         }
       };
 
