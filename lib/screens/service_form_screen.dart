@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/clinical_service.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
@@ -86,26 +88,97 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     super.dispose();
   }
 
-  // Simulated upload
-  void _handleFileUpload(String mode) {
+  Future<void> _pickImage(ImageSource source, CameraDevice? preferredCamera) async {
     setState(() {
       _isUploading = true;
     });
 
-    Timer(const Duration(milliseconds: 1200), () {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? file = await picker.pickImage(
+        source: source,
+        preferredCameraDevice: preferredCamera ?? CameraDevice.rear,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (file != null) {
+        setState(() {
+          _uploadedFileName = file.name;
+          _uploadedFilePreview = file.path;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al acceder a la cámara o galería: $e')),
+        );
+      }
+    } finally {
       if (mounted) {
         setState(() {
           _isUploading = false;
-          if (mode == 'camera') {
-            _uploadedFileName = 'Fotografía_Orden_Médica_Captura.jpg';
-            _uploadedFilePreview = 'camera_capture';
-          } else {
-            _uploadedFileName = 'Orden_Medica_Digital_Firmada.pdf';
-            _uploadedFilePreview = null;
-          }
         });
       }
-    });
+    }
+  }
+
+  void _showCameraSelectionDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Seleccionar Cámara',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.camera_rear_outlined, color: Color(0xFF0D9488)),
+                  title: const Text('Cámara Trasera (Recomendado)'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera, CameraDevice.rear);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_front_outlined, color: Color(0xFF0D9488)),
+                  title: const Text('Cámara Frontal'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera, CameraDevice.front);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Handle upload trigger
+  void _handleFileUpload(String mode) {
+    if (mode == 'camera') {
+      _showCameraSelectionDialog();
+    } else {
+      _pickImage(ImageSource.gallery, null);
+    }
   }
 
   int _calculatePrice() {
@@ -955,13 +1028,28 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 color: const Color(0xFFE6F6F4),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(
-                                _uploadedFilePreview != null
-                                    ? Icons.image
-                                    : Icons.picture_as_pdf,
-                                color: const Color(0xFF0D9488),
-                                size: 18,
-                              ),
+                              child: _uploadedFilePreview != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        File(_uploadedFilePreview!),
+                                        fit: BoxFit.cover,
+                                        width: 38,
+                                        height: 38,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Icon(
+                                            Icons.image,
+                                            color: Color(0xFF0D9488),
+                                            size: 18,
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.picture_as_pdf,
+                                      color: Color(0xFF0D9488),
+                                      size: 18,
+                                    ),
                             ),
                             const SizedBox(width: 10),
                             Column(
