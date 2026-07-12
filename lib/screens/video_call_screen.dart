@@ -221,10 +221,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         }
       };
 
-      final cleanSdp = sdp
-          .replaceAll('\r\n', '\n')
-          .replaceAll('\n', '\r\n')
-          .trim();
+      // Normalize line endings to CRLF and GUARANTEE the trailing one:
+      // the native Android SDP parser rejects a description whose last
+      // line is unterminated ("SessionDescription is NULL")
+      var cleanSdp =
+          sdp.replaceAll('\r\n', '\n').trim().replaceAll('\n', '\r\n');
+      cleanSdp += '\r\n';
       await pc.setRemoteDescription(RTCSessionDescription(cleanSdp, 'offer'));
 
       for (final candidate in _queuedCandidates) {
@@ -253,6 +255,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       if (mounted) {
         setState(() => _status = 'Error al conectar llamada: $e');
       }
+      // Report the failure through signaling so it can be diagnosed
+      // server-side without plugging the phone into a computer
+      widget.state.postVideoSignal(widget.appointment.id, 'error', {
+        'where': '_handleOffer',
+        'message': e.toString(),
+      });
     }
   }
 
