@@ -1078,6 +1078,16 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         ),
                         TextButton(
                           onPressed: () {
+                            if (_uploadedFilePreview != null) {
+                              try {
+                                final file = File(_uploadedFilePreview!);
+                                if (file.existsSync()) {
+                                  file.deleteSync();
+                                }
+                              } catch (e) {
+                                debugPrint('Error deleting file: $e');
+                              }
+                            }
                             setState(() {
                               _uploadedFileName = null;
                               _uploadedFilePreview = null;
