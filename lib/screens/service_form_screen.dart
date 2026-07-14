@@ -14,6 +14,7 @@ class ServiceFormScreen extends StatefulWidget {
   final List<SavedAddress> addresses;
   final VoidCallback onAddDependentRedirect;
   final VoidCallback onBack;
+  final double commissionRate;
   final Function({
     required String patientType,
     String? dependentId,
@@ -39,6 +40,7 @@ class ServiceFormScreen extends StatefulWidget {
     required this.onAddDependentRedirect,
     required this.onConfirmRequest,
     required this.onBack,
+    required this.commissionRate,
   });
 
   @override
@@ -188,9 +190,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   int _calculatePrice() {
     if (widget.service.id == 'ambulancia') {
-      return _ambulanceType == 'medicalized' ? 28500 : 18500;
+      final base = _ambulanceType == 'medicalized' ? 28500 : 18500;
+      return (base * (1.0 + widget.commissionRate)).round();
     }
-    return widget.service.basePrice;
+    return (widget.service.basePrice * (1.0 + widget.commissionRate)).round();
   }
 
   void _submitForm() {

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -7,11 +8,19 @@ class ApiService {
   String? authToken;
   final VoidCallback? onUnauthorized;
 
+  bool simulateOffline = false;
+
   ApiService({
     required this.baseUrl,
     this.authToken,
     this.onUnauthorized,
   });
+
+  void _checkOffline() {
+    if (simulateOffline) {
+      throw const SocketException('Simulated offline mode is active');
+    }
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -22,6 +31,7 @@ class ApiService {
       };
 
   Future<http.Response> get(String path, {Duration timeout = const Duration(seconds: 4)}) async {
+    _checkOffline();
     final response = await http.get(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
@@ -44,6 +54,7 @@ class ApiService {
     List<http.MultipartFile> files = const [],
     Duration timeout = const Duration(seconds: 30),
   }) async {
+    _checkOffline();
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'));
     request.headers.addAll({
       'Accept': 'application/json',
@@ -63,6 +74,7 @@ class ApiService {
   }
 
   Future<http.Response> post(String path, {dynamic body, Duration timeout = const Duration(seconds: 4), bool isRawBody = false}) async {
+    _checkOffline();
     final response = await http.post(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
@@ -76,6 +88,7 @@ class ApiService {
   }
 
   Future<http.Response> put(String path, {dynamic body, Duration timeout = const Duration(seconds: 4), bool isRawBody = false}) async {
+    _checkOffline();
     final response = await http.put(
       Uri.parse('$baseUrl$path'),
       headers: _headers,
@@ -89,6 +102,7 @@ class ApiService {
   }
 
   Future<http.Response> delete(String path, {dynamic body, Duration timeout = const Duration(seconds: 4)}) async {
+    _checkOffline();
     final response = await http.delete(
       Uri.parse('$baseUrl$path'),
       headers: _headers,

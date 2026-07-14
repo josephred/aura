@@ -35,8 +35,18 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
     _startCountdown();
   }
 
+  @override
+  void didUpdateWidget(covariant ActiveTrackingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.simulationSpeed != widget.state.simulationSpeed) {
+      _startCountdown();
+    }
+  }
+
   void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer?.cancel();
+    final intervalMs = (1000 / widget.state.simulationSpeed).round();
+    _timer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
       if (mounted) {
         setState(() {
           if (_secondsLeft > 1) {

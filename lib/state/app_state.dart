@@ -82,6 +82,11 @@ class AppState extends ChangeNotifier {
   bool _isChatTyping = false;
   final List<ChatMessage> _chatMessages = [];
 
+  // Simulator Parameters
+  double _simulationSpeed = 1.0;
+  int _doctorSearchTimeSeconds = 3;
+  double _commissionRate = 0.15;
+
   AppState() {
     _apiService = ApiService(
       baseUrl: _baseUrl,
@@ -460,6 +465,11 @@ class AppState extends ChangeNotifier {
   bool get isChatTyping => _isChatTyping;
   List<ChatMessage> get chatMessages => _chatMessages;
 
+  double get simulationSpeed => _simulationSpeed;
+  int get doctorSearchTimeSeconds => _doctorSearchTimeSeconds;
+  double get commissionRate => _commissionRate;
+  bool get simulateOffline => _apiService.simulateOffline;
+
   // Filtered Services List
   List<ClinicalService> get filteredServices {
     return _services.where((service) {
@@ -799,6 +809,46 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSimulationSpeed(double speed) {
+    _simulationSpeed = speed;
+    notifyListeners();
+  }
+
+  void setDoctorSearchTimeSeconds(int seconds) {
+    _doctorSearchTimeSeconds = seconds;
+    notifyListeners();
+  }
+
+  void setCommissionRate(double rate) {
+    _commissionRate = rate;
+    notifyListeners();
+  }
+
+  void setSimulateOffline(bool val) {
+    _apiService.simulateOffline = val;
+    notifyListeners();
+  }
+
+  Future<void> forceFlushOutbox() async {
+    await _outboxService.flush();
+  }
+
+  Future<void> clearLocalCache() async {
+    stopActiveBookingStream();
+    _authToken = null;
+    _apiService.authToken = null;
+    _userName = '';
+    _userEmail = '';
+    _isDemoMode = false;
+    _currentRequest = null;
+    _pendingMessages = 0;
+    _activeTab = 'home';
+    _initializeChat();
+    _persistSession();
+    await DbHelper.instance.clearAll();
+    notifyListeners();
+  }
+
   void _initializeChat() {
     _chatMessages.clear();
     final nowStr = DateFormat('HH:mm').format(DateTime.now());
@@ -919,7 +969,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('Backend confirmRequest failed, falling back to local simulation. Error: $e');
       // LOCAL FALLBACK SIMULATION:
-      Timer(const Duration(milliseconds: 2800), () async {
+      Timer(Duration(seconds: _doctorSearchTimeSeconds), () async {
         _isSearchingDoctor = false;
 
         final now = DateTime.now();

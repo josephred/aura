@@ -1073,6 +1073,252 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // System Parameters Configuration Section
+          const Text(
+            'Configuración y Parámetros del Sistema',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Simulation Speed
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Velocidad de Simulación (GPS)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                        ),
+                        Text(
+                          '${state.simulationSpeed.toStringAsFixed(1)}x',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D9488)),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: state.simulationSpeed,
+                      min: 1.0,
+                      max: 10.0,
+                      divisions: 9,
+                      activeColor: const Color(0xFF0D9488),
+                      inactiveColor: const Color(0xFFE2E8F0),
+                      onChanged: (val) {
+                        setState(() {
+                          state.setSimulationSpeed(val);
+                        });
+                      },
+                    ),
+                    const Divider(height: 24, color: Color(0xFFE2E8F0)),
+
+                    // Doctor Search Time
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Retraso en Búsqueda de Médico',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                        ),
+                        Text(
+                          '${state.doctorSearchTimeSeconds}s',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D9488)),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: state.doctorSearchTimeSeconds.toDouble(),
+                      min: 1.0,
+                      max: 10.0,
+                      divisions: 9,
+                      activeColor: const Color(0xFF0D9488),
+                      inactiveColor: const Color(0xFFE2E8F0),
+                      onChanged: (val) {
+                        setState(() {
+                          state.setDoctorSearchTimeSeconds(val.round());
+                        });
+                      },
+                    ),
+                    const Divider(height: 24, color: Color(0xFFE2E8F0)),
+
+                    // Commission Rate
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Comisión de Servicio (Aura)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                        ),
+                        Text(
+                          '${(state.commissionRate * 100).round()}%',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0D9488)),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: state.commissionRate,
+                      min: 0.05,
+                      max: 0.35,
+                      divisions: 6,
+                      activeColor: const Color(0xFF0D9488),
+                      inactiveColor: const Color(0xFFE2E8F0),
+                      onChanged: (val) {
+                        setState(() {
+                          state.setCommissionRate(double.parse(val.toStringAsFixed(2)));
+                        });
+                      },
+                    ),
+                  ],
+                );
+              }
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Database & Network Operations
+          const Text(
+            'Acciones de Base de Datos y Red',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Artificial Offline Switch
+                StatefulBuilder(
+                  builder: (context, setState) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.wifi_off_rounded, color: Color(0xFF475569), size: 18),
+                            SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Simular Caída de Red',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF334155)),
+                                ),
+                                Text(
+                                  'Bloquea peticiones HTTP de la API',
+                                  style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Switch(
+                          value: state.simulateOffline,
+                          activeThumbColor: const Color(0xFFEF4444),
+                          activeTrackColor: const Color(0xFFFEE2E2),
+                          onChanged: (val) {
+                            setState(() {
+                              state.setSimulateOffline(val);
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  val
+                                      ? 'Modo sin conexión simulado: Activado'
+                                      : 'Conexión restaurada',
+                                ),
+                                backgroundColor: val ? Colors.red : Colors.green,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  }
+                ),
+                const Divider(height: 24, color: Color(0xFFE2E8F0)),
+
+                // Action Buttons Row
+                Row(
+                  children: [
+                    // Force Sync Outbox
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await state.forceFlushOutbox();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Cola de peticiones offline vaciada (Flush).'),
+                                backgroundColor: Color(0xFF0D9488),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.sync_rounded, size: 14),
+                        label: const Text('Forzar Sincro'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          foregroundColor: const Color(0xFF0F172A),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    // Clear Cache
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await state.clearLocalCache();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Caché e inicio de sesión borrados. Base de datos segura limpia.'),
+                                backgroundColor: Color(0xFFEF4444),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.delete_sweep_rounded, size: 14),
+                        label: const Text('Limpiar Caché'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFEF2F2),
+                          foregroundColor: const Color(0xFFEF4444),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color(0xFFFCA5A5)),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // Prescription Validation Queue
           const Text(
             'Cola de Validación de Recetas',

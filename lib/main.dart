@@ -176,6 +176,7 @@ class _MainShellState extends State<MainShell> {
         service: selectedService,
         dependents: _appState.dependents,
         addresses: _appState.addresses,
+        commissionRate: _appState.commissionRate,
         onAddDependentRedirect: () {
           _appState.selectService(null);
           _appState.setTab('profile');
