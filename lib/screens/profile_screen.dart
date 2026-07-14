@@ -1312,6 +1312,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
 
+          // Accessibility Settings Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.text_fields_rounded, color: Color(0xFF0D9488), size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tamaño de Texto (Accesibilidad)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Escalar fuentes',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    SegmentedButton<double>(
+                      segments: const [
+                        ButtonSegment<double>(
+                          value: 1.0,
+                          label: Text('Normal', style: TextStyle(fontSize: 11)),
+                        ),
+                        ButtonSegment<double>(
+                          value: 1.2,
+                          label: Text('Grande', style: TextStyle(fontSize: 11)),
+                        ),
+                        ButtonSegment<double>(
+                          value: 1.4,
+                          label: Text('Muy Grande', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                      selected: {state.textScaleFactor},
+                      onSelectionChanged: (Set<double> newSelection) {
+                        state.setTextScaleFactor(newSelection.first);
+                      },
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        selectedBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                        selectedForegroundColor: const Color(0xFF0D9488),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // Logout button
           SizedBox(
             width: double.infinity,

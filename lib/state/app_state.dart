@@ -124,6 +124,7 @@ class AppState extends ChangeNotifier {
   String? _assignedProfessionalPhone;
   String? _assignedProfessionalSpecialty;
   ThemeMode _themeMode = ThemeMode.system;
+  double _textScaleFactor = 1.0;
 
   AppState() {
     _apiService = ApiService(
@@ -201,6 +202,7 @@ class AppState extends ChangeNotifier {
           orElse: () => ThemeMode.system,
         );
       }
+      _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.0;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
         _authToken = token;
@@ -521,6 +523,7 @@ class AppState extends ChangeNotifier {
   String? get assignedProfessionalPhone => _assignedProfessionalPhone;
   String? get assignedProfessionalSpecialty => _assignedProfessionalSpecialty;
   ThemeMode get themeMode => _themeMode;
+  double get textScaleFactor => _textScaleFactor;
 
   // Filtered Services List
   List<ClinicalService> get filteredServices {
@@ -915,6 +918,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('theme_mode', mode.name);
+  }
+
+  Future<void> setTextScaleFactor(double factor) async {
+    _textScaleFactor = factor;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('text_scale_factor', factor);
   }
 
   void _initializeChat() {

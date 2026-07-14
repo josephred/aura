@@ -67,6 +67,15 @@ class _MainAppState extends State<MainApp> {
       title: 'Aura Salud',
       debugShowCheckedModeBanner: false,
       themeMode: _appState.themeMode,
+      builder: (context, child) {
+        final mediaQueryData = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQueryData.copyWith(
+            textScaler: TextScaler.linear(_appState.textScaleFactor),
+          ),
+          child: child!,
+        );
+      },
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
