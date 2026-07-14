@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/clinical_service.dart';
 import '../models/service_request.dart';
@@ -1054,6 +1055,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
+          const _ActiveRadarWidget(),
           const SizedBox(height: 20),
 
           // Operational metrics grid
@@ -1319,6 +1321,103 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
+          // Provider Management Section
+          const Text(
+            'Gestión de Prestadores de Turno',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: state.systemProviders.length,
+              separatorBuilder: (context, index) => const Divider(color: Color(0xFFE2E8F0), height: 16),
+              itemBuilder: (context, index) {
+                final provider = state.systemProviders[index];
+                final String status = provider['status'] as String;
+
+                Color statusColor = const Color(0xFF10B981); // Green for Disponible
+                if (status == 'Ocupado') statusColor = const Color(0xFFF59E0B);
+                if (status == 'Desconectado') statusColor = const Color(0xFFEF4444);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    children: [
+                      // Status Circle indicator
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Provider details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              provider['name'] as String,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            ),
+                            Text(
+                              provider['specialty'] as String,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Dropdown / Segment selector for status
+                      DropdownButton<String>(
+                        value: status,
+                        underline: const SizedBox(),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                        icon: Icon(Icons.arrow_drop_down_rounded, color: statusColor, size: 18),
+                        onChanged: (newVal) {
+                          if (newVal != null) {
+                            state.setProviderStatus(provider['id'] as String, newVal);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${provider['name'] as String} cambiado a "$newVal".'),
+                                backgroundColor: const Color(0xFF0D9488),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          }
+                        },
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Disponible',
+                            child: Text('Disponible'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Ocupado',
+                            child: Text('Ocupado'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Desconectado',
+                            child: Text('Desconectado'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // Prescription Validation Queue
           const Text(
             'Cola de Validación de Recetas',
@@ -1560,4 +1659,249 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ActiveRadarWidget extends StatefulWidget {
+  const _ActiveRadarWidget();
+
+  @override
+  State<_ActiveRadarWidget> createState() => _ActiveRadarWidgetState();
+}
+
+class _ActiveRadarWidgetState extends State<_ActiveRadarWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_RadarEntity> _entities = [
+    _RadarEntity(label: 'AMB-12', type: 'ambulance', baseOffset: const Offset(-60, 40), angleOffset: 0.0, speed: 0.8),
+    _RadarEntity(label: 'DR-Russo', type: 'doctor', baseOffset: const Offset(70, -30), angleOffset: 1.5, speed: 0.5),
+    _RadarEntity(label: 'ENF-Cristian', type: 'doctor', baseOffset: const Offset(-20, -70), angleOffset: 3.1, speed: 0.6),
+    _RadarEntity(label: 'PAC-Mateo', type: 'patient', baseOffset: const Offset(30, 60), angleOffset: 0.0, speed: 0.0), // Stationary
+    _RadarEntity(label: 'AMB-05', type: 'ambulance', baseOffset: const Offset(80, 50), angleOffset: 4.2, speed: 1.2),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 220,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1329), // Deep dark space tech color
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF1E293B)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: _RadarPainter(
+              sweepAngle: _controller.value * 2 * pi,
+              entities: _entities,
+              animationValue: _controller.value,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RadarEntity {
+  final String label;
+  final String type; // 'ambulance' | 'doctor' | 'patient'
+  final Offset baseOffset;
+  final double angleOffset;
+  final double speed;
+
+  _RadarEntity({
+    required this.label,
+    required this.type,
+    required this.baseOffset,
+    required this.angleOffset,
+    required this.speed,
+  });
+
+  Offset getAnimatedOffset(double t) {
+    if (speed == 0) return baseOffset; // Stationary
+    // Circular orbit motion around base offset
+    final radius = 15.0;
+    final angle = angleOffset + (t * 2 * pi * speed);
+    return baseOffset + Offset(cos(angle) * radius, sin(angle) * radius);
+  }
+}
+
+class _RadarPainter extends CustomPainter {
+  final double sweepAngle;
+  final List<_RadarEntity> entities;
+  final double animationValue;
+
+  _RadarPainter({
+    required this.sweepAngle,
+    required this.entities,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius = min(size.width, size.height) / 2 * 0.9;
+
+    final gridPaint = Paint()
+      ..color = const Color(0xFF1E293B).withValues(alpha: 0.5)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final axisPaint = Paint()
+      ..color = const Color(0xFF0D9488).withValues(alpha: 0.2)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    // 1. Draw grid circles
+    for (int i = 1; i <= 4; i++) {
+      canvas.drawCircle(center, maxRadius * (i / 4), gridPaint);
+    }
+
+    // 2. Draw orthogonal axes
+    canvas.drawLine(Offset(center.dx - maxRadius, center.dy), Offset(center.dx + maxRadius, center.dy), axisPaint);
+    canvas.drawLine(Offset(center.dx, center.dy - maxRadius), Offset(center.dx, center.dy + maxRadius), axisPaint);
+
+    // 3. Draw rotating sweep line (conical gradient scanner shadow)
+    final sweepPaint = Paint()
+      ..shader = SweepGradient(
+        center: Alignment.center,
+        startAngle: sweepAngle - 0.5,
+        endAngle: sweepAngle,
+        colors: [
+          const Color(0xFF0D9488).withValues(alpha: 0.0),
+          const Color(0xFF0D9488).withValues(alpha: 0.3),
+        ],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: maxRadius))
+      ..style = PaintingStyle.fill;
+
+    // Draw the pie slice representing the radar beam sweep
+    canvas.drawCircle(center, maxRadius, sweepPaint);
+
+    // Dynamic sweep line
+    final linePaint = Paint()
+      ..color = const Color(0xFF2DD4BF)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    final sweepLineEnd = center + Offset(cos(sweepAngle) * maxRadius, sin(sweepAngle) * maxRadius);
+    canvas.drawLine(center, sweepLineEnd, linePaint);
+
+    // 4. Draw entities
+    for (final entity in entities) {
+      final pos = center + entity.getAnimatedOffset(animationValue);
+
+      // Skip drawing if outside radar ring boundary
+      if ((pos - center).distance > maxRadius) continue;
+
+      // Calculate angle of entity relative to center
+      final entityAngle = atan2(pos.dy - center.dy, pos.dx - center.dx);
+      // Normalized angles between 0 and 2pi
+      var diff = (sweepAngle - entityAngle) % (2 * pi);
+      
+      // Draw entity only if it was recently scanned (fading trail effect)
+      double intensity = 1.0 - (diff / (2 * pi));
+      if (intensity < 0.1) intensity = 0.1; // Baseline visibility
+
+      final Color dotColor = switch (entity.type) {
+        'ambulance' => const Color(0xFF3B82F6), // blue
+        'doctor' => const Color(0xFF10B981), // emerald green
+        'patient' => const Color(0xFFEF4444), // red
+        _ => Colors.white,
+      };
+
+      // Outer glowing ring
+      final glowPaint = Paint()
+        ..color = dotColor.withValues(alpha: intensity * 0.4)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(pos, 6.0 + (sin(animationValue * 10) * 2), glowPaint);
+
+      // Inner dot
+      final dotPaint = Paint()
+        ..color = dotColor.withValues(alpha: intensity)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(pos, 3.5, dotPaint);
+
+      // Label text
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: entity.label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: intensity * 0.8),
+            fontSize: 7.5,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.2,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      textPainter.paint(canvas, Offset(pos.dx + 6, pos.dy - 4));
+    }
+
+    // 5. Draw decorative tech elements on the map
+    final borderPaint = Paint()
+      ..color = const Color(0xFF0D9488).withValues(alpha: 0.6)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+    // Top-left angle reticle
+    canvas.drawPath(
+      Path()
+        ..moveTo(10, 20)
+        ..lineTo(10, 10)
+        ..lineTo(20, 10),
+      borderPaint,
+    );
+    // Bottom-right angle reticle
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - 10, size.height - 20)
+        ..lineTo(size.width - 10, size.height - 10)
+        ..lineTo(size.width - 20, size.height - 10),
+      borderPaint,
+    );
+
+    // Text Overlay
+    final statusPainter = TextPainter(
+      text: const TextSpan(
+        text: 'RADAR DESPACHO: ACTIVO\nAMB: 2 | DOC: 2 | PAC: 1\nSANTIAGO - ZONA SUR',
+        style: TextStyle(
+          color: Color(0xFF2DD4BF),
+          fontSize: 7,
+          fontFamily: 'monospace',
+          fontWeight: FontWeight.bold,
+          height: 1.4,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    statusPainter.paint(canvas, const Offset(15, 15));
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarPainter oldDelegate) => true;
 }

@@ -87,6 +87,42 @@ class AppState extends ChangeNotifier {
   int _doctorSearchTimeSeconds = 3;
   double _commissionRate = 0.15;
 
+  // Provider simulation
+  final List<Map<String, dynamic>> _systemProviders = [
+    {
+      'id': 'prof_camila_rivera',
+      'name': 'Dra. Camila Rivera N.',
+      'specialty': 'Medicina Interna',
+      'status': 'Disponible', // 'Disponible' | 'Ocupado' | 'Desconectado'
+      'phone': '+56 9 8812 3410',
+    },
+    {
+      'id': 'prof_sebastian_leyton',
+      'name': 'Dr. Sebastián Leyton',
+      'specialty': 'Medicina General',
+      'status': 'Disponible',
+      'phone': '+56 9 7721 9831',
+    },
+    {
+      'id': 'prof_maria_diaz',
+      'name': 'Klga. María José Díaz',
+      'specialty': 'Kinesiología',
+      'status': 'Disponible',
+      'phone': '+56 9 6610 2110',
+    },
+    {
+      'id': 'prof_patricia_jara',
+      'name': 'Enf. Patricia Jara',
+      'specialty': 'Enfermería',
+      'status': 'Disponible',
+      'phone': '+56 9 5543 2120',
+    },
+  ];
+
+  String? _assignedProfessionalName;
+  String? _assignedProfessionalPhone;
+  String? _assignedProfessionalSpecialty;
+
   AppState() {
     _apiService = ApiService(
       baseUrl: _baseUrl,
@@ -470,6 +506,11 @@ class AppState extends ChangeNotifier {
   double get commissionRate => _commissionRate;
   bool get simulateOffline => _apiService.simulateOffline;
 
+  List<Map<String, dynamic>> get systemProviders => _systemProviders;
+  String? get assignedProfessionalName => _assignedProfessionalName;
+  String? get assignedProfessionalPhone => _assignedProfessionalPhone;
+  String? get assignedProfessionalSpecialty => _assignedProfessionalSpecialty;
+
   // Filtered Services List
   List<ClinicalService> get filteredServices {
     return _services.where((service) {
@@ -842,10 +883,19 @@ class AppState extends ChangeNotifier {
     _isDemoMode = false;
     _currentRequest = null;
     _pendingMessages = 0;
+    _assignedProfessionalName = null;
+    _assignedProfessionalPhone = null;
+    _assignedProfessionalSpecialty = null;
     _activeTab = 'home';
     _initializeChat();
     _persistSession();
     await DbHelper.instance.clearAll();
+    notifyListeners();
+  }
+
+  void setProviderStatus(String providerId, String newStatus) {
+    final provider = _systemProviders.firstWhere((p) => p['id'] == providerId);
+    provider['status'] = newStatus;
     notifyListeners();
   }
 
@@ -974,6 +1024,42 @@ class AppState extends ChangeNotifier {
 
         final now = DateTime.now();
         final timeStr = DateFormat('HH:mm').format(now);
+
+        // Dynamic routing logic based on provider status
+        String docName = 'Dr. Alejandro Russo';
+        String docPhone = '+56 9 8812 3410';
+        String docSpecialty = 'Médico Generalista • Reg. 43102-B';
+
+        final requestedServiceId = _selectedService?.id ?? 'medico';
+        
+        final matchingProviders = _systemProviders.where((p) {
+          if (requestedServiceId == 'medico' && p['id']!.contains('leyton')) return true;
+          if (requestedServiceId == 'medico' && p['id']!.contains('rivera')) return true;
+          if (requestedServiceId == 'enfermeria' && p['id']!.contains('jara')) return true;
+          if (requestedServiceId == 'kine_motora' && p['id']!.contains('diaz')) return true;
+          if (requestedServiceId == 'kine_respiratoria' && p['id']!.contains('diaz')) return true;
+          return false;
+        }).toList();
+
+        final availableProvider = matchingProviders.firstWhere(
+          (p) => p['status'] == 'Disponible',
+          orElse: () => {},
+        );
+
+        if (availableProvider.isNotEmpty) {
+          docName = availableProvider['name'] as String;
+          docPhone = availableProvider['phone'] as String;
+          docSpecialty = '${availableProvider['specialty'] as String} • On-Duty';
+        } else {
+          // If no provider is active, assign contingency backup
+          docName = 'Backup Clínico de Guardia';
+          docPhone = '+56 9 0000 0000';
+          docSpecialty = 'Servicio de Contingencia Aura';
+        }
+
+        _assignedProfessionalName = docName;
+        _assignedProfessionalPhone = docPhone;
+        _assignedProfessionalSpecialty = docSpecialty;
 
         _currentRequest = ServiceRequest(
           id: 'req_${DateTime.now().millisecondsSinceEpoch}',
@@ -1313,6 +1399,9 @@ class AppState extends ChangeNotifier {
     }
     _currentRequest = null;
     _pendingMessages = 0;
+    _assignedProfessionalName = null;
+    _assignedProfessionalPhone = null;
+    _assignedProfessionalSpecialty = null;
     _initializeChat();
     notifyListeners();
   }

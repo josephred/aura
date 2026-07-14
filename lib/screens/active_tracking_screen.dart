@@ -72,6 +72,13 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
   }
 
   Map<String, String> _getAssignedProfessional(String serviceId) {
+    if (widget.state.assignedProfessionalName != null) {
+      return {
+        'name': widget.state.assignedProfessionalName!,
+        'specialty': widget.state.assignedProfessionalSpecialty ?? '',
+        'phone': widget.state.assignedProfessionalPhone ?? '',
+      };
+    }
     switch (serviceId) {
       case 'medico':
         return {
