@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/dependent.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
+import '../widgets/tracking_map.dart';
 
 class ActiveTrackingScreen extends StatefulWidget {
   final AppState state;
@@ -122,62 +123,28 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header tracking row
+          // Header tracking row. The service status now advances only from the
+          // real professional's actions on the doctor portal, streamed here via
+          // SSE — there is no client-side "advance" shortcut.
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    height: 10,
-                    width: 10,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF10B981), // emerald-500
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Seguimiento Clínico',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-              if (isNotFinished)
-                ElevatedButton(
-                  onPressed: () {
-                    widget.state.simulateNextStep();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE6F6F4),
-                    foregroundColor: const Color(0xFF0D9488),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.refresh, size: 12),
-                      SizedBox(width: 4),
-                      Text(
-                        'Avanzar Simulación',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+              Container(
+                height: 10,
+                width: 10,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981), // emerald-500
+                  shape: BoxShape.circle,
                 ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Seguimiento Clínico',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -874,7 +841,6 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
   }
 
   Widget _buildMockTrackingMap(int step, String serviceId) {
-    final isEnCamino = step == 2;
     String statusText = 'Preparando insumos clínicos';
     if (step == 2) {
       statusText = 'Vehículo de asistencia en trayecto';
@@ -958,90 +924,21 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
             ),
           ),
 
-          // Map canvas
+          // Real OpenStreetMap tracking: patient home + live professional GPS
           Container(
-            height: 140,
-            width: double.infinity,
             decoration: const BoxDecoration(
               border: Border(
                 top: BorderSide(color: Color(0xFFE2E8F0)),
                 bottom: BorderSide(color: Color(0xFFE2E8F0)),
               ),
             ),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: MockRoutePainter(
-                      step: step,
-                      secondsLeft: _secondsLeft,
-                    ),
-                  ),
-                ),
-                // Indicator pills for A (Specialist) and B (Home)
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.location_on, color: Colors.grey, size: 10),
-                        SizedBox(width: 3),
-                        Text(
-                          'A: Base Aura',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFCBD5E1)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          color: Color(0xFF0D9488),
-                          size: 10,
-                        ),
-                        SizedBox(width: 3),
-                        Text(
-                          'B: Tu Domicilio',
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            child: TrackingMap(
+              addressText: widget.request.addressText,
+              patientLat: widget.request.patientLat,
+              patientLng: widget.request.patientLng,
+              professionalLat: widget.request.professionalLat,
+              professionalLng: widget.request.professionalLng,
+              height: 180,
             ),
           ),
 
@@ -1073,264 +970,5 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
         ],
       ),
     );
-  }
-}
-
-class MockRoutePainter extends CustomPainter {
-  final int step;
-  final int secondsLeft;
-
-  MockRoutePainter({required this.step, required this.secondsLeft});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-
-    // 1. Background Land (Slate-200 for high contrast with white streets)
-    paint.color = const Color(0xFFE2E8F0);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-
-    // 2. Draw coordinate grid lines
-    paint.color = const Color(0xFFCBD5E1).withValues(alpha: 0.5);
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.0;
-    for (double i = 20; i < size.width; i += 40) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 15; i < size.height; i += 30) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-
-    // 3. Draw Parks (Green zones with outlines)
-    paint.color = const Color(0xFFD1FAE5); // Emerald-100
-    paint.style = PaintingStyle.fill;
-    final park1 = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.05,
-        size.height * 0.08,
-        size.width * 0.22,
-        size.height * 0.45,
-      ),
-      const Radius.circular(10),
-    );
-    final park2 = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.72,
-        size.height * 0.48,
-        size.width * 0.23,
-        size.height * 0.44,
-      ),
-      const Radius.circular(10),
-    );
-    canvas.drawRRect(park1, paint);
-    canvas.drawRRect(park2, paint);
-
-    // Park outlines
-    paint.color = const Color(0xFFA7F3D0); // Emerald-200
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.5;
-    canvas.drawRRect(park1, paint);
-    canvas.drawRRect(park2, paint);
-
-    // 4. Draw River (Sky Blue water path)
-    paint.color = const Color(0xFFBAE6FD); // Sky-200
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 16.0;
-    final riverPath = Path();
-    riverPath.moveTo(0, size.height * 0.85);
-    riverPath.quadraticBezierTo(
-      size.width * 0.45,
-      size.height * 0.5,
-      size.width,
-      size.height * 0.35,
-    );
-    canvas.drawPath(riverPath, paint);
-
-    // River inner flow line
-    paint.color = const Color(0xFF7DD3FC); // Sky-300
-    paint.strokeWidth = 2.0;
-    canvas.drawPath(riverPath, paint);
-
-    // 5. Draw Streets (Double-line style: casing + white inline)
-    final streets = [
-      // Horizontal streets
-      [Offset(0, size.height * 0.3), Offset(size.width, size.height * 0.3)],
-      [Offset(0, size.height * 0.7), Offset(size.width, size.height * 0.7)],
-      // Vertical streets
-      [Offset(size.width * 0.35, 0), Offset(size.width * 0.35, size.height)],
-      [Offset(size.width * 0.65, 0), Offset(size.width * 0.65, size.height)],
-    ];
-
-    // Casing
-    paint.color = const Color(0xFF94A3B8); // Slate-400
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 9.0;
-    for (var street in streets) {
-      canvas.drawLine(street[0], street[1], paint);
-    }
-
-    // Inline
-    paint.color = Colors.white;
-    paint.strokeWidth = 6.0;
-    for (var street in streets) {
-      canvas.drawLine(street[0], street[1], paint);
-    }
-
-    // 6. Draw Street and River Labels
-    _drawText(
-      canvas,
-      "Río Mapocho",
-      Offset(size.width * 0.42, size.height * 0.53),
-      color: const Color(0xFF0369A1),
-      size: 7.5,
-      italic: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Providencia",
-      Offset(size.width * 0.05, size.height * 0.25),
-      color: const Color(0xFF64748B),
-      size: 7.0,
-      bold: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Andrés Bello",
-      Offset(size.width * 0.05, size.height * 0.65),
-      color: const Color(0xFF64748B),
-      size: 7.0,
-      bold: true,
-    );
-    _drawText(
-      canvas,
-      "Calle Lota",
-      Offset(size.width * 0.22, size.height * 0.85),
-      color: const Color(0xFF64748B),
-      size: 6.5,
-      bold: true,
-      rotate90: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Suecia",
-      Offset(size.width * 0.58, size.height * 0.05),
-      color: const Color(0xFF64748B),
-      size: 6.5,
-      bold: true,
-      rotate90: true,
-    );
-
-    // 7. Draw Route Path (thick dark teal line with highlight effect)
-    final pStart = Offset(size.width * 0.15, size.height * 0.25); // A
-    final pEnd = Offset(size.width * 0.8, size.height * 0.75); // B
-    final pControl = Offset(size.width * 0.4, size.height * 0.75);
-
-    // Route path outline
-    paint.color = const Color(0xFF115E59).withValues(alpha: 0.3);
-    paint.strokeWidth = 6.0;
-    paint.style = PaintingStyle.stroke;
-    final routePath = Path();
-    routePath.moveTo(pStart.dx, pStart.dy);
-    routePath.quadraticBezierTo(pControl.dx, pControl.dy, pEnd.dx, pEnd.dy);
-    canvas.drawPath(routePath, paint);
-
-    // Route path core
-    paint.color = const Color(0xFF0D9488);
-    paint.strokeWidth = 3.5;
-    canvas.drawPath(routePath, paint);
-
-    // 8. Draw Pins A & B
-    paint.style = PaintingStyle.fill;
-    paint.color = const Color(0xFF64748B);
-    canvas.drawCircle(pStart, 5, paint);
-    paint.color = Colors.white;
-    canvas.drawCircle(pStart, 2, paint);
-
-    paint.color = const Color(0xFFF43F5E);
-    canvas.drawCircle(pEnd, 6, paint);
-    paint.color = Colors.white;
-    canvas.drawCircle(pEnd, 2.5, paint);
-
-    // 9. Draw the vehicle position (moving dot)
-    double t = 0.0;
-    if (step <= 1) {
-      t = 0.0;
-    } else if (step == 2) {
-      double baseProg = (60 - secondsLeft) / 60.0;
-      t = 0.15 + (baseProg * 0.65);
-    } else {
-      t = 1.0;
-    }
-
-    final x =
-        (1 - t) * (1 - t) * pStart.dx +
-        2 * (1 - t) * t * pControl.dx +
-        t * t * pEnd.dx;
-    final y =
-        (1 - t) * (1 - t) * pStart.dy +
-        2 * (1 - t) * t * pControl.dy +
-        t * t * pEnd.dy;
-    final vehiclePos = Offset(x, y);
-
-    if (step == 2) {
-      final pulsePaint = Paint()
-        ..color = const Color(0xFF0D9488).withValues(alpha: 0.35)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(vehiclePos, 10.0 + (secondsLeft % 3 * 3), pulsePaint);
-    }
-
-    paint.color = const Color(0xFF0D9488);
-    canvas.drawCircle(vehiclePos, 8, paint);
-    paint.color = Colors.white;
-    canvas.drawCircle(vehiclePos, 4, paint);
-    paint.color = const Color(0xFF115E59);
-    canvas.drawCircle(vehiclePos, 2, paint);
-  }
-
-  void _drawText(
-    Canvas canvas,
-    String text,
-    Offset offset, {
-    required Color color,
-    double size = 7.0,
-    bool bold = false,
-    bool italic = false,
-    bool rotate90 = false,
-  }) {
-    final textSpan = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: color,
-        fontSize: size,
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-        letterSpacing: 0.3,
-        fontFamily: 'Inter',
-      ),
-    );
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    if (rotate90) {
-      canvas.save();
-      canvas.translate(offset.dx, offset.dy);
-      canvas.rotate(1.5708);
-      textPainter.paint(canvas, const Offset(0, 0));
-      canvas.restore();
-    } else {
-      textPainter.paint(canvas, offset);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-extension _ElevatedButtonExtension on ElevatedButton {
-  Widget child(Widget child) {
-    return child;
   }
 }

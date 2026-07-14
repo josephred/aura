@@ -58,6 +58,10 @@ class ServiceRequest {
   final String? originAddress; // used for ambulance
   final String? destinationAddress; // used for ambulance
   final String? ambulanceType; // 'basic' | 'medicalized'
+  final double? patientLat; // patient home coordinates picked on the map
+  final double? patientLng;
+  final double? professionalLat; // live position broadcast by the professional
+  final double? professionalLng;
   final String? symptomsDescription;
   final String? prescriptionName;
   final String? prescriptionPreview;
@@ -81,6 +85,10 @@ class ServiceRequest {
     this.originAddress,
     this.destinationAddress,
     this.ambulanceType,
+    this.patientLat,
+    this.patientLng,
+    this.professionalLat,
+    this.professionalLng,
     this.symptomsDescription,
     this.prescriptionName,
     this.prescriptionPreview,
@@ -105,6 +113,10 @@ class ServiceRequest {
     String? originAddress,
     String? destinationAddress,
     String? ambulanceType,
+    double? patientLat,
+    double? patientLng,
+    double? professionalLat,
+    double? professionalLng,
     String? symptomsDescription,
     String? prescriptionName,
     String? prescriptionPreview,
@@ -128,6 +140,10 @@ class ServiceRequest {
       originAddress: originAddress ?? this.originAddress,
       destinationAddress: destinationAddress ?? this.destinationAddress,
       ambulanceType: ambulanceType ?? this.ambulanceType,
+      patientLat: patientLat ?? this.patientLat,
+      patientLng: patientLng ?? this.patientLng,
+      professionalLat: professionalLat ?? this.professionalLat,
+      professionalLng: professionalLng ?? this.professionalLng,
       symptomsDescription: symptomsDescription ?? this.symptomsDescription,
       prescriptionName: prescriptionName ?? this.prescriptionName,
       prescriptionPreview: prescriptionPreview ?? this.prescriptionPreview,
@@ -154,6 +170,18 @@ class ServiceRequest {
       originAddress: (json['origin_address'] ?? json['originAddress']) as String?,
       destinationAddress: (json['destination_address'] ?? json['destinationAddress']) as String?,
       ambulanceType: (json['ambulance_type'] ?? json['ambulanceType']) as String?,
+      patientLat: (json['patient_lat'] ?? json['patientLat']) is num
+          ? (json['patient_lat'] ?? json['patientLat'] as num).toDouble()
+          : null,
+      patientLng: (json['patient_lng'] ?? json['patientLng']) is num
+          ? (json['patient_lng'] ?? json['patientLng'] as num).toDouble()
+          : null,
+      professionalLat: (json['professional_lat'] ?? json['professionalLat']) is num
+          ? (json['professional_lat'] ?? json['professionalLat'] as num).toDouble()
+          : null,
+      professionalLng: (json['professional_lng'] ?? json['professionalLng']) is num
+          ? (json['professional_lng'] ?? json['professionalLng'] as num).toDouble()
+          : null,
       symptomsDescription: (json['symptoms_description'] ?? json['symptomsDescription']) as String?,
       prescriptionName: (json['prescription_name'] ?? json['prescriptionName']) as String?,
       prescriptionPreview: (json['prescription_preview'] ?? json['prescriptionPreview']) as String?,
@@ -180,6 +208,10 @@ class ServiceRequest {
       'origin_address': originAddress,
       'destination_address': destinationAddress,
       'ambulance_type': ambulanceType,
+      'patient_lat': patientLat,
+      'patient_lng': patientLng,
+      'professional_lat': professionalLat,
+      'professional_lng': professionalLng,
       'symptoms_description': symptomsDescription,
       'prescription_name': prescriptionName,
       'prescription_preview': prescriptionPreview,

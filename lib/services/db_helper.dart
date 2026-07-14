@@ -45,7 +45,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 4,
+        version: 5,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -61,7 +61,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 4,
+        version: 5,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -78,6 +78,12 @@ class DbHelper {
     }
     if (oldVersion < 4) {
       await db.execute('ALTER TABLE chat_messages ADD COLUMN sender_name TEXT');
+    }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE service_requests ADD COLUMN patient_lat REAL');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN patient_lng REAL');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_lat REAL');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_lng REAL');
     }
   }
 
@@ -132,6 +138,10 @@ class DbHelper {
         origin_address TEXT,
         destination_address TEXT,
         ambulance_type TEXT,
+        patient_lat REAL,
+        patient_lng REAL,
+        professional_lat REAL,
+        professional_lng REAL,
         symptoms_description TEXT,
         prescription_name TEXT,
         prescription_preview TEXT,

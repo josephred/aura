@@ -105,7 +105,7 @@ La aplicación cuenta con una cartera diversa de especialidades clínicas. Algun
 ### D. Monitoreo y Seguimiento en Tiempo Real
 1. Una vez confirmada tu cita presencial a domicilio, se abrirá la pestaña de **Seguimiento Activo**.
 2. Podrás ver en tiempo real en el mapa la ubicación del profesional clínico, su fotografía, cédula profesional y el cronómetro de llegada estimado (ETA).
-3. Utiliza el botón **Avanzar Simulación** si estás probando la app para saltar rápidamente por los diferentes estados de atención (*Solicitado -> Confirmado -> En Camino -> En Atención -> Completado*).
+3. Los estados de la atención (*Solicitado -> Confirmado -> En Camino -> En Atención -> Completado*) avanzan automáticamente a medida que el profesional actualiza su progreso desde el portal clínico; los cambios llegan a tu app en tiempo real.
 
 ### E. Chat con el Especialista Clínico
 1. Durante los estados activos de una cita presencial, puedes chatear directamente con tu profesional clínico asignado para coordinar detalles prácticos de llegada (ej: *"El timbre está roto, por favor llámeme al llegar"*).

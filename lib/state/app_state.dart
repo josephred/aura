@@ -114,6 +114,11 @@ class AppState extends ChangeNotifier {
     await fetchDependents();
     await fetchAddresses();
     await fetchPaymentMethods();
+    // A queued chat message may have just been delivered: pull the real thread
+    // (with the provider's reply, if any) back from the backend.
+    if (_currentRequest != null) {
+      await fetchChatMessages(_currentRequest!.id);
+    }
   }
 
   // Queue a CRUD mutation that failed offline (real accounts only;
@@ -821,6 +826,8 @@ class AppState extends ChangeNotifier {
     String? originAddress,
     String? destinationAddress,
     String? ambulanceType,
+    double? patientLat,
+    double? patientLng,
     String? symptomsDescription,
     String? prescriptionName,
     String? prescriptionPreview,
@@ -852,6 +859,8 @@ class AppState extends ChangeNotifier {
             'origin_address': ?originAddress,
             'destination_address': ?destinationAddress,
             'ambulance_type': ?ambulanceType,
+            'patient_lat': ?patientLat?.toString(),
+            'patient_lng': ?patientLng?.toString(),
             'symptoms_description': ?symptomsDescription,
             'prescription_name': ?prescriptionName,
             'final_price': finalPrice.toString(),
@@ -876,6 +885,8 @@ class AppState extends ChangeNotifier {
             'origin_address': originAddress,
             'destination_address': destinationAddress,
             'ambulance_type': ambulanceType,
+            'patient_lat': patientLat,
+            'patient_lng': patientLng,
             'symptoms_description': symptomsDescription,
             'prescription_name': prescriptionName,
             'prescription_preview': prescriptionPreview,
@@ -924,6 +935,8 @@ class AppState extends ChangeNotifier {
           originAddress: originAddress,
           destinationAddress: destinationAddress,
           ambulanceType: ambulanceType,
+          patientLat: patientLat,
+          patientLng: patientLng,
           symptomsDescription: symptomsDescription,
           prescriptionName: prescriptionName,
           prescriptionPreview: prescriptionPreview,
@@ -960,99 +973,6 @@ class AppState extends ChangeNotifier {
 
         notifyListeners();
       });
-    }
-  }
-
-  // Advance simulation step
-  Future<void> simulateNextStep() async {
-    if (_currentRequest == null) return;
-
-    try {
-      final response = await _apiService.post('/bookings/${_currentRequest!.id}/simulate-step');
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        _currentRequest = ServiceRequest.fromJson(data);
-        await DbHelper.instance.saveBookings([_currentRequest!]);
-        _pendingMessages += 1;
-        await fetchChatMessages(_currentRequest!.id);
-        
-        // If it was completed, reload past services history from backend
-        if (_currentRequest!.currentStep == 4) {
-          await fetchHistory();
-        }
-      }
-    } catch (e) {
-      debugPrint('Backend simulateNextStep failed, running local memory simulation. Error: $e');
-      // Local simulation logic
-      final currentStep = _currentRequest!.currentStep;
-      RequestStatus nextStatus;
-      int nextStep;
-
-      if (currentStep == 1) {
-        nextStatus = RequestStatus.enCamino;
-        nextStep = 2;
-      } else if (currentStep == 2) {
-        nextStatus = RequestStatus.enAtencion;
-        nextStep = 3;
-      } else if (currentStep == 3) {
-        nextStatus = RequestStatus.completed;
-        nextStep = 4;
-      } else {
-        return;
-      }
-
-      _currentRequest = _currentRequest!.copyWith(
-        status: nextStatus,
-        currentStep: nextStep,
-      );
-
-      final timeStr = DateFormat('HH:mm').format(DateTime.now());
-
-      if (nextStep == 2) {
-        _pendingMessages += 1;
-        _chatMessages.add(ChatMessage(
-          id: 'msg_step2_${DateTime.now().millisecondsSinceEpoch}',
-          sender: 'provider',
-          text: 'He ingresado a la autopista principal. El tráfico es moderado, voy en camino directo a tu domicilio.',
-          timestamp: timeStr,
-        ));
-      } else if (nextStep == 3) {
-        _pendingMessages += 1;
-        _chatMessages.add(ChatMessage(
-          id: 'msg_step3_${DateTime.now().millisecondsSinceEpoch}',
-          sender: 'provider',
-          text: 'Acabo de llegar al domicilio. Por favor, indíqueme el número de timbre o si hay conserjería para anunciar mi ingreso.',
-          timestamp: timeStr,
-        ));
-      } else if (nextStep == 4) {
-        _chatMessages.add(ChatMessage(
-          id: 'msg_step4_${DateTime.now().millisecondsSinceEpoch}',
-          sender: 'system',
-          text: 'Atención completada con éxito. Resumen médico disponible en el historial.',
-          timestamp: timeStr,
-        ));
-        
-        // Simulating writing a past service locally
-        final serviceTitle = _services.firstWhere((s) => s.id == _currentRequest!.serviceId).title;
-        _pastServices.insert(0, PastService(
-          id: 'past_${DateTime.now().millisecondsSinceEpoch}',
-          serviceTitle: serviceTitle,
-          serviceId: _currentRequest!.serviceId,
-          date: 'Hoy',
-          patient: _currentRequest!.patientType == 'self' ? 'Usuario Principal' : 'Familiar',
-          price: _currentRequest!.finalPrice,
-          status: 'completed',
-          details: 'Atención completada con éxito. Procedimiento realizado en domicilio de forma satisfactoria.',
-          professional: 'Personal de Guardia Aura',
-        ));
-        await DbHelper.instance.savePastServices(_pastServices);
-      }
-
-      await DbHelper.instance.saveBookings([_currentRequest!]);
-      await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
-
-      notifyListeners();
     }
   }
 
@@ -1350,26 +1270,32 @@ class AppState extends ChangeNotifier {
   // Send message in chat and simulate reply
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _currentRequest == null) return;
+    final requestId = _currentRequest!.id;
 
     _isChatTyping = true;
     notifyListeners();
 
     try {
       final response = await _apiService.post(
-        '/bookings/${_currentRequest!.id}/chat',
+        '/bookings/$requestId/chat',
         body: {'text': text},
       );
 
       _isChatTyping = false;
 
       if (response.statusCode == 201) {
-        await fetchChatMessages(_currentRequest!.id);
+        await fetchChatMessages(requestId);
       } else {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Backend sendMessage failed, using local simulation. Error: $e');
-      // Local fallback chat message
+      debugPrint('Backend sendMessage failed, queuing for retry when online. Error: $e');
+      _isChatTyping = false;
+
+      // Optimistically show the message locally, then queue it in the offline
+      // outbox so it is re-sent to /chat once connectivity returns. No fake
+      // auto-reply is generated: the real provider answers when the message
+      // reaches the backend.
       final timeStr = DateFormat('HH:mm').format(DateTime.now());
       _chatMessages.add(ChatMessage(
         id: 'm_patient_${DateTime.now().millisecondsSinceEpoch}',
@@ -1377,38 +1303,10 @@ class AppState extends ChangeNotifier {
         text: text,
         timestamp: timeStr,
       ));
-      DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
+      await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
+      await _queueOffline('POST', '/bookings/$requestId/chat', {'text': text});
 
-      _isChatTyping = true;
       notifyListeners();
-
-      Timer(const Duration(seconds: 2), () async {
-        _isChatTyping = false;
-
-        String replyText = 'Entendido. Ya voy con todos los insumos necesarios de grado clínico. Llego según el tiempo estipulado. Mantenga el hogar a una temperatura agradable, por favor.';
-        final userTextLower = text.toLowerCase();
-
-        if (userTextLower.contains('fiebre') || userTextLower.contains('temperatura')) {
-          replyText = 'Llevo un termómetro clínico calibrado e insumos para ayudar a controlar la temperatura inmediatamente a mi llegada.';
-        } else if (userTextLower.contains('dirección') || userTextLower.contains('calle') || userTextLower.contains('ubicacion') || userTextLower.contains('dirección')) {
-          replyText = 'Gracias por la aclaración, el GPS me indica la ruta óptima. Llego según el tiempo estipulado.';
-        } else if (userTextLower.contains('pago') || userTextLower.contains('pagar') || userTextLower.contains('precio')) {
-          replyText = 'No se preocupe, visualizo que su pago ya fue procesado a través de su cuenta de forma 100% segura. No debe abonar nada extra al personal.';
-        }
-
-        _chatMessages.add(ChatMessage(
-          id: 'm_reply_${DateTime.now().millisecondsSinceEpoch}',
-          sender: 'provider',
-          text: replyText,
-          timestamp: DateFormat('HH:mm').format(DateTime.now()),
-        ));
-
-        if (_currentRequest != null) {
-          await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
-        }
-
-        notifyListeners();
-      });
     }
   }
 
@@ -1453,15 +1351,27 @@ class AppState extends ChangeNotifier {
               final Map<String, dynamic> data = json.decode(dataStr);
               if (data.containsKey('booking')) {
                 final newRequest = ServiceRequest.fromJson(data['booking']);
+                final previousStatus = _currentRequest?.status;
                 bool updated = false;
 
-                // Avoid redundant updates if nothing changed
+                // Avoid redundant updates if nothing changed. The professional's
+                // live GPS is included so the tracking map marker moves in real
+                // time, not only on status/step transitions.
                 if (_currentRequest == null ||
                     _currentRequest!.status != newRequest.status ||
-                    _currentRequest!.currentStep != newRequest.currentStep) {
+                    _currentRequest!.currentStep != newRequest.currentStep ||
+                    _currentRequest!.professionalLat != newRequest.professionalLat ||
+                    _currentRequest!.professionalLng != newRequest.professionalLng) {
                   _currentRequest = newRequest;
                   await DbHelper.instance.saveBookings([_currentRequest!]);
                   updated = true;
+                }
+
+                // The professional just closed the service from the portal:
+                // pull the freshly-created past-service record into history.
+                if (newRequest.status == RequestStatus.completed &&
+                    previousStatus != RequestStatus.completed) {
+                  await fetchHistory();
                 }
 
                 if (data.containsKey('messages')) {

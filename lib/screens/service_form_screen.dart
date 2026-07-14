@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import '../models/clinical_service.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
+import '../widgets/map_location_picker.dart';
 
 class ServiceFormScreen extends StatefulWidget {
   final ClinicalService service;
@@ -19,6 +21,8 @@ class ServiceFormScreen extends StatefulWidget {
     String? originAddress,
     String? destinationAddress,
     String? ambulanceType,
+    double? patientLat,
+    double? patientLng,
     String? symptomsDescription,
     String? prescriptionName,
     String? prescriptionPreview,
@@ -55,6 +59,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   String? _uploadedFilePreview;
   bool _isUploading = false;
 
+  // Real map coordinates picked by the user (replaces the old mock canvas)
+  LatLng? _locationLatLng; // standard services: the attention location
+  LatLng? _originLatLng; // ambulance pickup
+
   // Ambulance specific
   late TextEditingController _originAddressController;
   final TextEditingController _destinationAddressController =
@@ -63,9 +71,6 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   // Labs / Imaging
   final TextEditingController _examController = TextEditingController();
-
-  // Map simulated coordinate picking
-  bool _mapPinned = false;
 
   @override
   void initState() {
@@ -238,6 +243,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final baseEtaMinutes =
         int.tryParse(widget.service.baseEta.split('-')[0].trim()) ?? 30;
 
+    // The patient coordinates are the attention location — for an ambulance
+    // that is the pickup (origin), otherwise the picked service location.
+    final LatLng? patientPoint =
+        widget.service.id == 'ambulancia' ? _originLatLng : _locationLatLng;
+
     widget.onConfirmRequest(
       patientType: _patientType,
       dependentId: _patientType == 'dependent' ? _selectedDependentId : null,
@@ -249,6 +259,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           ? _destinationAddressController.text
           : null,
       ambulanceType: widget.service.id == 'ambulancia' ? _ambulanceType : null,
+      patientLat: patientPoint?.latitude,
+      patientLng: patientPoint?.longitude,
       symptomsDescription: symptomsOrExam,
       prescriptionName: _uploadedFileName,
       prescriptionPreview: _uploadedFilePreview,
@@ -1220,74 +1232,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Dummy Map
-              Container(
-                height: 110,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: MockMapPainter(
-                          markerColor: const Color(0xFFF43F5E),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 3,
-                        ),
-                        color: Colors.black45,
-                        child: const Text(
-                          'MAPA DE ORIGEN ACTIVO',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          height: 24,
-                          width: 24,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF43F5E),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'A',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          height: 6,
-                          width: 2,
-                          color: const Color(0xFFF43F5E),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              MapLocationPicker(
+                height: 150,
+                accentColor: const Color(0xFFF43F5E),
+                autoLocateOnInit: true,
+                onLocationChanged: (point, address) {
+                  setState(() {
+                    _originLatLng = point;
+                    if (address != null && address.isNotEmpty) {
+                      _originAddressController.text = address;
+                    }
+                  });
+                },
               ),
               const SizedBox(height: 12),
               Container(
@@ -1386,68 +1342,16 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Dummy Map
-              Container(
-                height: 110,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: MockMapPainter(markerColor: Colors.blue),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 3,
-                        ),
-                        color: Colors.black45,
-                        child: const Text(
-                          'MAPA DE DESTINO ACTIVO',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          height: 24,
-                          width: 24,
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'B',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(height: 6, width: 2, color: Colors.blue),
-                      ],
-                    ),
-                  ],
-                ),
+              MapLocationPicker(
+                height: 150,
+                accentColor: Colors.blue,
+                onLocationChanged: (point, address) {
+                  if (address != null && address.isNotEmpty) {
+                    setState(() {
+                      _destinationAddressController.text = address;
+                    });
+                  }
+                },
               ),
               const SizedBox(height: 12),
               Container(
@@ -1766,41 +1670,22 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  height: 40,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _mapPinned = true;
-                        _customAddressController.text =
-                            'Ubicación fijada en Google Maps (Providencia, Santiago)';
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF0F9FF),
-                      foregroundColor: const Color(0xFF0369A1),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFBAE6FD)),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.location_on, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          _mapPinned ? '✓ UBICACIÓN FIJADA' : 'FIJAR EN GMAPS',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                MapLocationPicker(
+                  height: 170,
+                  autoLocateOnInit: true,
+                  onLocationChanged: (point, address) {
+                    setState(() {
+                      _locationLatLng = point;
+                      if (address != null && address.isNotEmpty) {
+                        _customAddressController.text = address;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Mueva el mapa para ajustar el pin sobre la dirección exacta.',
+                  style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
                 ),
               ],
             ),
@@ -1923,200 +1808,4 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       ),
     );
   }
-}
-
-class MockMapPainter extends CustomPainter {
-  final Color markerColor;
-
-  MockMapPainter({required this.markerColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-
-    // 1. Background Land (Slate-200 for good contrast with white streets)
-    paint.color = const Color(0xFFE2E8F0);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
-
-    // 2. Draw coordinate grid lines (technical GPS mockup feel)
-    paint.color = const Color(0xFFCBD5E1).withValues(alpha: 0.5);
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.0;
-    for (double i = 20; i < size.width; i += 40) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 15; i < size.height; i += 30) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-
-    // 3. Draw Parks (Green zones with outlines)
-    paint.color = const Color(0xFFD1FAE5); // Emerald-100
-    paint.style = PaintingStyle.fill;
-    final park1 = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.05,
-        size.height * 0.08,
-        size.width * 0.22,
-        size.height * 0.45,
-      ),
-      const Radius.circular(10),
-    );
-    final park2 = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.72,
-        size.height * 0.48,
-        size.width * 0.23,
-        size.height * 0.44,
-      ),
-      const Radius.circular(10),
-    );
-    canvas.drawRRect(park1, paint);
-    canvas.drawRRect(park2, paint);
-
-    // Park outlines
-    paint.color = const Color(0xFFA7F3D0); // Emerald-200
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.5;
-    canvas.drawRRect(park1, paint);
-    canvas.drawRRect(park2, paint);
-
-    // 4. Draw River (Sky Blue water path)
-    paint.color = const Color(0xFFBAE6FD); // Sky-200
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 16.0;
-    final riverPath = Path();
-    riverPath.moveTo(0, size.height * 0.85);
-    riverPath.quadraticBezierTo(
-      size.width * 0.45,
-      size.height * 0.5,
-      size.width,
-      size.height * 0.35,
-    );
-    canvas.drawPath(riverPath, paint);
-
-    // River inner flow line
-    paint.color = const Color(0xFF7DD3FC); // Sky-300
-    paint.strokeWidth = 2.0;
-    canvas.drawPath(riverPath, paint);
-
-    // 5. Draw Streets (Double-line style: thick grey outline casing, thin white inline)
-    final streets = [
-      // Horizontal streets
-      [Offset(0, size.height * 0.3), Offset(size.width, size.height * 0.3)],
-      [Offset(0, size.height * 0.7), Offset(size.width, size.height * 0.7)],
-      // Vertical streets
-      [Offset(size.width * 0.35, 0), Offset(size.width * 0.35, size.height)],
-      [Offset(size.width * 0.65, 0), Offset(size.width * 0.65, size.height)],
-    ];
-
-    // Draw street casings (grey border)
-    paint.color = const Color(0xFF94A3B8); // Slate-400
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 9.0;
-    for (var street in streets) {
-      canvas.drawLine(street[0], street[1], paint);
-    }
-
-    // Draw street inlines (white street surface)
-    paint.color = Colors.white;
-    paint.strokeWidth = 6.0;
-    for (var street in streets) {
-      canvas.drawLine(street[0], street[1], paint);
-    }
-
-    // 6. Draw Street and River Labels
-    _drawText(
-      canvas,
-      "Río Mapocho",
-      Offset(size.width * 0.42, size.height * 0.53),
-      color: const Color(0xFF0369A1),
-      size: 7.5,
-      italic: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Providencia",
-      Offset(size.width * 0.05, size.height * 0.25),
-      color: const Color(0xFF64748B),
-      size: 7.0,
-      bold: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Andrés Bello",
-      Offset(size.width * 0.05, size.height * 0.65),
-      color: const Color(0xFF64748B),
-      size: 7.0,
-      bold: true,
-    );
-    _drawText(
-      canvas,
-      "Calle Lota",
-      Offset(size.width * 0.22, size.height * 0.85),
-      color: const Color(0xFF64748B),
-      size: 6.5,
-      bold: true,
-      rotate90: true,
-    );
-    _drawText(
-      canvas,
-      "Av. Suecia",
-      Offset(size.width * 0.58, size.height * 0.05),
-      color: const Color(0xFF64748B),
-      size: 6.5,
-      bold: true,
-      rotate90: true,
-    );
-
-    // Park label
-    _drawText(
-      canvas,
-      "PARQUE DE LAS ESCULTURAS",
-      Offset(size.width * 0.07, size.height * 0.15),
-      color: const Color(0xFF047857),
-      size: 5.5,
-      bold: true,
-    );
-  }
-
-  void _drawText(
-    Canvas canvas,
-    String text,
-    Offset offset, {
-    required Color color,
-    double size = 7.0,
-    bool bold = false,
-    bool italic = false,
-    bool rotate90 = false,
-  }) {
-    final textSpan = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: color,
-        fontSize: size,
-        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-        letterSpacing: 0.3,
-        fontFamily: 'Inter',
-      ),
-    );
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    if (rotate90) {
-      canvas.save();
-      canvas.translate(offset.dx, offset.dy);
-      canvas.rotate(1.5708); // 90 degrees in radians
-      textPainter.paint(canvas, const Offset(0, 0));
-      canvas.restore();
-    } else {
-      textPainter.paint(canvas, offset);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
