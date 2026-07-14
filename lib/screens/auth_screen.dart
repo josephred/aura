@@ -60,8 +60,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // slate-50
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -69,6 +70,41 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Accessibility & Theme controls row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        widget.state.themeMode == ThemeMode.dark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        color: const Color(0xFF0D9488),
+                      ),
+                      tooltip: 'Alternar Tema',
+                      onPressed: () {
+                        final nextMode = widget.state.themeMode == ThemeMode.dark
+                            ? ThemeMode.light
+                            : ThemeMode.dark;
+                        widget.state.setThemeMode(nextMode);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.text_fields_rounded,
+                        color: Color(0xFF0D9488),
+                      ),
+                      tooltip: 'Ajustar tamaño de letra',
+                      onPressed: () {
+                        final nextScale = widget.state.textScaleFactor == 1.0
+                            ? 1.2
+                            : (widget.state.textScaleFactor == 1.2 ? 1.4 : 1.0);
+                        widget.state.setTextScaleFactor(nextScale);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 // Logo emblem
                 Center(
                   child: Container(
@@ -100,10 +136,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 Text(
                   _isRegistering ? 'Crea tu cuenta' : 'Bienvenido de vuelta',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: theme.colorScheme.onSurface,
                     letterSpacing: -0.5,
                   ),
                 ),

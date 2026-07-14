@@ -213,7 +213,7 @@ class _MainShellState extends State<MainShell> {
 
     // If user has not onboarded, show Onboarding Screen
     if (!_appState.isOnboarded && !_appState.isAuthenticated) {
-      return OnboardingScreen(onStart: () => _appState.setOnboarded(true));
+      return OnboardingScreen(state: _appState, onStart: () => _appState.setOnboarded(true));
     }
 
     // Require login (or demo mode) before entering the app

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../state/app_state.dart';
 
 class OnboardingScreen extends StatefulWidget {
+  final AppState state;
   final VoidCallback onStart;
 
-  const OnboardingScreen({super.key, required this.onStart});
+  const OnboardingScreen({super.key, required this.state, required this.onStart});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -44,8 +46,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // slate-50
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
@@ -60,7 +63,41 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 40),
+                      // Accessibility & Theme controls row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              widget.state.themeMode == ThemeMode.dark
+                                  ? Icons.light_mode_outlined
+                                  : Icons.dark_mode_outlined,
+                              color: const Color(0xFF0D9488),
+                            ),
+                            tooltip: 'Alternar Tema',
+                            onPressed: () {
+                              final nextMode = widget.state.themeMode == ThemeMode.dark
+                                  ? ThemeMode.light
+                                  : ThemeMode.dark;
+                              widget.state.setThemeMode(nextMode);
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.text_fields_rounded,
+                              color: Color(0xFF0D9488),
+                            ),
+                            tooltip: 'Ajustar tamaño de letra',
+                            onPressed: () {
+                              final nextScale = widget.state.textScaleFactor == 1.0
+                                  ? 1.2
+                                  : (widget.state.textScaleFactor == 1.2 ? 1.4 : 1.0);
+                              widget.state.setTextScaleFactor(nextScale);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
                       // Animated Logo Emblem
                       Center(
                         child: Stack(
@@ -101,12 +138,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                       const SizedBox(height: 36),
                       // Title
-                      const Text(
+                      Text(
                         'Aura Salud',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A), // slate-900
+                          color: theme.colorScheme.onSurface, // slate-900
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -138,10 +175,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: theme.cardColor,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: const Color(0xFFE2E8F0),
+                            color: theme.dividerColor.withValues(alpha: 0.1),
                           ), // slate-200
                           boxShadow: [
                             BoxShadow(
@@ -228,10 +265,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF334155), // slate-700
+              color: Theme.of(context).textTheme.bodyMedium?.color, // slate-700
               height: 1.3,
             ),
           ),
