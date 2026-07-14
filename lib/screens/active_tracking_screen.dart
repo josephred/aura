@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/dependent.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
@@ -476,15 +477,38 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         child: SizedBox(
                           height: 38,
                           child: ElevatedButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Marcando llamada simulada al número ${prof['phone']!}',
-                                  ),
-                                  backgroundColor: const Color(0xFF0D9488),
-                                ),
+                            onPressed: () async {
+                              final Uri launchUri = Uri(
+                                scheme: 'tel',
+                                path: prof['phone']!,
                               );
+                              try {
+                                if (await canLaunchUrl(launchUri)) {
+                                  await launchUrl(launchUri);
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'No se pudo abrir el marcador telefónico para llamar al ${prof['phone']!}',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error al intentar realizar la llamada: $e',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFF1F5F9),
