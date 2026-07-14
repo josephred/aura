@@ -1247,6 +1247,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
 
+          // Theme Settings Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.palette_outlined, color: Color(0xFF0D9488), size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tema de la Aplicación',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Apariencia visual',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                    SegmentedButton<ThemeMode>(
+                      segments: const [
+                        ButtonSegment<ThemeMode>(
+                          value: ThemeMode.light,
+                          icon: Icon(Icons.light_mode_outlined, size: 16),
+                          label: Text('Claro', style: TextStyle(fontSize: 11)),
+                        ),
+                        ButtonSegment<ThemeMode>(
+                          value: ThemeMode.dark,
+                          icon: Icon(Icons.dark_mode_outlined, size: 16),
+                          label: Text('Oscuro', style: TextStyle(fontSize: 11)),
+                        ),
+                        ButtonSegment<ThemeMode>(
+                          value: ThemeMode.system,
+                          icon: Icon(Icons.settings_suggest_outlined, size: 16),
+                          label: Text('Sistema', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                      selected: {state.themeMode},
+                      onSelectionChanged: (Set<ThemeMode> newSelection) {
+                        state.setThemeMode(newSelection.first);
+                      },
+                      showSelectedIcon: false,
+                      style: SegmentedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        selectedBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                        selectedForegroundColor: const Color(0xFF0D9488),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
           // Logout button
           SizedBox(
             width: double.infinity,

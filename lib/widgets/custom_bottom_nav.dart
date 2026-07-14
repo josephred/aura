@@ -16,12 +16,15 @@ class CustomBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.teal.withValues(alpha: 0.06),
+            color: theme.brightness == Brightness.dark
+                ? Colors.black.withValues(alpha: 0.2)
+                : Colors.teal.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -38,12 +41,14 @@ class CustomBottomNav extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildNavItem(
+              context,
               id: 'home',
               label: 'Inicio',
               icon: Icons.health_and_safety_outlined,
               activeIcon: Icons.health_and_safety,
             ),
             _buildNavItem(
+              context,
               id: 'appointments',
               label: 'Citas',
               icon: Icons.calendar_month_outlined,
@@ -52,6 +57,7 @@ class CustomBottomNav extends StatelessWidget {
               badgeColor: Colors.teal,
             ),
             _buildNavItem(
+              context,
               id: 'messages',
               label: 'Mensajes',
               icon: Icons.chat_bubble_outline_rounded,
@@ -60,6 +66,7 @@ class CustomBottomNav extends StatelessWidget {
               badgeColor: const Color(0xFFF43F5E),
             ),
             _buildNavItem(
+              context,
               id: 'profile',
               label: 'Mi Cuenta',
               icon: Icons.person_outline_rounded,
@@ -71,7 +78,7 @@ class CustomBottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem({
+  Widget _buildNavItem(BuildContext context, {
     required String id,
     required String label,
     required IconData icon,
@@ -80,6 +87,11 @@ class CustomBottomNav extends StatelessWidget {
     Color badgeColor = Colors.teal,
   }) {
     final isActive = activeTab == id;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final activeColor = theme.colorScheme.primary;
+    final inactiveColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
 
     return Expanded(
       child: GestureDetector(
@@ -101,15 +113,15 @@ class CustomBottomNav extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? Colors.teal.withValues(alpha: 0.08)
+                          ? activeColor.withValues(alpha: 0.08)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       isActive ? activeIcon : icon,
                       color: isActive
-                          ? Colors.teal.shade700
-                          : const Color(0xFF94A3B8),
+                          ? activeColor
+                          : inactiveColor,
                       size: 22,
                     ),
                   ),
@@ -122,7 +134,7 @@ class CustomBottomNav extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: badgeColor,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                          border: Border.all(color: theme.colorScheme.surface, width: 1.5),
                         ),
                         constraints: const BoxConstraints(
                           minWidth: 16,
@@ -147,8 +159,8 @@ class CustomBottomNav extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: isActive
-                      ? Colors.teal.shade800
-                      : const Color(0xFF64748B),
+                      ? (isDark ? const Color(0xFF2DD4BF) : Colors.teal.shade800)
+                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                   fontSize: 10,
                   fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
                 ),

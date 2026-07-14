@@ -33,14 +33,40 @@ void main() {
   runApp(const MainApp());
 }
 
-class MainApp extends StatelessWidget {
+class MainApp extends StatefulWidget {
   const MainApp({super.key});
+
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  late final AppState _appState;
+
+  @override
+  void initState() {
+    super.initState();
+    _appState = AppState()..addListener(_onStateChange);
+  }
+
+  @override
+  void dispose() {
+    _appState.removeListener(_onStateChange);
+    super.dispose();
+  }
+
+  void _onStateChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Aura Salud',
       debugShowCheckedModeBanner: false,
+      themeMode: _appState.themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -60,24 +86,48 @@ class MainApp extends StatelessWidget {
           bodyMedium: TextStyle(fontFamily: 'Inter', color: Color(0xFF334155)),
         ),
       ),
-      home: const MainShell(),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0D9488),
+          brightness: Brightness.dark,
+          primary: const Color(0xFF0D9488),
+          secondary: const Color(0xFF2DD4BF), // lighter teal
+          surface: const Color(0xFF1E293B), // slate-800
+          background: const Color(0xFF0F172A), // slate-900
+        ),
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          bodyLarge: TextStyle(fontFamily: 'Inter', color: Colors.white),
+          bodyMedium: TextStyle(fontFamily: 'Inter', color: Color(0xFF94A3B8)), // slate-400
+        ),
+      ),
+      home: MainShell(appState: _appState),
     );
   }
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final AppState appState;
+  const MainShell({super.key, required this.appState});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  final AppState _appState = AppState();
+  late final AppState _appState;
 
   @override
   void initState() {
     super.initState();
+    _appState = widget.appState;
     _appState.addListener(_onStateChange);
   }
 

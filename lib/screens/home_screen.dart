@@ -629,7 +629,7 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final service = state.filteredServices[index];
-                          return _buildServiceCard(service);
+                          return _buildServiceCard(context, service);
                         },
                       ),
               ],
@@ -678,15 +678,16 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCard(ClinicalService service) {
+  Widget _buildServiceCard(BuildContext context, ClinicalService service) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => onSelectService(service),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFF1F5F9)),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.01),
@@ -702,12 +703,16 @@ class HomeScreen extends StatelessWidget {
               height: 52,
               width: 52,
               decoration: BoxDecoration(
-                color: const Color(0xFFE6F6F4),
+                color: theme.brightness == Brightness.dark
+                    ? const Color(0xFF134E4A) // dark teal
+                    : const Color(0xFFE6F6F4),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 _getIconData(service.iconName),
-                color: _getIconColor(service.iconName),
+                color: theme.brightness == Brightness.dark
+                    ? const Color(0xFF2DD4BF)
+                    : _getIconColor(service.iconName),
                 size: 24,
               ),
             ),
@@ -722,10 +727,10 @@ class HomeScreen extends StatelessWidget {
                       Flexible(
                         child: Text(
                           service.shortTitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: theme.colorScheme.onSurface,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -738,14 +743,22 @@ class HomeScreen extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBEB),
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFF78350F).withValues(alpha: 0.3)
+                                : const Color(0xFFFFFBEB),
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFFFDE68A)),
+                            border: Border.all(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                                  : const Color(0xFFFDE68A),
+                            ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'REQUIERE ORDEN',
                             style: TextStyle(
-                              color: Color(0xFFB45309),
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFFBBF24)
+                                  : const Color(0xFFB45309),
                               fontSize: 7,
                               fontWeight: FontWeight.bold,
                             ),
@@ -757,9 +770,9 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     service.subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF64748B),
+                      color: theme.textTheme.bodyMedium?.color,
                       fontWeight: FontWeight.w400,
                     ),
                     maxLines: 2,

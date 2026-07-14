@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -122,6 +123,7 @@ class AppState extends ChangeNotifier {
   String? _assignedProfessionalName;
   String? _assignedProfessionalPhone;
   String? _assignedProfessionalSpecialty;
+  ThemeMode _themeMode = ThemeMode.system;
 
   AppState() {
     _apiService = ApiService(
@@ -191,6 +193,14 @@ class AppState extends ChangeNotifier {
   // Restore a previously saved session token and load data
   Future<void> _restoreSession() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedTheme = prefs.getString('theme_mode');
+      if (savedTheme != null) {
+        _themeMode = ThemeMode.values.firstWhere(
+          (e) => e.name == savedTheme,
+          orElse: () => ThemeMode.system,
+        );
+      }
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
         _authToken = token;
@@ -510,6 +520,7 @@ class AppState extends ChangeNotifier {
   String? get assignedProfessionalName => _assignedProfessionalName;
   String? get assignedProfessionalPhone => _assignedProfessionalPhone;
   String? get assignedProfessionalSpecialty => _assignedProfessionalSpecialty;
+  ThemeMode get themeMode => _themeMode;
 
   // Filtered Services List
   List<ClinicalService> get filteredServices {
@@ -897,6 +908,13 @@ class AppState extends ChangeNotifier {
     final provider = _systemProviders.firstWhere((p) => p['id'] == providerId);
     provider['status'] = newStatus;
     notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', mode.name);
   }
 
   void _initializeChat() {
