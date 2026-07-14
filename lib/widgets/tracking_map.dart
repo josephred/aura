@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:aura/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -32,6 +33,7 @@ class TrackingMap extends StatefulWidget {
 }
 
 class _TrackingMapState extends State<TrackingMap> {
+  AppPalette get p => context.palette;
   final MapController _mapController = MapController();
 
   LatLng? _home;
@@ -166,6 +168,7 @@ class _TrackingMapState extends State<TrackingMap> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final center = _home ?? _pro ?? const LatLng(-34.6037, -58.3816);
     final hasAny = _home != null || _pro != null;
 
@@ -200,7 +203,7 @@ class _TrackingMapState extends State<TrackingMap> {
                         Polyline(
                           points: _route,
                           strokeWidth: 4,
-                          color: const Color(0xFF0D9488),
+                          color: p.accent,
                         ),
                       ],
                     ),
@@ -227,11 +230,11 @@ class _TrackingMapState extends State<TrackingMap> {
 
               if (!hasAny)
                 Container(
-                  color: const Color(0xFFF1F5F9),
+                  color: context.palette.fill,
                   alignment: Alignment.center,
-                  child: const Text(
+                  child: Text(
                     'Ubicando al profesional…',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: TextStyle(fontSize: 11, color: context.palette.textMuted),
                   ),
                 ),
 
@@ -257,27 +260,27 @@ class _TrackingMapState extends State<TrackingMap> {
             padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
-                const Icon(Icons.route, color: Color(0xFF0D9488), size: 14),
+                Icon(Icons.route, color: p.accent, size: 14),
                 const SizedBox(width: 6),
                 Text(
                   '${_distanceKm!.toStringAsFixed(1)} km restantes',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: context.palette.textPrimary,
                   ),
                 ),
                 const Spacer(),
-                const Icon(Icons.access_time, color: Color(0xFF0D9488), size: 14),
+                Icon(Icons.access_time, color: p.accent, size: 14),
                 const SizedBox(width: 6),
                 Text(
                   _pro == null
                       ? 'Esperando GPS'
                       : '≈ ${_etaMin ?? '--'} min',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: context.palette.textPrimary,
                   ),
                 ),
               ],
@@ -293,20 +296,21 @@ class _ProfessionalMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D9488),
+        color: p.accent,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
+        border: Border.all(color: p.card, width: 3),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0D9488).withValues(alpha: 0.5),
+            color: p.accent.withValues(alpha: 0.5),
             blurRadius: 8,
             spreadRadius: 2,
           ),
         ],
       ),
-      child: const Icon(Icons.local_shipping, color: Colors.white, size: 18),
+      child: Icon(Icons.local_shipping, color: p.card, size: 18),
     );
   }
 }

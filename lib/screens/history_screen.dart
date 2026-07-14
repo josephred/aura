@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aura/theme/app_theme.dart';
 import '../models/past_service.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
@@ -15,6 +16,7 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final activeRequest = state.currentRequest;
     final hasActiveRequest =
         activeRequest != null &&
@@ -32,11 +34,11 @@ class HistoryScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFF0D9488), // teal-600
+                color: p.accent, // teal-600
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0D9488).withValues(alpha: 0.25),
+                    color: p.accent.withValues(alpha: 0.25),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -45,19 +47,19 @@ class HistoryScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Tienes una atención en progreso',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: p.card,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'El especialista ya se encuentra coordinando los implementos médicos y en trayecto.',
                     style: TextStyle(
-                      color: Color(0xFFCCFBF1),
+                      color: p.accentSurface,
                       fontSize: 11,
                       height: 1.3,
                     ),
@@ -101,32 +103,32 @@ class HistoryScreen extends StatelessWidget {
           ],
 
           // Title
-          const Text(
+          Text(
             'Mis Citas y Consultas',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: p.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Historial clínico digital consolidado de su grupo familiar.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 12, color: p.textMuted),
           ),
           const SizedBox(height: 20),
 
           // Block 1: Upcoming Appointments
-          const Row(
+          Row(
             children: [
-              Icon(Icons.calendar_month, color: Color(0xFF0D9488), size: 16),
+              Icon(Icons.calendar_month, color: p.accent, size: 16),
               SizedBox(width: 8),
               Text(
                 'PRÓXIMOS AGENDAMIENTOS DOMICILIARIOS',
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF94A3B8),
+                  color: p.textFaint,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -138,33 +140,33 @@ class HistoryScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: p.border),
               ),
               child: Column(
                 children: [
                   Icon(
                     Icons.assignment_outlined,
-                    color: const Color(0xFF0D9488).withValues(alpha: 0.3),
+                    color: p.accent.withValues(alpha: 0.3),
                     size: 36,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'No hay citas programadas para hoy',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF334155),
+                      color: p.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Visite el catálogo para solicitar un profesional clínico de forma inmediata.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Color(0xFF94A3B8),
+                      color: p.textFaint,
                       height: 1.3,
                     ),
                   ),
@@ -175,9 +177,9 @@ class HistoryScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE6F6F4)),
+                border: Border.all(color: p.accentSurface),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.01),
@@ -196,12 +198,12 @@ class HistoryScreen extends StatelessWidget {
                         height: 38,
                         width: 38,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6F6F4),
+                          color: p.accentSurface,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.medical_services,
-                          color: Color(0xFF0D9488),
+                          color: p.accent,
                           size: 18,
                         ),
                       ),
@@ -215,25 +217,25 @@ class HistoryScreen extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F6F4),
+                              color: p.accentSurface,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Cita Activa hoy',
                               style: TextStyle(
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                                 fontSize: 8,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Evaluación en progreso en Casa',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                              color: p.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -241,15 +243,15 @@ class HistoryScreen extends StatelessWidget {
                             children: [
                               Icon(
                                 Icons.access_time,
-                                color: const Color(0xFF94A3B8),
+                                color: p.textFaint,
                                 size: 10,
                               ),
                               const SizedBox(width: 3),
-                              const Text(
+                              Text(
                                 'En camino',
                                 style: TextStyle(
                                   fontSize: 9,
-                                  color: Color(0xFF64748B),
+                                  color: p.textMuted,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -257,16 +259,16 @@ class HistoryScreen extends StatelessWidget {
                               Text(
                                 '•',
                                 style: TextStyle(
-                                  color: const Color(0xFFCBD5E1),
+                                  color: p.borderStrong,
                                   fontSize: 8,
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              const Text(
+                              Text(
                                 'Providencia',
                                 style: TextStyle(
                                   fontSize: 9,
-                                  color: Color(0xFF64748B),
+                                  color: p.textMuted,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -286,12 +288,12 @@ class HistoryScreen extends StatelessWidget {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Ver',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D9488),
+                        color: p.accent,
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -302,7 +304,7 @@ class HistoryScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Block 2: Done list
-          const Row(
+          Row(
             children: [
               Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
               SizedBox(width: 8),
@@ -311,7 +313,7 @@ class HistoryScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF94A3B8),
+                  color: p.textFaint,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -373,12 +375,13 @@ class HistoryScreen extends StatelessWidget {
   }
 
   Widget _buildPastServiceCard(BuildContext context, PastService past) {
+    final p = context.palette;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: p.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.01),
@@ -401,18 +404,18 @@ class HistoryScreen extends StatelessWidget {
                   children: [
                     Text(
                       past.serviceTitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: p.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${past.date} • Paciente: ${past.patient}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
-                        color: Color(0xFF94A3B8),
+                        color: p.textFaint,
                       ),
                     ),
                   ],
@@ -443,17 +446,17 @@ class HistoryScreen extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: p.background,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF1F5F9)),
+              border: Border.all(color: p.fill),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'RESUMEN DE ATENCIÓN (${past.professional.toUpperCase()})',
-                  style: const TextStyle(
-                    color: Color(0xFF0D9488),
+                  style: TextStyle(
+                    color: p.accent,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
@@ -474,7 +477,7 @@ class HistoryScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           // Footer actions
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Divider(height: 1, color: p.fill),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -502,18 +505,18 @@ class HistoryScreen extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
                       Icons.file_present_outlined,
                       size: 14,
-                      color: Color(0xFF0D9488),
+                      color: p.accent,
                     ),
                     SizedBox(width: 4),
                     Text(
                       'Pedido/Receta',
                       style: TextStyle(
-                        color: Color(0xFF0D9488),
+                        color: p.accent,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -524,8 +527,8 @@ class HistoryScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => onRepeatService(past.serviceId),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE6F6F4),
-                  foregroundColor: const Color(0xFF0D9488),
+                  backgroundColor: p.accentSurface,
+                  foregroundColor: p.accent,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

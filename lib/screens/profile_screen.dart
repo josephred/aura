@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aura/theme/app_theme.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
 import '../models/saved_payment_method.dart';
@@ -14,6 +15,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  AppPalette get p => context.palette;
   // Add Dependent Form controllers
   bool _showAddDep = false;
   Dependent? _editingDependent;
@@ -149,6 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final state = widget.state;
 
     final rolesSpecs = [
@@ -198,9 +201,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -208,13 +211,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   height: 56,
                   width: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE6F6F4),
+                    color: p.accentSurface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFCCFBF1)),
+                    border: Border.all(color: p.accentSurface),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_pin,
-                    color: Color(0xFF0D9488),
+                    color: p.accent,
                     size: 36,
                   ),
                 ),
@@ -227,19 +230,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         state.userName.isNotEmpty
                             ? state.userName
                             : 'Usuario Aura',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: p.textPrimary,
                         ),
                       ),
                       Text(
                         state.userEmail.isNotEmpty
                             ? state.userEmail
                             : 'Paciente Frecuente • Miembro VIP Aura',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF64748B),
+                          color: p.textMuted,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -249,22 +252,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6F6F4),
+                          color: p.accentSurface,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.shield_rounded,
-                              color: Color(0xFF0D9488),
+                              color: p.accent,
                               size: 12,
                             ),
                             SizedBox(width: 4),
                             Text(
                               'Plan Cobertura Preferencial Plus',
                               style: TextStyle(
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -284,9 +287,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [
-                  Color(0xFF0F172A),
+                  p.textPrimary,
                   Color(0xFF115E59),
                 ], // brand-dark to teal-900
                 begin: Alignment.bottomLeft,
@@ -295,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.15),
+                  color: p.textPrimary.withValues(alpha: 0.15),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -304,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(
                       Icons.stars_rounded,
@@ -315,7 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'Simulador de Roles del Ecosistema Aura',
                       style: TextStyle(
-                        color: Color(0xFFCCFBF1),
+                        color: p.accentSurface,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -355,7 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isSel
-                                  ? const Color(0xFF0D9488)
+                                  ? p.accent
                                   : const Color(
                                       0xFF334155,
                                     ).withValues(alpha: 0.5),
@@ -368,8 +371,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
                                   color: isSel
-                                      ? const Color(0xFF0D9488)
-                                      : const Color(0xFF0F172A),
+                                      ? p.accent
+                                      : p.textPrimary,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
@@ -393,7 +396,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.bold,
                                             color: isSel
-                                                ? const Color(0xFF0F172A)
+                                                ? p.textPrimary
                                                 : Colors.white,
                                           ),
                                         ),
@@ -421,8 +424,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fontSize: 10,
                                         height: 1.3,
                                         color: isSel
-                                            ? const Color(0xFF64748B)
-                                            : const Color(0xFF94A3B8),
+                                            ? p.textMuted
+                                            : p.textFaint,
                                       ),
                                     ),
                                   ],
@@ -444,9 +447,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(
                           Icons.favorite,
@@ -467,7 +470,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
@@ -488,7 +491,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6F6F4),
+                          color: p.accentSurface,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -497,13 +500,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icon(
                               _showAddDep ? Icons.close : Icons.add,
                               size: 12,
-                              color: const Color(0xFF0D9488),
+                              color: p.accent,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               _showAddDep ? 'Ocultar' : 'Agregar',
-                              style: const TextStyle(
-                                color: Color(0xFF0D9488),
+                              style: TextStyle(
+                                color: p.accent,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -519,9 +522,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE6F6F4).withValues(alpha: 0.2),
+                      color: p.accentSurface.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFCCFBF1)),
+                      border: Border.all(color: p.accentSurface),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,10 +558,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       horizontal: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: Theme.of(context).cardColor,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                        color: const Color(0xFFCBD5E1),
+                                        color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
                                       ),
                                     ),
                                     child: DropdownButtonHideUnderline(
@@ -567,9 +570,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         decoration: const InputDecoration(
                                           border: InputBorder.none,
                                         ),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
-                                          color: Color(0xFF0F172A),
+                                          color: p.textPrimary,
                                           fontWeight: FontWeight.bold,
                                         ),
                                         items:
@@ -633,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: ElevatedButton(
                             onPressed: _createDependent,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D9488),
+                              backgroundColor: p.accent,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -659,9 +662,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: p.background,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                        border: Border.all(color: p.fill),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -672,27 +675,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Text(
                                   dep.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
+                                    color: p.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   '${dep.relationship} • ${dep.age} años • ${dep.healthInsurance}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
-                                    color: Color(0xFF64748B),
+                                    color: p.textMuted,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Obs: ${dep.medicalConditions}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 9,
-                                    color: Color(0xFF0D9488),
+                                    color: p.accent,
                                     fontStyle: FontStyle.italic,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -716,13 +719,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     _depObsController.text = dep.medicalConditions;
                                   });
                                 },
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.edit_outlined,
-                                  color: Color(0xFF0D9488),
+                                  color: p.accent,
                                   size: 18,
                                 ),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE6F6F4),
+                                  backgroundColor: p.accentSurface,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -759,9 +762,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,11 +772,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(
                           Icons.location_on_outlined,
-                          color: Color(0xFF0D9488),
+                          color: p.accent,
                           size: 18,
                         ),
                         SizedBox(width: 8),
@@ -782,7 +785,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
@@ -802,7 +805,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6F6F4),
+                          color: p.accentSurface,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -811,13 +814,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icon(
                               _showAddAddr ? Icons.close : Icons.add,
                               size: 12,
-                              color: const Color(0xFF0D9488),
+                              color: p.accent,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               _showAddAddr ? 'Ocultar' : 'Agregar',
-                              style: const TextStyle(
-                                color: Color(0xFF0D9488),
+                              style: TextStyle(
+                                color: p.accent,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -833,9 +836,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE6F6F4).withValues(alpha: 0.2),
+                      color: p.accentSurface.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFCCFBF1)),
+                      border: Border.all(color: p.accentSurface),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -864,7 +867,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: ElevatedButton(
                             onPressed: _createAddress,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D9488),
+                              backgroundColor: p.accent,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -890,18 +893,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: p.background,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                        border: Border.all(color: p.fill),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 2.0),
                             child: Icon(
                               Icons.location_on,
-                              color: Color(0xFF0D9488),
+                              color: p.accent,
                               size: 16,
                             ),
                           ),
@@ -912,18 +915,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Text(
                                   addr.label,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
+                                    color: p.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   addr.text,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF64748B),
+                                    color: p.textMuted,
                                     height: 1.3,
                                   ),
                                 ),
@@ -943,13 +946,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     _addrTextController.text = addr.text;
                                   });
                                 },
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.edit_outlined,
-                                  color: Color(0xFF0D9488),
+                                  color: p.accent,
                                   size: 18,
                                 ),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: const Color(0xFFE6F6F4),
+                                  backgroundColor: p.accentSurface,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -986,9 +989,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -996,7 +999,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
                         SizedBox(width: 8),
@@ -1005,7 +1008,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
@@ -1074,17 +1077,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
+                            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButtonFormField<String>(
                               initialValue: _payType,
                               decoration: const InputDecoration(border: InputBorder.none),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF0F172A),
+                                color: p.textPrimary,
                                 fontWeight: FontWeight.bold,
                               ),
                               items: const [
@@ -1145,9 +1148,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: p.background,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                        border: Border.all(color: p.fill),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1170,8 +1173,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     pay.type == 'mercadopago'
                                         ? 'MP'
                                         : pay.type.toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    style: TextStyle(
+                                      color: p.card,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 10,
                                       letterSpacing: 0.5,
@@ -1196,9 +1199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   if (pay.last4 != null)
                                     Text(
                                       '•••• •••• •••• ${pay.last4}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 9.5,
-                                        color: Color(0xFF94A3B8),
+                                        color: p.textFaint,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -1258,9 +1261,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.palette_outlined, color: Color(0xFF0D9488), size: 20),
+                    Icon(Icons.palette_outlined, color: p.accent, size: 20),
                     SizedBox(width: 8),
                     Text(
                       'Tema de la Aplicación',
@@ -1272,9 +1275,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Apariencia visual',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12, color: p.textMuted),
                     ),
                     SegmentedButton<ThemeMode>(
                       segments: const [
@@ -1301,8 +1304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       showSelectedIcon: false,
                       style: SegmentedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        selectedBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.15),
-                        selectedForegroundColor: const Color(0xFF0D9488),
+                        selectedBackgroundColor: p.accent.withValues(alpha: 0.15),
+                        selectedForegroundColor: p.accent,
                       ),
                     ),
                   ],
@@ -1323,9 +1326,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.text_fields_rounded, color: Color(0xFF0D9488), size: 20),
+                    Icon(Icons.text_fields_rounded, color: p.accent, size: 20),
                     SizedBox(width: 8),
                     Text(
                       'Tamaño de Texto (Accesibilidad)',
@@ -1337,9 +1340,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Escalar fuentes',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      style: TextStyle(fontSize: 12, color: p.textMuted),
                     ),
                     SegmentedButton<double>(
                       segments: const [
@@ -1363,8 +1366,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       showSelectedIcon: false,
                       style: SegmentedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        selectedBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.15),
-                        selectedForegroundColor: const Color(0xFF0D9488),
+                        selectedBackgroundColor: p.accent.withValues(alpha: 0.15),
+                        selectedForegroundColor: p.accent,
                       ),
                     ),
                   ],
@@ -1412,10 +1415,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 8,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF94A3B8),
+          color: p.textFaint,
           letterSpacing: 0.5,
         ),
       ),
@@ -1431,23 +1434,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
       ),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
         keyboardType: isNum ? TextInputType.number : TextInputType.text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
-          color: Color(0xFF0F172A),
+          color: Theme.of(context).colorScheme.onSurface,
           fontWeight: FontWeight.bold,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFF94A3B8),
+          hintStyle: TextStyle(
+            color: p.textFaint,
             fontSize: 11,
             fontWeight: FontWeight.normal,
           ),

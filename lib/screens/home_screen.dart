@@ -93,17 +93,23 @@ class HomeScreen extends StatelessWidget {
           // 1. Premium Header with gradients
           Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Color(0xFFE6F6F4), // brand-mint
-                  Color(0xFFCCFBF1), // brand-cyan
-                  Color(0xFFE0F2FE), // sky-100
-                ],
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [
+                        const Color(0xFF0F172A),
+                        const Color(0xFF1E293B),
+                        const Color(0xFF0F766E).withValues(alpha: 0.3),
+                      ]
+                    : [
+                        const Color(0xFFE6F6F4),
+                        const Color(0xFFCCFBF1),
+                        const Color(0xFFE0F2FE),
+                      ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(32),
                 bottomRight: Radius.circular(32),
               ),
@@ -162,12 +168,12 @@ class HomeScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             RichText(
-                              text: const TextSpan(
+                              text: TextSpan(
                                 text: 'Aura ',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                                 children: [
                                   TextSpan(
@@ -217,26 +223,30 @@ class HomeScreen extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white.withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFFCCFBF1),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFCCFBF1),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.location_on,
                                   color: Color(0xFF0D9488),
                                   size: 12,
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   'Providencia',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                               ],
@@ -252,16 +262,20 @@ class HomeScreen extends StatelessWidget {
                               height: 36,
                               width: 36,
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.9),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white.withValues(alpha: 0.9),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: const Color(0xFFCCFBF1),
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFCCFBF1),
                                 ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.notifications_none_rounded,
                                 size: 18,
-                                color: Color(0xFF0F172A),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             if (isActiveActive)
@@ -339,9 +353,11 @@ class HomeScreen extends StatelessWidget {
                   primaryDependent != null
                       ? 'Solicitando para: ${primaryDependent.name} (${primaryDependent.relationship})'
                       : 'Bienvenido(a) a Aura. Servicios médicos en la puerta de su hogar.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF64748B),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -360,10 +376,14 @@ class HomeScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5), // emerald-50
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF064E3B).withValues(alpha: 0.2)
+                            : const Color(0xFFECFDF5),
                         border: Border.all(
-                          color: const Color(0xFFA7F3D0),
-                        ), // emerald-200
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF059669).withValues(alpha: 0.4)
+                              : const Color(0xFFA7F3D0),
+                        ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -377,7 +397,7 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -386,15 +406,19 @@ class HomeScreen extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF064E3B),
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? const Color(0xFF34D399)
+                                        : const Color(0xFF064E3B),
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
                                   'Seguimiento y ETA estimados para Providencia.',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: Color(0xFF047857),
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFF047857),
                                   ),
                                 ),
                               ],
@@ -406,18 +430,24 @@ class HomeScreen extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFF064E3B)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFFD1FAE5),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF0D9488)
+                                    : const Color(0xFFD1FAE5),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Ver Mapa',
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF047857),
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFF2DD4BF)
+                                    : const Color(0xFF047857),
                               ),
                             ),
                           ),
@@ -500,9 +530,9 @@ class HomeScreen extends StatelessWidget {
                 // 3. Search Bar
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                    border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.02),
@@ -513,23 +543,23 @@ class HomeScreen extends StatelessWidget {
                   ),
                   child: TextField(
                     onChanged: state.setSearchQuery,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(
                         Icons.search,
                         color: Color(0xFF0D9488),
                         size: 20,
                       ),
                       hintText: 'Buscar enfermería, kine, médico...',
-                      hintStyle: const TextStyle(
+                      hintStyle: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 13,
                       ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                      contentPadding: EdgeInsets.symmetric(vertical: 14),
                     ),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF0F172A),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -542,13 +572,14 @@ class HomeScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       _buildFilterPill(
+                        context,
                         'all',
                         'Todos (${clinicalServices.length})',
                       ),
                       const SizedBox(width: 8),
-                      _buildFilterPill('require_rx', 'Requiere Receta (6)'),
+                      _buildFilterPill(context, 'require_rx', 'Requiere Receta (6)'),
                       const SizedBox(width: 8),
-                      _buildFilterPill('no_rx', 'Acceso Directo (3)'),
+                      _buildFilterPill(context, 'no_rx', 'Acceso Directo (3)'),
                     ],
                   ),
                 ),
@@ -558,27 +589,33 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB), // amber-50
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF78350F).withValues(alpha: 0.2)
+                        : const Color(0xFFFFFBEB),
                     border: Border.all(
-                      color: const Color(0xFFFDE68A).withValues(alpha: 0.4),
-                    ), // amber-100
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+                          : const Color(0xFFFDE68A).withValues(alpha: 0.4),
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.warning_amber_rounded,
                         color: Colors.amber,
                         size: 18,
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Aura es una plataforma de servicios clínicos domiciliarios programados y semi-urgentes. En caso de riesgo vital llame inmediatamente a urgencias.',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF92400E),
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFFBBF24)
+                                : const Color(0xFF92400E),
                             fontWeight: FontWeight.w600,
                             height: 1.4,
                           ),
@@ -640,7 +677,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterPill(String id, String label) {
+  Widget _buildFilterPill(BuildContext context, String id, String label) {
     final isSelected = state.selectedFilterCategory == id;
     return GestureDetector(
       onTap: () => state.setFilterCategory(id),
@@ -648,12 +685,12 @@ class HomeScreen extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0D9488) : Colors.white,
+          color: isSelected ? const Color(0xFF0D9488) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFF0D9488)
-                : const Color(0xFFF1F5F9),
+                : Theme.of(context).dividerColor.withValues(alpha: 0.1),
           ),
           boxShadow: isSelected
               ? [
@@ -668,7 +705,7 @@ class HomeScreen extends StatelessWidget {
         child: Text(
           label.toUpperCase(),
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF64748B),
+            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
             fontSize: 9,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
@@ -863,7 +900,7 @@ class HomeScreen extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
@@ -953,9 +990,9 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1080,10 +1117,10 @@ class HomeScreen extends StatelessWidget {
             mainAxisSpacing: 12,
             childAspectRatio: 1.6,
             children: [
-              _buildMetricCard('Médicos Online', '8 / 12', Icons.people, const Color(0xFF0D9488)),
-              _buildMetricCard('Servicios Activos', '4 de Hoy', Icons.assignment_turned_in, const Color(0xFF3B82F6)),
-              _buildMetricCard('ETA Promedio', '28 mins', Icons.timer, const Color(0xFFF59E0B)),
-              _buildMetricCard('Recetas por Validar', '1 Alerta', Icons.assignment_late, const Color(0xFFEF4444)),
+              _buildMetricCard(context, 'Médicos Online', '8 / 12', Icons.people, const Color(0xFF0D9488)),
+              _buildMetricCard(context, 'Servicios Activos', '4 de Hoy', Icons.assignment_turned_in, const Color(0xFF3B82F6)),
+              _buildMetricCard(context, 'ETA Promedio', '28 mins', Icons.timer, const Color(0xFFF59E0B)),
+              _buildMetricCard(context, 'Recetas por Validar', '1 Alerta', Icons.assignment_late, const Color(0xFFEF4444)),
             ],
           ),
           const SizedBox(height: 24),
@@ -1097,9 +1134,9 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: StatefulBuilder(
               builder: (context, setState) {
@@ -1207,9 +1244,9 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1343,9 +1380,9 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: ListView.separated(
               shrinkWrap: true,
@@ -1441,9 +1478,9 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1509,13 +1546,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(BuildContext context, String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1529,7 +1566,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface)),
         ],
       ),
     );
@@ -1591,9 +1628,9 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

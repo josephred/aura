@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aura/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
@@ -18,6 +19,7 @@ class PaymentPendingScreen extends StatefulWidget {
 }
 
 class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
+  AppPalette get p => context.palette;
   bool _isVerifying = false;
   bool _showNotApprovedYet = false;
 
@@ -89,33 +91,33 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
               height: 88,
               width: 88,
               decoration: BoxDecoration(
-                color: const Color(0xFFE6F6F4),
+                color: p.accentSurface,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFCCFBF1), width: 6),
+                border: Border.all(color: p.accent.withValues(alpha: 0.25), width: 6),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_wallet_rounded,
-                color: Color(0xFF0D9488),
+                color: p.accentText,
                 size: 40,
               ),
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Pago pendiente',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
+              color: p.textPrimary,
               letterSpacing: -0.4,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Completa el pago en Mercado Pago para confirmar tu atención. El equipo clínico se asignará apenas se acredite.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.5),
+            style: TextStyle(fontSize: 13, color: p.textMuted, height: 1.5),
           ),
           const SizedBox(height: 28),
 
@@ -123,23 +125,23 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: p.card,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: p.border),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Total a pagar',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 13, color: p.textMuted),
                 ),
                 Text(
                   priceFormat.format(widget.request.finalPrice),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D9488),
+                    color: p.accentText,
                   ),
                 ),
               ],
@@ -192,25 +194,25 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
             child: OutlinedButton.icon(
               onPressed: _isVerifying ? null : _verify,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF0D9488)),
+                side: BorderSide(color: p.accent),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               icon: _isVerifying
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.5,
-                        color: Color(0xFF0D9488),
+                        color: p.accent,
                       ),
                     )
-                  : const Icon(Icons.verified_rounded, size: 18, color: Color(0xFF0D9488)),
+                  : Icon(Icons.verified_rounded, size: 18, color: p.accent),
               label: Text(
                 _isVerifying ? 'Verificando...' : 'Ya pagué — Verificar pago',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0D9488),
+                  color: p.accent,
                 ),
               ),
             ),

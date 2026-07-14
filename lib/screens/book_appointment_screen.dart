@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
@@ -14,6 +15,7 @@ class BookAppointmentScreen extends StatefulWidget {
 }
 
 class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
+  AppPalette get p => context.palette;
   static const _daysEs = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   static const _monthsEs = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -133,12 +135,13 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: p.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: p.background,
         elevation: 0,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: p.textPrimary,
         title: const Text(
           'Agendar cita',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
@@ -149,7 +152,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF0D9488),
+              backgroundColor: p.accent,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -171,8 +174,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         ),
       ),
       body: _loadingProfessionals
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF0D9488)))
+          ? Center(
+              child: CircularProgressIndicator(color: p.accent))
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
@@ -201,12 +204,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 _sectionTitle('1 · Profesional'),
                 ...widget.state.professionals.map(_buildProfessionalCard),
                 if (widget.state.professionals.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(24),
                     child: Text(
                       'No hay profesionales disponibles por ahora.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF64748B)),
+                      style: TextStyle(color: p.textMuted),
                     ),
                   ),
                 if (_professional != null) ...[
@@ -227,7 +230,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide:
-                            const BorderSide(color: Color(0xFFE2E8F0)),
+                            BorderSide(color: p.border),
                       ),
                     ),
                   ),
@@ -241,11 +244,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
         child: Text(
           text.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
-            color: Color(0xFF64748B),
+            color: p.textMuted,
           ),
         ),
       );
@@ -258,10 +261,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF0D9488) : Colors.white,
+          color: selected ? p.accent : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+            color: selected ? p.accent : p.border,
           ),
         ),
         child: Column(
@@ -269,14 +272,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           children: [
             Icon(icon,
                 size: 22,
-                color: selected ? Colors.white : const Color(0xFF0D9488)),
+                color: selected ? Colors.white : p.accent),
             const SizedBox(height: 8),
             Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 13,
-                color: selected ? Colors.white : const Color(0xFF0F172A),
+                color: selected ? Colors.white : p.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
@@ -285,7 +288,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               style: TextStyle(
                 fontSize: 10.5,
                 color:
-                    selected ? const Color(0xFFCCFBF1) : const Color(0xFF64748B),
+                    selected ? p.accentSurface : p.textMuted,
               ),
             ),
           ],
@@ -302,10 +305,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+            color: selected ? p.accent : p.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -313,15 +316,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.12),
+              backgroundColor: p.accent.withValues(alpha: 0.12),
               child: Text(
                 professional.name.isNotEmpty
                     ? professional.name
                         .replaceAll(RegExp(r'^(Dr[a]?|Klg[oa]|Enf)\.\s*'), '')
                         .substring(0, 1)
                     : '?',
-                style: const TextStyle(
-                  color: Color(0xFF0D9488),
+                style: TextStyle(
+                  color: p.accent,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -333,17 +336,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 children: [
                   Text(
                     professional.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: Color(0xFF0F172A),
+                      color: p.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     professional.specialty,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF64748B)),
+                    style: TextStyle(
+                        fontSize: 12, color: p.textMuted),
                   ),
                 ],
               ),
@@ -353,16 +356,16 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               children: [
                 Text(
                   formatClp(professional.consultationPrice),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
-                    color: Color(0xFF0F172A),
+                    color: p.textPrimary,
                   ),
                 ),
                 Text(
                   '${professional.consultationDurationMinutes} min',
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF64748B)),
+                  style: TextStyle(
+                      fontSize: 11, color: p.textMuted),
                 ),
               ],
             ),
@@ -392,12 +395,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               width: 64,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFF0D9488) : Colors.white,
+                color: selected ? p.accent : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: selected
-                      ? const Color(0xFF0D9488)
-                      : const Color(0xFFE2E8F0),
+                      ? p.accent
+                      : p.border,
                 ),
               ),
               child: Column(
@@ -408,7 +411,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white70 : const Color(0xFF64748B),
+                      color: selected ? Colors.white70 : p.textMuted,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -417,14 +420,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: selected ? Colors.white : const Color(0xFF0F172A),
+                      color: selected ? Colors.white : p.textPrimary,
                     ),
                   ),
                   Text(
                     _monthsEs[date.month - 1],
                     style: TextStyle(
                       fontSize: 10,
-                      color: selected ? Colors.white70 : const Color(0xFF94A3B8),
+                      color: selected ? Colors.white70 : p.textFaint,
                     ),
                   ),
                 ],
@@ -438,24 +441,24 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Widget _buildSlots() {
     if (_loadingSlots) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(24),
         child: Center(
           child: SizedBox(
             height: 22,
             width: 22,
             child: CircularProgressIndicator(
-                strokeWidth: 2.5, color: Color(0xFF0D9488)),
+                strokeWidth: 2.5, color: p.accent),
           ),
         ),
       );
     }
     if (_slots.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Text(
           'No hay horarios disponibles para este día. Prueba otra fecha.',
-          style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+          style: TextStyle(color: p.textMuted, fontSize: 13),
         ),
       );
     }
@@ -470,17 +473,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           label: Text(label),
           selected: selected,
           onSelected: (_) => setState(() => _slot = slot),
-          selectedColor: const Color(0xFF0D9488),
+          selectedColor: p.accent,
           backgroundColor: Colors.white,
           labelStyle: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 13,
-            color: selected ? Colors.white : const Color(0xFF334155),
+            color: selected ? Colors.white : p.textSecondary,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: selected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+              color: selected ? p.accent : p.border,
             ),
           ),
           showCheckmark: false,

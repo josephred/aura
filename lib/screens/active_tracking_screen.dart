@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:aura/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/dependent.dart';
@@ -25,6 +26,7 @@ class ActiveTrackingScreen extends StatefulWidget {
 }
 
 class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
+  AppPalette get p => context.palette;
   Timer? _timer;
   int _secondsLeft = 53;
   int _minutesLeft = 15;
@@ -109,6 +111,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final request = widget.request;
     final prof = _getAssignedProfessional(request.serviceId);
 
@@ -155,12 +158,12 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'Seguimiento Clínico',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: p.textPrimary,
                 ),
               ),
             ],
@@ -172,7 +175,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A), // brand-dark (slate-900)
+              color: p.textPrimary, // brand-dark (slate-900)
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: const Color(0xFF1E293B)),
             ),
@@ -183,11 +186,11 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   height: 3,
                   width: 60,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [
                         Color(0xFF2DD4BF),
                         Color(0xFF10B981),
-                        Color(0xFF0D9488),
+                        p.accent,
                       ],
                     ),
                     borderRadius: BorderRadius.circular(10),
@@ -201,10 +204,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     color: const Color(0xFF1E293B).withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF334155).withValues(alpha: 0.5),
+                      color: p.textSecondary.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
@@ -230,7 +233,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             Text(
                               'Evaluación en progreso. Complete el registro si requiere reembolso aseguradora.',
                               style: TextStyle(
-                                color: Color(0xFF94A3B8),
+                                color: p.textFaint,
                                 fontSize: 10,
                                 height: 1.3,
                               ),
@@ -250,7 +253,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     color: const Color(0xFF090D16),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF0D9488),
+                      color: p.accent,
                       width: 3,
                       style: BorderStyle.solid,
                     ),
@@ -259,16 +262,16 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.access_time,
-                          color: Color(0xFF0D9488),
+                          color: p.accent,
                           size: 14,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '00:${_secondsLeft < 10 ? '0$_secondsLeft' : _secondsLeft}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: p.card,
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                           ),
@@ -278,10 +281,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'TIEMPO ESPERADO DE DEMORA',
                   style: TextStyle(
-                    color: Color(0xFF64748B),
+                    color: p.textMuted,
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
@@ -290,8 +293,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '$_minutesLeft min',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: p.card,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
@@ -304,7 +307,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     color: const Color(0xFF1E293B).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF334155).withValues(alpha: 0.3),
+                      color: p.textSecondary.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -313,10 +316,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'VALOR DE LA PRESTACIÓN',
                             style: TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: p.textFaint,
                               fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
@@ -324,8 +327,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           const SizedBox(height: 2),
                           Text(
                             '\$${request.finalPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ARS',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: p.card,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -388,9 +391,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: p.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,13 +410,13 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F6F4),
+                              color: p.accentSurface,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Text(
+                            child: Text(
                               'PROFESIONAL CLÍNICO ASIGNADO',
                               style: TextStyle(
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                                 fontSize: 8,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
@@ -423,18 +426,18 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           const SizedBox(height: 8),
                           Text(
                             prof['name']!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                              color: p.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             prof['specialty']!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF64748B),
+                              color: p.textMuted,
                             ),
                           ),
                         ],
@@ -442,13 +445,13 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       Container(
                         height: 44,
                         width: 44,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE6F6F4),
+                        decoration: BoxDecoration(
+                          color: p.accentSurface,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.person,
-                          color: Color(0xFF0D9488),
+                          color: p.accent,
                         ),
                       ),
                     ],
@@ -462,8 +465,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           child: ElevatedButton(
                             onPressed: widget.onNavigateToChat,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE6F6F4),
-                              foregroundColor: const Color(0xFF0D9488),
+                              backgroundColor: p.accentSurface,
+                              foregroundColor: p.accent,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -528,7 +531,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1F5F9),
+                              backgroundColor: p.fill,
                               foregroundColor: const Color(0xFF475569),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
@@ -564,19 +567,19 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: p.card,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: p.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'PROGRESO DEL SERVICIO',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF94A3B8),
+                    color: p.textFaint,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -602,21 +605,21 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                 width: 14,
                                 decoration: BoxDecoration(
                                   color: isCompleted
-                                      ? const Color(0xFF0D9488)
+                                      ? p.accent
                                       : Colors.white,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: isCompleted
-                                        ? const Color(0xFF0D9488)
-                                        : const Color(0xFFCBD5E1),
+                                        ? p.accent
+                                        : p.borderStrong,
                                     width: 2,
                                   ),
                                 ),
                                 child: isCompleted
-                                    ? const Center(
+                                    ? Center(
                                         child: Icon(
                                           Icons.check,
-                                          color: Colors.white,
+                                          color: p.card,
                                           size: 8,
                                         ),
                                       )
@@ -627,8 +630,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                   child: Container(
                                     width: 2,
                                     color: isCompleted
-                                        ? const Color(0xFF0D9488)
-                                        : const Color(0xFFE2E8F0),
+                                        ? p.accent
+                                        : p.border,
                                   ),
                                 ),
                             ],
@@ -648,10 +651,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                           color: isCurrent
-                                              ? const Color(0xFF0F172A)
+                                              ? p.textPrimary
                                               : (isCompleted
-                                                    ? const Color(0xFF334155)
-                                                    : const Color(0xFF94A3B8)),
+                                                    ? p.textSecondary
+                                                    : p.textFaint),
                                         ),
                                       ),
                                       if (isCurrent) ...[
@@ -662,15 +665,15 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                             vertical: 1.5,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFE6F6F4),
+                                            color: p.accentSurface,
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),
                                           ),
-                                          child: const Text(
+                                          child: Text(
                                             'ACTUAL',
                                             style: TextStyle(
-                                              color: Color(0xFF0D9488),
+                                              color: p.accent,
                                               fontSize: 7,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -682,9 +685,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     step['desc']!,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10,
-                                      color: Color(0xFF64748B),
+                                      color: p.textMuted,
                                     ),
                                   ),
                                 ],
@@ -705,19 +708,19 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: p.card,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: p.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'DETALLES DE LA CITA',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF94A3B8),
+                    color: p.textFaint,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -735,10 +738,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'PACIENTE',
                             style: TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: p.textFaint,
                               fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
@@ -747,18 +750,18 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             widget.dependent != null
                                 ? '${widget.dependent!.name} (${widget.dependent!.relationship})'
                                 : 'Usuario Principal',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF334155),
+                              color: p.textSecondary,
                             ),
                           ),
                           if (widget.dependent != null)
                             Text(
                               widget.dependent!.medicalConditions,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
-                                color: Color(0xFF64748B),
+                                color: p.textMuted,
                               ),
                             ),
                         ],
@@ -766,7 +769,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     ),
                   ],
                 ),
-                const Divider(height: 20, color: Color(0xFFF1F5F9)),
+                Divider(height: 20, color: p.fill),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -780,20 +783,20 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'DOMICILIO',
                             style: TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: p.textFaint,
                               fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             request.addressText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF334155),
+                              color: p.textSecondary,
                             ),
                           ),
                         ],
@@ -863,7 +866,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   widget.state.completeSimulation();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
+                  backgroundColor: p.accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -894,9 +897,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: p.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -911,22 +914,22 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'SEGUIMIENTO EN TIEMPO REAL',
                       style: TextStyle(
                         fontSize: 8,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF64748B),
+                        color: p.textMuted,
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       statusText,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: p.textPrimary,
                       ),
                     ),
                   ],
@@ -967,10 +970,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
 
           // Real OpenStreetMap tracking: patient home + live professional GPS
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Color(0xFFE2E8F0)),
-                bottom: BorderSide(color: Color(0xFFE2E8F0)),
+                top: BorderSide(color: p.border),
+                bottom: BorderSide(color: p.border),
               ),
             ),
             child: TrackingMap(
@@ -989,9 +992,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
               padding: const EdgeInsets.all(12.0),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline,
-                    color: Color(0xFF0D9488),
+                    color: p.accent,
                     size: 12,
                   ),
                   const SizedBox(width: 6),
@@ -1000,7 +1003,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       'El vehículo clínico se desplaza por autopista principal. Tránsito fluido.',
                       style: TextStyle(
                         fontSize: 9.5,
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.9),
+                        color: p.accent.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w500,
                       ),
                     ),

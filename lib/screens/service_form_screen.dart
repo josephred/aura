@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:aura/theme/app_theme.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,6 +49,7 @@ class ServiceFormScreen extends StatefulWidget {
 }
 
 class _ServiceFormScreenState extends State<ServiceFormScreen> {
+  AppPalette get p => context.palette;
   String _patientType = 'self';
   String? _selectedDependentId;
   int _addressIndex = 0;
@@ -146,17 +148,17 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Seleccionar Cámara',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: p.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  leading: const Icon(Icons.camera_rear_outlined, color: Color(0xFF0D9488)),
+                  leading: Icon(Icons.camera_rear_outlined, color: p.accent),
                   title: const Text('Cámara Trasera (Recomendado)'),
                   onTap: () {
                     Navigator.pop(context);
@@ -164,7 +166,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.camera_front_outlined, color: Color(0xFF0D9488)),
+                  leading: Icon(Icons.camera_front_outlined, color: p.accent),
                   title: const Text('Cámara Frontal'),
                   onTap: () {
                     Navigator.pop(context);
@@ -274,11 +276,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final service = widget.service;
     final price = _calculatePrice();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // slate-50
+      backgroundColor: p.background, // slate-50
       body: SafeArea(
         child: Column(
           children: [
@@ -294,26 +297,26 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 children: [
                   GestureDetector(
                     onTap: widget.onBack,
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.chevron_left, color: Color(0xFF0D9488)),
+                        Icon(Icons.chevron_left, color: p.accent),
                         Text(
                           'Volver al catálogo',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0D9488),
+                            color: p.accent,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Text(
+                  Text(
                     'PASO 1 DE 2',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF94A3B8),
+                      color: p.textFaint,
                     ),
                   ),
                 ],
@@ -332,13 +335,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE6F6F4),
+                        color: p.accentSurface,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Solicitud de Prestación',
                         style: TextStyle(
-                          color: Color(0xFF0D9488),
+                          color: p.accent,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -347,18 +350,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(height: 8),
                     Text(
                       service.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: p.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       service.subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF64748B),
+                        color: p.textMuted,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -452,7 +455,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       child: ElevatedButton(
                         onPressed: _submitForm,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0D9488),
+                          backgroundColor: p.accent,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -477,7 +480,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Center(
+                    Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
@@ -485,7 +488,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF94A3B8),
+                            color: p.textFaint,
                             height: 1.4,
                           ),
                         ),
@@ -514,11 +517,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.person_outline_rounded,
-                color: Color(0xFF0D9488),
+                color: p.accent,
                 size: 20,
               ),
               SizedBox(width: 8),
@@ -527,7 +530,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: p.textPrimary,
                 ),
               ),
             ],
@@ -542,39 +545,39 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: _patientType == 'self'
-                          ? const Color(0xFFE6F6F4)
+                          ? p.accentSurface
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _patientType == 'self'
-                            ? const Color(0xFF0D9488)
-                            : const Color(0xFFE2E8F0),
+                            ? p.accent
+                            : p.border,
                       ),
                     ),
                     child: Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFCCFBF1),
+                          decoration: BoxDecoration(
+                            color: p.accentSurface,
                             shape: BoxShape.circle,
                           ),
-                          child: const Text(
+                          child: Text(
                             'Yo',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0D9488),
+                              color: p.accent,
                             ),
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Paciente Principal',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
@@ -592,36 +595,36 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
                       color: _patientType == 'dependent'
-                          ? const Color(0xFFE6F6F4)
+                          ? p.accentSurface
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _patientType == 'dependent'
-                            ? const Color(0xFF0D9488)
-                            : const Color(0xFFE2E8F0),
+                            ? p.accent
+                            : p.border,
                       ),
                     ),
                     child: Column(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFCCFBF1),
+                          decoration: BoxDecoration(
+                            color: p.accentSurface,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.add,
                             size: 13,
-                            color: Color(0xFF0D9488),
+                            color: p.accent,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Familiar / Dependiente',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
@@ -633,20 +636,20 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           ),
           if (_patientType == 'dependent') ...[
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'SELECCIONE FAMILIAR GUARDADO',
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF94A3B8),
+                color: p.textFaint,
                 letterSpacing: 0.5,
               ),
             ),
             const SizedBox(height: 8),
             if (widget.dependents.isEmpty) ...[
-              const Text(
+              Text(
                 'No tienes familiares agregados.',
-                style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11, color: p.textMuted),
               ),
             ] else ...[
               Column(
@@ -661,13 +664,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isSel
-                              ? const Color(0xFFE6F6F4).withValues(alpha: 0.4)
-                              : const Color(0xFFF8FAFC),
+                              ? p.accentSurface.withValues(alpha: 0.4)
+                              : p.background,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSel
-                                ? const Color(0xFF0D9488)
-                                : const Color(0xFFE2E8F0),
+                                ? p.accent
+                                : p.border,
                           ),
                         ),
                         child: Row(
@@ -678,26 +681,26 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               children: [
                                 Text(
                                   dep.name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF334155),
+                                    color: p.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   '${dep.relationship} • ${dep.age} años • ${dep.healthInsurance}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 10,
-                                    color: Color(0xFF64748B),
+                                    color: p.textMuted,
                                   ),
                                 ),
                               ],
                             ),
                             if (isSel)
-                              const Icon(
+                              Icon(
                                 Icons.check,
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                                 size: 16,
                               ),
                           ],
@@ -715,21 +718,21 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               child: OutlinedButton(
                 onPressed: widget.onAddDependentRedirect,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFCCFBF1)),
+                  side: BorderSide(color: p.accentSurface),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   backgroundColor: const Color(0x33E6F6F4),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add, size: 14, color: Color(0xFF0D9488)),
+                    Icon(Icons.add, size: 14, color: p.accent),
                     SizedBox(width: 6),
                     Text(
                       'Agregar Nuevo Familiar Dependiente',
                       style: TextStyle(
-                        color: Color(0xFF0D9488),
+                        color: p.accent,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -756,16 +759,16 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.favorite_outline, color: Color(0xFF0D9488), size: 20),
+              Icon(Icons.favorite_outline, color: p.accent, size: 20),
               SizedBox(width: 8),
               Text(
                 'Describa Síntomas',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: p.textPrimary,
                 ),
               ),
             ],
@@ -774,18 +777,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: p.background,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: p.border),
             ),
             child: TextField(
               controller: _symptomsController,
               maxLines: 3,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+              style: TextStyle(fontSize: 12, color: p.textSecondary),
               decoration: InputDecoration(
                 hintText: widget.service.placeholderText,
-                hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                hintStyle: TextStyle(
+                  color: p.textFaint,
                   fontSize: 11,
                 ),
                 border: InputBorder.none,
@@ -811,13 +814,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         padding: const EdgeInsets.all(0),
                         label: Text(
                           tag,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF64748B),
+                            color: p.textMuted,
                           ),
                         ),
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        backgroundColor: p.fill,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -855,9 +858,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.file_present_rounded,
-                color: Color(0xFF0D9488),
+                color: p.accent,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -865,20 +868,20 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Ingrese el pedido médico',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: p.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       'Toda prestación clínica de ${widget.service.shortTitle} requiere orden',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 9,
-                        color: Color(0xFF0D9488),
+                        color: p.accent,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -892,10 +895,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: p.background,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFE2E8F0),
+                color: p.border,
                 style: BorderStyle.solid,
               ),
             ),
@@ -917,16 +920,16 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
+                      Text(
                         'Soporta formatos PDF, PNG o JPG desde su teléfono',
                         style: TextStyle(
                           fontSize: 10,
-                          color: Color(0xFF94A3B8),
+                          color: p.textFaint,
                         ),
                       ),
                       const SizedBox(height: 14),
                       if (_isUploading)
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
@@ -934,7 +937,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               width: 12,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                               ),
                             ),
                             SizedBox(width: 8),
@@ -943,7 +946,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                               ),
                             ),
                           ],
@@ -958,12 +961,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                   onPressed: () => _handleFileUpload('file'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF0D9488),
+                                    foregroundColor: p.accent,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      side: const BorderSide(
-                                        color: Color(0xFFCCFBF1),
+                                      side: BorderSide(
+                                        color: p.accentSurface,
                                       ),
                                     ),
                                   ),
@@ -994,13 +997,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 child: ElevatedButton(
                                   onPressed: () => _handleFileUpload('camera'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFE6F6F4),
-                                    foregroundColor: const Color(0xFF0D9488),
+                                    backgroundColor: p.accentSurface,
+                                    foregroundColor: p.accent,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      side: const BorderSide(
-                                        color: Color(0xFFCCFBF1),
+                                      side: BorderSide(
+                                        color: p.accentSurface,
                                       ),
                                     ),
                                   ),
@@ -1028,10 +1031,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 : Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE6F6F4).withValues(alpha: 0.4),
+                      color: p.accentSurface.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.3),
+                        color: p.accent.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -1043,7 +1046,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               height: 38,
                               width: 38,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE6F6F4),
+                                color: p.accentSurface,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: _uploadedFilePreview != null
@@ -1055,17 +1058,17 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                         width: 38,
                                         height: 38,
                                         errorBuilder: (context, error, stackTrace) {
-                                          return const Icon(
+                                          return Icon(
                                             Icons.image,
-                                            color: Color(0xFF0D9488),
+                                            color: p.accent,
                                             size: 18,
                                           );
                                         },
                                       ),
                                     )
-                                  : const Icon(
+                                  : Icon(
                                       Icons.picture_as_pdf,
-                                      color: Color(0xFF0D9488),
+                                      color: p.accent,
                                       size: 18,
                                     ),
                             ),
@@ -1075,10 +1078,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               children: [
                                 Text(
                                   _uploadedFileName!,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
+                                    color: p.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -1140,33 +1143,33 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               widget.service.id == 'radiologia' ||
               widget.service.id == 'electrocardiograma') ...[
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'ESPECIFIQUE EXAMEN SOLICITADO',
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF94A3B8),
+                color: p.textFaint,
                 letterSpacing: 0.5,
               ),
             ),
             const SizedBox(height: 6),
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: p.background,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: p.border),
               ),
               child: TextField(
                 controller: _examController,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF0F172A),
+                  color: p.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
                 decoration: InputDecoration(
                   hintText: widget.service.placeholderText,
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF94A3B8),
+                  hintStyle: TextStyle(
+                    color: p.textFaint,
                     fontSize: 11,
                   ),
                   border: InputBorder.none,
@@ -1201,7 +1204,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(
                         Icons.location_on,
@@ -1217,14 +1220,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                              color: p.textPrimary,
                             ),
                           ),
                           Text(
                             'Inicio del traslado',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Color(0xFF94A3B8),
+                              color: p.textFaint,
                             ),
                           ),
                         ],
@@ -1233,7 +1236,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                   Icon(
                     Icons.local_shipping,
-                    color: const Color(0xFF0D9488).withValues(alpha: 0.8),
+                    color: p.accent.withValues(alpha: 0.8),
                     size: 22,
                   ),
                 ],
@@ -1255,21 +1258,21 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: p.background,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: p.border),
                 ),
                 child: TextField(
                   controller: _originAddressController,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF0F172A),
+                    color: p.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Dirección exacta de inicio',
                     hintStyle: TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: p.textFaint,
                       fontSize: 11,
                     ),
                     border: InputBorder.none,
@@ -1309,19 +1312,19 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Lugar de llegada',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
+                              color: p.textPrimary,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Destino programado',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Color(0xFF94A3B8),
+                              color: p.textFaint,
                             ),
                           ),
                         ],
@@ -1332,7 +1335,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     height: 24,
                     width: 24,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
+                      color: p.fill,
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
@@ -1363,21 +1366,21 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: p.background,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: p.border),
                 ),
                 child: TextField(
                   controller: _destinationAddressController,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF0F172A),
+                    color: p.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Dirección exacta de destino',
                     hintStyle: TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: p.textFaint,
                       fontSize: 11,
                     ),
                     border: InputBorder.none,
@@ -1407,12 +1410,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'TIPO DE AMBULANCIA',
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF94A3B8),
+              color: p.textFaint,
               letterSpacing: 0.5,
             ),
           ),
@@ -1426,23 +1429,23 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: _ambulanceType == 'basic'
-                          ? const Color(0xFFE6F6F4)
+                          ? p.accentSurface
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _ambulanceType == 'basic'
-                            ? const Color(0xFF0D9488)
-                            : const Color(0xFFE2E8F0),
+                            ? p.accent
+                            : p.border,
                       ),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
                         Text(
                           'Básica',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -1450,7 +1453,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           '\$18,500 ARS Base',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF0D9488),
+                            color: p.accent,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1467,23 +1470,23 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       color: _ambulanceType == 'medicalized'
-                          ? const Color(0xFFE6F6F4)
+                          ? p.accentSurface
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _ambulanceType == 'medicalized'
-                            ? const Color(0xFF0D9488)
-                            : const Color(0xFFE2E8F0),
+                            ? p.accent
+                            : p.border,
                       ),
                     ),
-                    child: const Column(
+                    child: Column(
                       children: [
                         Text(
                           'Medicalizada',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            color: p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -1491,7 +1494,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           '\$28,500 ARS Base',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF0D9488),
+                            color: p.accent,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1503,13 +1506,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          const Center(
+          Center(
             child: Text(
               'La Ambulancia Medicalizada incluye médico a bordo e instrumentación de cuidados intermedios/UTI.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 10,
-                color: Color(0xFF94A3B8),
+                color: p.textFaint,
                 fontWeight: FontWeight.bold,
                 height: 1.3,
               ),
@@ -1535,11 +1538,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
                   Icon(
                     Icons.location_on_outlined,
-                    color: Color(0xFF0D9488),
+                    color: p.accent,
                     size: 20,
                   ),
                   SizedBox(width: 8),
@@ -1551,12 +1554,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: p.textPrimary,
                         ),
                       ),
                       Text(
                         '¿Dónde asistirá el personal clínico?',
-                        style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
+                        style: TextStyle(fontSize: 9, color: p.textFaint),
                       ),
                     ],
                   ),
@@ -1570,10 +1573,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 },
                 child: Text(
                   _useCustomAddress ? 'Usar favoritas' : 'Nueva dirección',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D9488),
+                    color: p.accent,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -1583,9 +1586,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           const SizedBox(height: 12),
           if (!_useCustomAddress) ...[
             if (widget.addresses.isEmpty) ...[
-              const Text(
+              Text(
                 'No hay direcciones disponibles.',
-                style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                style: TextStyle(fontSize: 11, color: p.textMuted),
               ),
             ] else ...[
               Column(
@@ -1600,13 +1603,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isSel
-                              ? const Color(0xFFE6F6F4).withValues(alpha: 0.4)
+                              ? p.accentSurface.withValues(alpha: 0.4)
                               : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isSel
-                                ? const Color(0xFF0D9488)
-                                : const Color(0xFFE2E8F0),
+                                ? p.accent
+                                : p.border,
                           ),
                         ),
                         child: Row(
@@ -1618,18 +1621,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 children: [
                                   Text(
                                     addr.label,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0D9488),
+                                      color: p.accent,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
                                     addr.text,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF334155),
+                                      color: p.textSecondary,
                                       height: 1.3,
                                     ),
                                   ),
@@ -1637,9 +1640,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               ),
                             ),
                             if (isSel)
-                              const Icon(
+                              Icon(
                                 Icons.check,
-                                color: Color(0xFF0D9488),
+                                color: p.accent,
                                 size: 16,
                               ),
                           ],
@@ -1655,22 +1658,22 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: p.background,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: p.border),
                   ),
                   child: TextField(
                     controller: _customAddressController,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF0F172A),
+                      color: p.textPrimary,
                       fontWeight: FontWeight.w500,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText:
                           'Ej: Calle Suecia 120, depto 201, Providencia, Santiago',
                       hintStyle: TextStyle(
-                        color: Color(0xFF94A3B8),
+                        color: p.textFaint,
                         fontSize: 11,
                       ),
                       border: InputBorder.none,
@@ -1692,9 +1695,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   },
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'Mueva el mapa para ajustar el pin sobre la dirección exacta.',
-                  style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
+                  style: TextStyle(fontSize: 9, color: p.textFaint),
                 ),
               ],
             ),
@@ -1708,9 +1711,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [
-            Color(0xFF0F172A),
+            p.textPrimary,
             Color(0xFF115E59),
           ], // brand-dark to teal-800
           begin: Alignment.bottomLeft,
@@ -1719,7 +1722,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.15),
+            color: p.textPrimary.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1746,10 +1749,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   text: TextSpan(
                     text:
                         '\$${calculatedPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: p.card,
                     ),
                     children: const [
                       TextSpan(
@@ -1764,11 +1767,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                 ),
                 const SizedBox(height: 3),
-                const Text(
+                Text(
                   'Incluye insumos médicos clínicos y traslado profesional',
                   style: TextStyle(
                     fontSize: 9,
-                    color: Color(0xFFCCFBF1),
+                    color: p.accentSurface,
                     height: 1.2,
                   ),
                 ),
@@ -1797,8 +1800,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(width: 4),
                     Text(
                       service.baseEta,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: p.card,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1806,9 +1809,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Minutos de arribo',
-                  style: TextStyle(color: Color(0xFFCCFBF1), fontSize: 8),
+                  style: TextStyle(color: p.accentSurface, fontSize: 8),
                 ),
               ],
             ),

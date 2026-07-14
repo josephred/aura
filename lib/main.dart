@@ -14,6 +14,7 @@ import 'widgets/custom_bottom_nav.dart';
 import 'state/app_state.dart';
 import 'models/service_request.dart';
 import 'data/mock_data.dart';
+import 'theme/app_theme.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -76,47 +77,8 @@ class _MainAppState extends State<MainApp> {
           child: child!,
         );
       },
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D9488), // brand-primary (teal-600)
-          primary: const Color(0xFF0D9488),
-          secondary: const Color(0xFF115E59), // teal-800
-          surface: Colors.white,
-          background: const Color(0xFFF8FAFC), // slate-50
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.bold,
-          ),
-          bodyLarge: TextStyle(fontFamily: 'Inter', color: Color(0xFF0F172A)),
-          bodyMedium: TextStyle(fontFamily: 'Inter', color: Color(0xFF334155)),
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D9488),
-          brightness: Brightness.dark,
-          primary: const Color(0xFF0D9488),
-          secondary: const Color(0xFF2DD4BF), // lighter teal
-          surface: const Color(0xFF1E293B), // slate-800
-          background: const Color(0xFF0F172A), // slate-900
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-          bodyLarge: TextStyle(fontFamily: 'Inter', color: Colors.white),
-          bodyMedium: TextStyle(fontFamily: 'Inter', color: Color(0xFF94A3B8)), // slate-400
-        ),
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       home: MainShell(appState: _appState),
     );
   }
@@ -157,7 +119,7 @@ class _MainShellState extends State<MainShell> {
     // While restoring a saved session, show a lightweight splash
     if (_appState.isRestoringSession) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -187,12 +149,12 @@ class _MainShellState extends State<MainShell> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'AURA Salud',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF0F172A),
+                  color: context.palette.textPrimary,
                   letterSpacing: -0.5,
                 ),
               ),

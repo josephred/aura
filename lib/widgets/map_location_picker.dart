@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:aura/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -12,7 +13,7 @@ import 'package:geocoding/geocoding.dart';
 class MapLocationPicker extends StatefulWidget {
   final LatLng initialCenter;
   final double height;
-  final Color accentColor;
+  final Color? accentColor;
 
   /// Whether to try centring on the device GPS as soon as the map loads.
   final bool autoLocateOnInit;
@@ -21,12 +22,12 @@ class MapLocationPicker extends StatefulWidget {
   /// geocoded address when one could be resolved.
   final void Function(LatLng point, String? address) onLocationChanged;
 
-  const MapLocationPicker({
+  MapLocationPicker({
     super.key,
     required this.onLocationChanged,
     this.initialCenter = const LatLng(-34.6037, -58.3816), // Buenos Aires
     this.height = 200,
-    this.accentColor = const Color(0xFF0D9488),
+    this.accentColor,
     this.autoLocateOnInit = false,
   });
 
@@ -35,6 +36,7 @@ class MapLocationPicker extends StatefulWidget {
 }
 
 class _MapLocationPickerState extends State<MapLocationPicker> {
+  AppPalette get p => context.palette;
   final MapController _mapController = MapController();
   late LatLng _center = widget.initialCenter;
   bool _locating = false;
@@ -127,6 +129,8 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final accentColor = widget.accentColor ?? p.accent;
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
@@ -159,7 +163,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
             // Fixed centre pin: its tip marks the selected coordinate.
             Padding(
               padding: const EdgeInsets.only(bottom: 28),
-              child: Icon(Icons.location_on, color: widget.accentColor, size: 40),
+              child: Icon(Icons.location_on, color: accentColor, size: 40),
             ),
 
             // "My location" button
@@ -167,7 +171,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
               right: 10,
               bottom: 10,
               child: Material(
-                color: Colors.white,
+                color: p.card,
                 shape: const CircleBorder(),
                 elevation: 2,
                 child: InkWell(
@@ -181,10 +185,10 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                             width: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: widget.accentColor,
+                              color: accentColor,
                             ),
                           )
-                        : Icon(Icons.my_location, color: widget.accentColor, size: 18),
+                        : Icon(Icons.my_location, color: accentColor, size: 18),
                   ),
                 ),
               ),

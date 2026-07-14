@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppState state;
@@ -32,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final state = widget.state;
     final currentRequest = state.currentRequest;
+    final p = context.palette;
 
     if (currentRequest == null) {
       return _buildNoActiveRequestState();
@@ -41,7 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = state.chatMessages.reversed.toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // slate-50
+      backgroundColor: p.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -52,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 vertical: 12.0,
               ),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.01),
@@ -71,12 +73,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE6F6F4),
+                            color: p.accentSurface,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_back,
-                            color: Color(0xFF0D9488),
+                            color: p.accentText,
                             size: 18,
                           ),
                         ),
@@ -87,12 +89,12 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           Row(
                             children: [
-                              const Text(
+                              Text(
                                 'Mesa de Asistencia Aura',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
+                                  color: p.textPrimary,
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -107,11 +109,11 @@ class _ChatScreenState extends State<ChatScreen> {
                             ],
                           ),
                           const SizedBox(height: 1),
-                          const Text(
+                          Text(
                             'Canal de Chat Seguro Encriptado',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Color(0xFF64748B),
+                              color: p.textMuted,
                             ),
                           ),
                         ],
@@ -124,21 +126,21 @@ class _ChatScreenState extends State<ChatScreen> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE6F6F4),
+                      color: p.accentSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         Icon(
                           Icons.shield_rounded,
-                          color: Color(0xFF0D9488),
+                          color: p.accentText,
                           size: 10,
                         ),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           'Clínica Digital',
                           style: TextStyle(
-                            color: Color(0xFF0D9488),
+                            color: p.accentText,
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
                           ),
@@ -178,33 +180,33 @@ class _ChatScreenState extends State<ChatScreen> {
             // Input text row
             Container(
               padding: const EdgeInsets.all(12),
-              color: Colors.white,
+              color: p.card,
               child: Row(
                 children: [
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: p.cardSubtle,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: p.border),
                       ),
                       child: TextField(
                         controller: _controller,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF0F172A),
+                          color: p.textPrimary,
                           fontWeight: FontWeight.w500,
                         ),
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _send(),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Escriba su consulta al profesional...',
                           hintStyle: TextStyle(
-                            color: Color(0xFF94A3B8),
+                            color: p.textFaint,
                             fontSize: 11,
                           ),
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
                           ),
@@ -219,7 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       height: 42,
                       width: 42,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488),
+                        color: p.accent,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -239,19 +241,20 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildSystemBubble(ChatMessage msg) {
+    final p = context.palette;
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFE6F6F4),
+          color: p.accentSurface,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           msg.text,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF0F172A),
+          style: TextStyle(
+            color: p.textPrimary,
             fontSize: 9,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.2,
@@ -262,6 +265,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildChatBubble(ChatMessage msg, bool isMe) {
+    final p = context.palette;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
@@ -276,8 +280,8 @@ class _ChatScreenState extends State<ChatScreen> {
               maxWidth: MediaQuery.of(context).size.width * 0.78,
             ),
             decoration: BoxDecoration(
-              color: isMe ? const Color(0xFF0D9488) : Colors.white,
-              border: isMe ? null : Border.all(color: const Color(0xFFE6F6F4)),
+              color: isMe ? p.accent : p.card,
+              border: isMe ? null : Border.all(color: p.border),
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(16),
                 topRight: const Radius.circular(16),
@@ -298,8 +302,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (!isMe && msg.senderName != null) ...[
                   Text(
                     msg.senderName!,
-                    style: const TextStyle(
-                      color: Color(0xFF0D9488),
+                    style: TextStyle(
+                      color: p.accentText,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                     ),
@@ -309,7 +313,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   msg.text,
                   style: TextStyle(
-                    color: isMe ? Colors.white : const Color(0xFF334155),
+                    color: isMe ? Colors.white : p.textSecondary,
                     fontSize: 12,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
@@ -321,7 +325,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   style: TextStyle(
                     color: isMe
                         ? const Color(0xFF99F6E4)
-                        : const Color(0xFF94A3B8),
+                        : p.textFaint,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
                   ),
@@ -335,14 +339,15 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildTypingBubble() {
+    final p = context.palette;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFE6F6F4)),
+          color: p.card,
+          border: Border.all(color: p.border),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),
@@ -365,8 +370,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildNoActiveRequestState() {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: p.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -380,43 +386,39 @@ class _ChatScreenState extends State<ChatScreen> {
                   height: 72,
                   width: 72,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFE6F6F4), Color(0xFFCCFBF1)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: p.accentSurface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFFCCFBF1),
+                      color: p.accent.withValues(alpha: 0.25),
                       width: 2,
                     ),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.chat_bubble_outline_rounded,
-                      color: Color(0xFF0D9488),
+                      color: p.accentText,
                       size: 30,
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 // Title
-                const Text(
+                Text(
                   'Canal de Asistencia Inactivo',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                    color: p.textPrimary,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
                 // Subtitle
-                const Text(
+                Text(
                   'El canal de chat directo con los profesionales clínicos se activará automáticamente al confirmar una solicitud de atención domiciliaria.',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF64748B),
+                    color: p.textMuted,
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
@@ -426,19 +428,19 @@ class _ChatScreenState extends State<ChatScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: p.card,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: p.border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'ESPECIALIDADES DISPONIBLES',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D9488),
+                          color: p.accentText,
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -448,13 +450,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         'Atención Médica Domiciliaria',
                         'Médico general a casa',
                       ),
-                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                      Divider(height: 16, color: p.border),
                       _buildServiceRow(
                         Icons.local_shipping,
                         'Ambulancia de Traslado',
                         'Traslado programado camilla',
                       ),
-                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                      Divider(height: 16, color: p.border),
                       _buildServiceRow(
                         Icons.healing,
                         'Procedimientos de Enfermería',
@@ -471,7 +473,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: ElevatedButton(
                     onPressed: widget.onBack,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D9488),
+                      backgroundColor: p.accent,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -497,15 +499,16 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildServiceRow(IconData icon, String title, String subtitle) {
+    final p = context.palette;
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: const Color(0xFFE6F6F4),
+            color: p.accentSurface,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: const Color(0xFF0D9488), size: 16),
+          child: Icon(icon, color: p.accentText, size: 16),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -514,21 +517,21 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: p.textPrimary,
                 ),
               ),
               const SizedBox(height: 1),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
+                style: TextStyle(fontSize: 9, color: p.textFaint),
               ),
             ],
           ),
         ),
-        const Icon(Icons.chevron_right, color: Color(0xFFCBD5E1), size: 16),
+        Icon(Icons.chevron_right, color: p.borderStrong, size: 16),
       ],
     );
   }
@@ -584,8 +587,8 @@ class _TypingDotState extends State<_TypingDot>
           child: Container(
             height: 6,
             width: 6,
-            decoration: const BoxDecoration(
-              color: Color(0xFF0D9488),
+            decoration: BoxDecoration(
+              color: context.palette.accent,
               shape: BoxShape.circle,
             ),
           ),
