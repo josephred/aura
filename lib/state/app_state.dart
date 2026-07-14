@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -830,23 +831,59 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.post(
-        '/bookings',
-        body: {
-          'service_id': _selectedService!.id,
-          'patient_type': patientType,
-          'dependent_id': dependentId,
-          'address_text': addressText,
-          'origin_address': originAddress,
-          'destination_address': destinationAddress,
-          'ambulance_type': ambulanceType,
-          'symptoms_description': symptomsDescription,
-          'prescription_name': prescriptionName,
-          'prescription_preview': prescriptionPreview,
-          'final_price': finalPrice,
-          'eta_minutes': etaMinutes,
-        },
-      );
+      // `prescriptionPreview` holds the local device path of the file the user
+      // picked from the camera/gallery. When it points to a real file we upload
+      // the actual bytes with a multipart request; otherwise we keep the plain
+      // JSON booking so services without a prescription are unaffected.
+      final localPrescriptionPath = prescriptionPreview;
+      final hasPrescriptionFile = localPrescriptionPath != null &&
+          localPrescriptionPath.isNotEmpty &&
+          File(localPrescriptionPath).existsSync();
+
+      final http.Response response;
+      if (hasPrescriptionFile) {
+        response = await _apiService.postMultipart(
+          '/bookings',
+          fields: {
+            'service_id': _selectedService!.id,
+            'patient_type': patientType,
+            'dependent_id': ?dependentId,
+            'address_text': addressText,
+            'origin_address': ?originAddress,
+            'destination_address': ?destinationAddress,
+            'ambulance_type': ?ambulanceType,
+            'symptoms_description': ?symptomsDescription,
+            'prescription_name': ?prescriptionName,
+            'final_price': finalPrice.toString(),
+            'eta_minutes': etaMinutes.toString(),
+          },
+          files: [
+            await http.MultipartFile.fromPath(
+              'prescription_file',
+              localPrescriptionPath,
+              filename: prescriptionName,
+            ),
+          ],
+        );
+      } else {
+        response = await _apiService.post(
+          '/bookings',
+          body: {
+            'service_id': _selectedService!.id,
+            'patient_type': patientType,
+            'dependent_id': dependentId,
+            'address_text': addressText,
+            'origin_address': originAddress,
+            'destination_address': destinationAddress,
+            'ambulance_type': ambulanceType,
+            'symptoms_description': symptomsDescription,
+            'prescription_name': prescriptionName,
+            'prescription_preview': prescriptionPreview,
+            'final_price': finalPrice,
+            'eta_minutes': etaMinutes,
+          },
+        );
+      }
 
       _isSearchingDoctor = false;
 
