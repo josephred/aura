@@ -30,6 +30,7 @@ class PushService {
     if (!_isSupported) return;
 
     try {
+      debugPrint('[Firebase Push] Intentando inicializar Firebase...');
       if (!_initialized) {
         await Firebase.initializeApp();
         _initialized = true;
@@ -39,22 +40,28 @@ class PushService {
 
       final settings = await messaging.requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('Push permission denied by user.');
+        debugPrint('[Firebase Push] Permiso de notificaciones denegado por el usuario.');
         return;
       }
 
       final token = await messaging.getToken();
       if (token != null) {
+        debugPrint('[Firebase Push] Inicializado con éxito. FCM Token: $token');
         await _syncToken(token);
       }
 
-      _refreshSubscription ??= messaging.onTokenRefresh.listen(_syncToken);
+      _refreshSubscription ??= messaging.onTokenRefresh.listen((newToken) {
+        debugPrint('[Firebase Push] Token FCM renovado: $newToken');
+        _syncToken(newToken);
+      });
+      
       _messageSubscription ??= FirebaseMessaging.onMessage.listen((message) {
+        debugPrint('[Firebase Push] Mensaje recibido en primer plano: ${message.messageId}');
         onForegroundMessage?.call(message.data);
       });
     } catch (e) {
       // Missing google-services.json / Firebase not configured: skip silently
-      debugPrint('Push registration skipped. Error: $e');
+      debugPrint('[Firebase Push] Omisión de registro (Firebase no configurado o sin servicios de Google Play). Detalle: $e');
     }
   }
 
