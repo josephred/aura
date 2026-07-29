@@ -8,6 +8,10 @@
 	<string>Aura usa tu ubicación para fijar el domicilio de la atención en el mapa y para mostrar el arribo del profesional en tiempo real.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Aura usa tu ubicación para fijar el domicilio de la atención en el mapa y para mostrar el arribo del profesional en tiempo real.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aura usa el micrófono para que puedas dictar tus síntomas o enviar una nota de voz al profesional.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Aura transcribe tu dictado en el dispositivo para completar la descripción de síntomas.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

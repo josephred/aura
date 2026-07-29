@@ -22,7 +22,7 @@ class MapLocationPicker extends StatefulWidget {
   /// geocoded address when one could be resolved.
   final void Function(LatLng point, String? address) onLocationChanged;
 
-  MapLocationPicker({
+  const MapLocationPicker({
     super.key,
     required this.onLocationChanged,
     this.initialCenter = const LatLng(-34.6037, -58.3816), // Buenos Aires

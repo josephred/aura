@@ -3,12 +3,26 @@ import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
+import '../utils/text_search.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
 
 class BookAppointmentScreen extends StatefulWidget {
   final AppState state;
 
-  const BookAppointmentScreen({super.key, required this.state});
+  /// Words used to narrow the professional list down to one discipline, e.g.
+  /// `['enfermeria']` or `['medicina', 'medico']`. When null every active
+  /// professional is offered.
+  final List<String>? specialtyFilter;
+
+  /// Optional heading shown in the app bar, e.g. "Agendar con enfermería".
+  final String? headerTitle;
+
+  const BookAppointmentScreen({
+    super.key,
+    required this.state,
+    this.specialtyFilter,
+    this.headerTitle,
+  });
 
   @override
   State<BookAppointmentScreen> createState() => _BookAppointmentScreenState();
@@ -48,7 +62,31 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Future<void> _loadProfessionals() async {
     await widget.state.fetchProfessionals();
-    if (mounted) setState(() => _loadingProfessionals = false);
+    if (!mounted) return;
+    setState(() => _loadingProfessionals = false);
+
+    // With a single matching professional there is nothing to choose: jump
+    // straight to the calendar.
+    final list = _visibleProfessionals;
+    if (list.length == 1) _selectProfessional(list.first);
+  }
+
+  /// Professionals matching [BookAppointmentScreen.specialtyFilter], accent-
+  /// and case-insensitively. Falls back to the full list when the filter
+  /// matches nobody so the user is never left with an empty screen.
+  List<Professional> get _visibleProfessionals {
+    final filter = widget.specialtyFilter;
+    if (filter == null || filter.isEmpty) return widget.state.professionals;
+
+    final matches = widget.state.professionals.where((professional) {
+      final haystack =
+          normalizeForSearch('${professional.specialty} ${professional.name}');
+      return filter.any(
+        (term) => haystack.contains(normalizeForSearch(term)),
+      );
+    }).toList();
+
+    return matches.isEmpty ? widget.state.professionals : matches;
   }
 
   Future<void> _selectProfessional(Professional professional) async {
@@ -106,12 +144,25 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Reserva creada'),
+          title: const Text('Confirma el monto'),
           content: Text(
-            'Tu hora del ${formatAppointmentDate(appointment.scheduledAt)} quedó '
-            'reservada. Para confirmarla, completa el pago con Mercado Pago.',
+            'Tu hora del ${formatAppointmentDate(appointment.scheduledAt)} con '
+            '${_professional!.name} quedó reservada por '
+            '${formatClp(_professional!.consultationPrice)}.\n\n'
+            'Al aceptar te llevaremos a Mercado Pago. Si prefieres, puedes '
+            'cancelar la reserva ahora sin costo.',
           ),
           actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await widget.state.cancelAppointment(appointment.id);
+              },
+              child: const Text(
+                'Cancelar reserva',
+                style: TextStyle(color: Color(0xFFDC2626)),
+              ),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF009EE3)),
@@ -119,7 +170,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 Navigator.pop(context);
                 widget.state.openCheckoutUrl(appointment.paymentUrl!);
               },
-              child: const Text('Pagar ahora'),
+              child: const Text('Aceptar y pagar'),
             ),
           ],
         ),
@@ -142,9 +193,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         backgroundColor: p.background,
         elevation: 0,
         foregroundColor: p.textPrimary,
-        title: const Text(
-          'Agendar cita',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        title: Text(
+          widget.headerTitle ?? 'Agendar cita',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -202,10 +253,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   ],
                 ),
                 _sectionTitle('1 · Profesional'),
-                ...widget.state.professionals.map(_buildProfessionalCard),
-                if (widget.state.professionals.isEmpty)
+                ..._visibleProfessionals.map(_buildProfessionalCard),
+                if (_visibleProfessionals.isEmpty)
                   Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(24),
                     child: Text(
                       'No hay profesionales disponibles por ahora.',
                       textAlign: TextAlign.center,
@@ -474,7 +525,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           selected: selected,
           onSelected: (_) => setState(() => _slot = slot),
           selectedColor: p.accent,
-          backgroundColor: Colors.white,
+          backgroundColor: p.card,
           labelStyle: TextStyle(
             fontWeight: FontWeight.w700,
             fontSize: 13,

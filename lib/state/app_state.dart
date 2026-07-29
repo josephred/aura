@@ -21,10 +21,13 @@ import '../models/saved_payment_method.dart';
 import '../models/service_request.dart';
 import '../models/chat_message.dart';
 import '../models/past_service.dart';
+import '../models/staff_models.dart';
+import '../models/zone_eta_estimate.dart';
 import '../services/api_service.dart';
 import '../services/db_helper.dart';
 import '../services/outbox_service.dart';
 import '../services/push_service.dart';
+import '../utils/text_search.dart';
 
 class AppState extends ChangeNotifier {
   // Base URL configuration for both local Web and Android Emulator
@@ -65,12 +68,20 @@ class AppState extends ChangeNotifier {
   String _searchQuery = '';
   String _selectedFilterCategory = 'all'; // 'all' | 'require_rx' | 'no_rx'
 
-  // Lists in state to support mutations
+  // Lists in state to support mutations.
+  //
+  // They start empty on purpose: preloading `mock_data` meant a brand-new user
+  // saw somebody else's dependents, addresses and clinical history until the
+  // API answered — and kept seeing them if it never did. The demo catalogue is
+  // only injected by `enterDemoMode()`.
+  //
+  // The service catalogue is the exception: it is public, identical for
+  // everyone, and needed to render the home screen before login.
   List<ClinicalService> _services = List.from(clinicalServices);
-  final List<Dependent> _dependents = List.from(initialDependents);
-  final List<SavedAddress> _addresses = List.from(initialAddresses);
-  final List<SavedPaymentMethod> _paymentMethods = List.from(initialPaymentMethods);
-  final List<PastService> _pastServices = List.from(pastServicesHistory);
+  final List<Dependent> _dependents = [];
+  final List<SavedAddress> _addresses = [];
+  final List<SavedPaymentMethod> _paymentMethods = [];
+  final List<PastService> _pastServices = [];
 
   // Form selection and active requests
   ClinicalService? _selectedService;
@@ -88,7 +99,9 @@ class AppState extends ChangeNotifier {
   int _doctorSearchTimeSeconds = 3;
   double _commissionRate = 0.15;
 
-  // Provider simulation
+  // Sample roster used only by the guided demo, so exploring the app without
+  // an account still shows a plausible assignment. Real provider management
+  // lives in the operations panel and writes to the server.
   final List<Map<String, dynamic>> _systemProviders = [
     {
       'id': 'prof_camila_rivera',
@@ -185,6 +198,8 @@ class AppState extends ChangeNotifier {
     _currentRequest = null;
     _pendingMessages = 0;
     _activeTab = 'home';
+    _currentRole = 'patient';
+    _serverAssignedRole = null;
     _initializeChat();
     _persistSession();
     DbHelper.instance.clearAll().catchError((e) => debugPrint('Error clearing local DB: $e'));
@@ -290,6 +305,7 @@ class AppState extends ChangeNotifier {
         final Map<String, dynamic> data = json.decode(response.body);
         _userName = data['name'] ?? _userName;
         _userEmail = data['email'] ?? _userEmail;
+        _applyServerRole(data['role'] as String?);
         return true;
       }
       return false; // Will trigger _handleUnauthorized if 401
@@ -436,6 +452,9 @@ class AppState extends ChangeNotifier {
     _apiService.authToken = _authToken;
     _userName = data['user']?['name'] ?? '';
     _userEmail = data['user']?['email'] ?? '';
+    // The backend owns the role: test accounts land straight on the dashboard
+    // that matches them instead of relying on the manual role switcher.
+    _applyServerRole(data['user']?['role'] as String?);
     _isDemoMode = false;
     _persistSession();
     _loadInitialData();
@@ -443,11 +462,26 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Explore the app without a backend account (local simulation only)
+  // Explore the app without a backend account (local simulation only).
+  // This is the only path that loads the sample catalogue.
   void enterDemoMode() {
     _isDemoMode = true;
     _userName = 'Usuario Demo';
     _userEmail = 'demo@aurasalud.app';
+
+    _dependents
+      ..clear()
+      ..addAll(initialDependents);
+    _addresses
+      ..clear()
+      ..addAll(initialAddresses);
+    _paymentMethods
+      ..clear()
+      ..addAll(initialPaymentMethods);
+    _pastServices
+      ..clear()
+      ..addAll(pastServicesHistory);
+
     notifyListeners();
   }
 
@@ -469,6 +503,8 @@ class AppState extends ChangeNotifier {
     _currentRequest = null;
     _pendingMessages = 0;
     _activeTab = 'home';
+    _currentRole = 'patient';
+    _serverAssignedRole = null;
     _initializeChat();
     await _persistSession();
     await DbHelper.instance.clearAll();
@@ -518,7 +554,6 @@ class AppState extends ChangeNotifier {
   double get commissionRate => _commissionRate;
   bool get simulateOffline => _apiService.simulateOffline;
 
-  List<Map<String, dynamic>> get systemProviders => _systemProviders;
   String? get assignedProfessionalName => _assignedProfessionalName;
   String? get assignedProfessionalPhone => _assignedProfessionalPhone;
   String? get assignedProfessionalSpecialty => _assignedProfessionalSpecialty;
@@ -526,18 +561,28 @@ class AppState extends ChangeNotifier {
   double get textScaleFactor => _textScaleFactor;
 
   // Filtered Services List
+  //
+  // The search is accent- and case-insensitive and matches every typed word
+  // against the title, subtitle, description and a list of common synonyms,
+  // so "medico", "Médico", "MEDICO" and "doctor" all return the same result.
   List<ClinicalService> get filteredServices {
     return _services.where((service) {
-      final matchesSearch = service.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          service.subtitle.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matches = matchesSearch(_searchQuery, [
+        service.id,
+        service.title,
+        service.shortTitle,
+        service.subtitle,
+        service.description,
+        ...?serviceSearchAliases[service.id],
+      ]);
 
       if (_selectedFilterCategory == 'require_rx') {
-        return matchesSearch && service.requiresPrescription;
+        return matches && service.requiresPrescription;
       }
       if (_selectedFilterCategory == 'no_rx') {
-        return matchesSearch && !service.requiresPrescription;
+        return matches && !service.requiresPrescription;
       }
-      return matchesSearch;
+      return matches;
     }).toList();
   }
 
@@ -864,6 +909,30 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Roles the app can render a dashboard for. Anything else is ignored so a
+  /// future backend value can't leave the user on a blank screen.
+  static const List<String> knownRoles = [
+    'patient',
+    'dependent_tutor',
+    'doctor_provider',
+    'operator_admin',
+    'ambulance_driver',
+  ];
+
+  /// Applies the role reported by the backend for the logged-in account.
+  void _applyServerRole(String? role) {
+    if (role == null || !knownRoles.contains(role)) return;
+    _currentRole = role;
+    _serverAssignedRole = role;
+  }
+
+  String? _serverAssignedRole;
+
+  /// The role that came from the account, if any. When set, the profile screen
+  /// shows it as the account's real role and the manual switcher becomes a
+  /// preview tool only.
+  String? get serverAssignedRole => _serverAssignedRole;
+
   void setSimulationSpeed(double speed) {
     _simulationSpeed = speed;
     notifyListeners();
@@ -907,12 +976,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setProviderStatus(String providerId, String newStatus) {
-    final provider = _systemProviders.firstWhere((p) => p['id'] == providerId);
-    provider['status'] = newStatus;
-    notifyListeners();
-  }
-
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
@@ -946,6 +1009,212 @@ class AppState extends ChangeNotifier {
     ]);
   }
 
+  // ==================== Staff area (professional / operator) ====================
+  //
+  // These hit `/api/staff/*`, which is backed by the same controllers as the
+  // web portal. Nothing here is simulated: what the professional sees on the
+  // phone is what the coordinator sees on the desktop.
+
+  List<StaffBooking> _staffBookings = [];
+  StaffProfile? _staffProfile;
+  bool _staffLoading = false;
+  String? _staffError;
+
+  List<StaffBooking> get staffBookings => _staffBookings;
+  StaffProfile? get staffProfile => _staffProfile;
+  bool get staffLoading => _staffLoading;
+  String? get staffError => _staffError;
+
+  /// Requests inside the professional's coverage, newest first.
+  List<StaffBooking> get staffBookingsInZone =>
+      _staffBookings.where((b) => !b.outsideZone && b.isOpen).toList();
+
+  /// Open requests outside their coverage, offered as a fallback.
+  List<StaffBooking> get staffBookingsOutsideZone =>
+      _staffBookings.where((b) => b.outsideZone && b.isOpen).toList();
+
+  Future<void> refreshStaffArea() async {
+    _staffLoading = true;
+    _staffError = null;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _apiService.get('/staff/duty', timeout: const Duration(seconds: 8)),
+        _apiService.get('/staff/bookings', timeout: const Duration(seconds: 8)),
+      ]);
+
+      if (results[0].statusCode == 200) {
+        _staffProfile = StaffProfile.fromJson(
+          json.decode(results[0].body) as Map<String, dynamic>,
+        );
+      } else if (results[0].statusCode == 403) {
+        _staffError = (json.decode(results[0].body)['error'] as String?) ??
+            'Tu cuenta no tiene acceso al área clínica.';
+      }
+
+      if (results[1].statusCode == 200) {
+        final List<dynamic> data = json.decode(results[1].body);
+        _staffBookings = data
+            .map((b) => StaffBooking.fromJson(b as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('refreshStaffArea failed. Error: $e');
+      _staffError = 'No pudimos conectar con el servidor.';
+    }
+
+    _staffLoading = false;
+    notifyListeners();
+  }
+
+  /// Accepts a queued request or advances one already in progress.
+  /// Returns an error message, or null on success.
+  Future<String?> updateStaffBookingStatus(String id, String status) async {
+    try {
+      final response = await _apiService.post(
+        '/staff/bookings/$id/status',
+        body: {'status': status},
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshStaffArea();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo actualizar la atención.';
+    } catch (e) {
+      debugPrint('updateStaffBookingStatus failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
+  /// Go on or off shift. The backend refuses to go off duty mid-visit.
+  Future<String?> setStaffDutyStatus(String dutyStatus) async {
+    try {
+      final response = await _apiService.post(
+        '/staff/duty',
+        body: {'duty_status': dutyStatus},
+        timeout: const Duration(seconds: 8),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshStaffArea();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo cambiar tu estado de turno.';
+    } catch (e) {
+      debugPrint('setStaffDutyStatus failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
+  // ==================== Operations panel (operator/admin role) ====================
+
+  OperationsMetrics? _opsMetrics;
+  List<ZoneLoad> _opsZones = [];
+  List<ManagedProfessional> _opsProfessionals = [];
+  bool _opsLoading = false;
+
+  OperationsMetrics? get opsMetrics => _opsMetrics;
+  List<ZoneLoad> get opsZones => _opsZones;
+  List<ManagedProfessional> get opsProfessionals => _opsProfessionals;
+  bool get opsLoading => _opsLoading;
+
+  Future<void> refreshOperations() async {
+    _opsLoading = true;
+    notifyListeners();
+
+    try {
+      final results = await Future.wait([
+        _apiService.get('/staff/admin/metrics', timeout: const Duration(seconds: 8)),
+        _apiService.get('/staff/admin/zones', timeout: const Duration(seconds: 8)),
+        _apiService.get('/staff/admin/professionals', timeout: const Duration(seconds: 8)),
+      ]);
+
+      if (results[0].statusCode == 200) {
+        _opsMetrics = OperationsMetrics.fromJson(
+          json.decode(results[0].body) as Map<String, dynamic>,
+        );
+      }
+      if (results[1].statusCode == 200) {
+        final List<dynamic> data = json.decode(results[1].body);
+        _opsZones =
+            data.map((z) => ZoneLoad.fromJson(z as Map<String, dynamic>)).toList();
+      }
+      if (results[2].statusCode == 200) {
+        final List<dynamic> data = json.decode(results[2].body);
+        _opsProfessionals = data
+            .map((p) => ManagedProfessional.fromJson(p as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('refreshOperations failed. Error: $e');
+    }
+
+    _opsLoading = false;
+    notifyListeners();
+  }
+
+  /// Change a provider's duty status from the operations panel. Unlike the old
+  /// local-only toggle, this reaches the server.
+  Future<String?> setProviderDutyStatus(String professionalId, String dutyStatus) async {
+    try {
+      final response = await _apiService.post(
+        '/staff/admin/professionals/$professionalId',
+        body: {'duty_status': dutyStatus},
+        timeout: const Duration(seconds: 8),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshOperations();
+        return null;
+      }
+      return 'No se pudo actualizar el turno del prestador.';
+    } catch (e) {
+      debugPrint('setProviderDutyStatus failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
+  /// Live wait estimate for a service in the zone of [address].
+  ///
+  /// The backend looks at how many requests are open in that comuna and how
+  /// many professionals of the discipline are on duty, so the number reflects
+  /// real demand instead of the static per-service ETA. Returns null when the
+  /// backend is unreachable, and the caller falls back to the catalog ETA.
+  Future<ZoneEtaEstimate?> fetchZoneEta({
+    required String serviceId,
+    String? address,
+  }) async {
+    try {
+      final query = <String, String>{
+        'service_id': serviceId,
+        if (address != null && address.isNotEmpty) 'address': address,
+      };
+      final queryString = query.entries
+          .map((e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+          .join('&');
+
+      final response = await _apiService.get('/dispatch/eta?$queryString');
+      if (response.statusCode == 200) {
+        return ZoneEtaEstimate.fromJson(
+          json.decode(response.body) as Map<String, dynamic>,
+        );
+      }
+    } catch (e) {
+      debugPrint('fetchZoneEta failed. Error: $e');
+    }
+    return null;
+  }
+
   // Submit request and start match simulation
   Future<void> confirmRequest({
     required String patientType,
@@ -957,6 +1226,7 @@ class AppState extends ChangeNotifier {
     double? patientLat,
     double? patientLng,
     String? symptomsDescription,
+    String? symptomAudioPath,
     String? prescriptionName,
     String? prescriptionPreview,
     required int finalPrice,
@@ -975,8 +1245,28 @@ class AppState extends ChangeNotifier {
           localPrescriptionPath.isNotEmpty &&
           File(localPrescriptionPath).existsSync();
 
+      // Optional voice note recorded in the symptom descriptor.
+      final hasSymptomAudio = symptomAudioPath != null &&
+          symptomAudioPath.isNotEmpty &&
+          File(symptomAudioPath).existsSync();
+
       final http.Response response;
-      if (hasPrescriptionFile) {
+      if (hasPrescriptionFile || hasSymptomAudio) {
+        final files = <http.MultipartFile>[
+          if (hasPrescriptionFile)
+            await http.MultipartFile.fromPath(
+              'prescription_file',
+              localPrescriptionPath,
+              filename: prescriptionName,
+            ),
+          if (hasSymptomAudio)
+            await http.MultipartFile.fromPath(
+              'symptom_audio',
+              symptomAudioPath,
+              filename: symptomAudioPath.split(Platform.pathSeparator).last,
+            ),
+        ];
+
         response = await _apiService.postMultipart(
           '/bookings',
           fields: {
@@ -994,13 +1284,7 @@ class AppState extends ChangeNotifier {
             'final_price': finalPrice.toString(),
             'eta_minutes': etaMinutes.toString(),
           },
-          files: [
-            await http.MultipartFile.fromPath(
-              'prescription_file',
-              localPrescriptionPath,
-              filename: prescriptionName,
-            ),
-          ],
+          files: files,
         );
       } else {
         response = await _apiService.post(
@@ -1031,11 +1315,11 @@ class AppState extends ChangeNotifier {
         await fetchActiveRequest();
 
         if (_currentRequest?.status == RequestStatus.pendingPayment) {
-          // Real gateway flow: take the user to the payment screen and
-          // open the Mercado Pago checkout in the browser
+          // Real gateway flow: land on the confirmation screen showing the
+          // amount. We deliberately do NOT open Mercado Pago here — the user
+          // must accept the total (or cancel the request) first.
           _activeTab = 'appointments';
           notifyListeners();
-          await launchPaymentCheckout();
         } else {
           _activeTab = 'home';
           _pendingMessages = 1;
@@ -1054,9 +1338,9 @@ class AppState extends ChangeNotifier {
         final timeStr = DateFormat('HH:mm').format(now);
 
         // Dynamic routing logic based on provider status
-        String docName = 'Dr. Alejandro Russo';
-        String docPhone = '+56 9 8812 3410';
-        String docSpecialty = 'Médico Generalista • Reg. 43102-B';
+        String docName = '';
+        String docPhone = '';
+        String docSpecialty = '';
 
         final requestedServiceId = _selectedService?.id ?? 'medico';
         
@@ -1074,20 +1358,20 @@ class AppState extends ChangeNotifier {
           orElse: () => {},
         );
 
-        if (availableProvider.isNotEmpty) {
+        // Only the guided demo names a professional. When the backend is
+        // genuinely unreachable the request never left the device, so claiming
+        // that somebody accepted it — with a phone number the patient might
+        // call — would be a lie. The tracking screen shows "asignando
+        // profesional" while these stay null.
+        if (_isDemoMode && availableProvider.isNotEmpty) {
           docName = availableProvider['name'] as String;
           docPhone = availableProvider['phone'] as String;
           docSpecialty = '${availableProvider['specialty'] as String} • On-Duty';
-        } else {
-          // If no provider is active, assign contingency backup
-          docName = 'Backup Clínico de Guardia';
-          docPhone = '+56 9 0000 0000';
-          docSpecialty = 'Servicio de Contingencia Aura';
         }
 
-        _assignedProfessionalName = docName;
-        _assignedProfessionalPhone = docPhone;
-        _assignedProfessionalSpecialty = docSpecialty;
+        _assignedProfessionalName = docName.isEmpty ? null : docName;
+        _assignedProfessionalPhone = docPhone.isEmpty ? null : docPhone;
+        _assignedProfessionalSpecialty = docSpecialty.isEmpty ? null : docSpecialty;
 
         _currentRequest = ServiceRequest(
           id: 'req_${DateTime.now().millisecondsSinceEpoch}',

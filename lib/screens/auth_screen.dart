@@ -1,5 +1,17 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
+
+/// Seeded QA accounts, one per role (see `TestUsersSeeder` in the backend).
+const String _testAccountPassword = 'aura1234';
+const Map<String, String> _testAccounts = {
+  'Paciente': 'paciente@aura.cl',
+  'Familiar / Tutor': 'tutor@aura.cl',
+  'Profesional': 'profesional@aura.cl',
+  'Operador / Admin': 'operador@aura.cl',
+  'Conductor': 'conductor@aura.cl',
+};
 
 class AuthScreen extends StatefulWidget {
   final AppState state;
@@ -11,6 +23,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  AppPalette get p => context.palette;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -149,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ? 'Regístrate para solicitar atención clínica a domicilio.'
                       : 'Inicia sesión para continuar con tu atención de salud.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 14, color: p.textMuted),
                 ),
                 const SizedBox(height: 32),
                 Form(
@@ -193,7 +206,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             _obscurePassword
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
-                            color: const Color(0xFF94A3B8),
+                            color: p.textFaint,
                             size: 20,
                           ),
                           onPressed: () => setState(
@@ -285,8 +298,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       text: _isRegistering
                           ? '¿Ya tienes cuenta? '
                           : '¿No tienes cuenta? ',
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
+                      style: TextStyle(
+                        color: p.textMuted,
                         fontSize: 13,
                       ),
                       children: [
@@ -304,7 +317,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    Expanded(child: Divider(color: p.border)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
@@ -315,7 +328,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
                     ),
-                    const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    Expanded(child: Divider(color: p.border)),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -324,8 +337,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isSubmitting ? null : _handleGoogleLogin,
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      backgroundColor: p.card,
+                      side: BorderSide(color: p.border),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -339,10 +352,10 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontFamily: 'Inter',
                       ),
                     ),
-                    label: const Text(
+                    label: Text(
                       'Continuar con Google',
                       style: TextStyle(
-                        color: Color(0xFF0F172A),
+                        color: p.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -383,26 +396,107 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 18),
                 TextButton.icon(
                   onPressed: _isSubmitting ? null : widget.state.enterDemoMode,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.play_circle_outline_rounded,
                     size: 18,
-                    color: Color(0xFF64748B),
+                    color: p.textMuted,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Explorar en modo demo (sin cuenta)',
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: p.textMuted,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 8),
+                  _buildTestAccountsPanel(),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Quick access to the seeded QA accounts — one per role. Debug builds only,
+  /// so it never ships to end users.
+  Widget _buildTestAccountsPanel() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.fill,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.science_outlined, size: 16, color: p.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                'CUENTAS DE PRUEBA',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                  color: p.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Contraseña común: $_testAccountPassword',
+            style: TextStyle(fontSize: 10, color: p.textFaint),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _testAccounts.entries
+                .map(
+                  (entry) => ActionChip(
+                    label: Text(
+                      entry.key,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => _loginAsTestAccount(entry.value),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loginAsTestAccount(String email) async {
+    _emailController.text = email;
+    _passwordController.text = _testAccountPassword;
+    setState(() {
+      _isRegistering = false;
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.state.login(email, _testAccountPassword);
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
   }
 
   Widget _buildField({
@@ -419,25 +513,25 @@ class _AuthScreenState extends State<AuthScreen> {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
+      style: TextStyle(fontSize: 14, color: p.textPrimary),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-        prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+        labelStyle: TextStyle(fontSize: 13, color: p.textFaint),
+        prefixIcon: Icon(icon, color: p.textFaint, size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: p.card,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: BorderSide(color: p.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

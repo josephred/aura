@@ -27,6 +27,11 @@ dependencies:
   latlong2: ^0.10.1
   geolocator: ^14.0.3
   geocoding: ^5.0.0
+  # Symptom descriptor: on-device dictation (no per-minute cost) and voice
+  # note recording for cases where the patient prefers to send audio.
+  speech_to_text: ^7.3.0
+  record: ^6.1.1
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -38,6 +38,86 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
     });
   }
 
+  /// Human-readable name of the requested service, falling back to its id.
+  String get _serviceTitle {
+    for (final service in widget.state.services) {
+      if (service.id == widget.request.serviceId) return service.shortTitle;
+    }
+    return widget.request.serviceId;
+  }
+
+  Widget _summaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 12, color: p.textMuted),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: p.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Explicit acceptance of the amount. Only from here do we hand the user
+  /// over to the Mercado Pago checkout.
+  Future<void> _acceptAndPay() async {
+    final priceFormat = NumberFormat.currency(
+      locale: 'es_CL',
+      symbol: '\$',
+      decimalDigits: 0,
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Confirmar el monto',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Se te cobrarán ${priceFormat.format(widget.request.finalPrice)} '
+          'por $_serviceTitle. Te llevaremos a Mercado Pago para completar el pago.',
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF009EE3),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Aceptar y pagar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await widget.state.launchPaymentCheckout();
+    }
+  }
+
   Future<void> _cancel() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -48,7 +128,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Se descartará la solicitud pendiente de pago. Si ya pagaste, usa "Verificar pago" en su lugar.',
+          'Se descartará el pedido antes de pagar y no se te cobrará nada. Si ya pagaste, usa "Verificar pago" en su lugar.',
           style: TextStyle(fontSize: 13),
         ),
         actions: [
@@ -104,7 +184,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            'Pago pendiente',
+            'Confirma tu solicitud',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 22,
@@ -115,13 +195,14 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Completa el pago en Mercado Pago para confirmar tu atención. El equipo clínico se asignará apenas se acredite.',
+            'Revisa el detalle y el monto. Nada se cobra hasta que aceptes: '
+            'solo al tocar "Aceptar y pagar" se abrirá Mercado Pago.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: p.textMuted, height: 1.5),
           ),
           const SizedBox(height: 28),
 
-          // Amount card
+          // Order summary + amount
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -129,20 +210,37 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: p.border),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                Text(
-                  'Total a pagar',
-                  style: TextStyle(fontSize: 13, color: p.textMuted),
-                ),
-                Text(
-                  priceFormat.format(widget.request.finalPrice),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: p.accentText,
+                _summaryRow('Servicio', _serviceTitle),
+                if (widget.request.addressText.isNotEmpty)
+                  _summaryRow('Dirección', widget.request.addressText),
+                if (widget.request.etaMinutes > 0)
+                  _summaryRow(
+                    'Demora estimada',
+                    '~${widget.request.etaMinutes} min',
                   ),
+                Divider(height: 24, color: p.border),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total a pagar',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: p.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      priceFormat.format(widget.request.finalPrice),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: p.accentText,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -176,15 +274,15 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           SizedBox(
             height: 52,
             child: FilledButton.icon(
-              onPressed: widget.state.launchPaymentCheckout,
+              onPressed: _acceptAndPay,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF009EE3), // Mercado Pago blue
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
-              label: const Text(
-                'Pagar con Mercado Pago',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              label: Text(
+                'Aceptar y pagar ${priceFormat.format(widget.request.finalPrice)}',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -221,7 +319,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           TextButton(
             onPressed: _cancel,
             child: const Text(
-              'Cancelar solicitud',
+              'Cancelar pedido',
               style: TextStyle(
                 color: Color(0xFFDC2626),
                 fontSize: 13,

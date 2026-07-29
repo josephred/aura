@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/dependent.dart';
@@ -149,6 +150,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  /// Human label for a role id, taken from the same specs the switcher uses.
+  String _roleLabel(List<Map<String, Object>> specs, String roleId) {
+    for (final spec in specs) {
+      if (spec['id'] == roleId) {
+        final label = spec['label'] as String?;
+        // Strip the "1. " ordering prefix used in the switcher list.
+        return label?.replaceFirst(RegExp(r'^\d+\.\s*'), '') ?? roleId;
+      }
+    }
+    return roleId;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -283,22 +296,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
+          // Role switcher. It only previews other dashboards, so it must not
+          // ship: in release the role comes from the account and nothing else.
+          if (kDebugMode)
           // Interactive Role Simulator Selector Banner
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [
-                  p.textPrimary,
+                  Color(0xFF0F172A),
                   Color(0xFF115E59),
-                ], // brand-dark to teal-900
+                ], // brand-dark to teal-900 (always dark in both themes)
                 begin: Alignment.bottomLeft,
                 end: Alignment.topRight,
               ),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: p.textPrimary.withValues(alpha: 0.15),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.15),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -317,8 +333,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     SizedBox(width: 6),
                     Text(
                       'Simulador de Roles del Ecosistema Aura',
-                      style: TextStyle(
-                        color: p.accentSurface,
+                      style: const TextStyle(
+                        color: Color(0xFFCCFBF1),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -335,6 +351,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 1.3,
                   ),
                 ),
+                if (state.serverAssignedRole != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 14,
+                          color: Color(0xFF99F6E4),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Rol real de esta cuenta: '
+                            '${_roleLabel(rolesSpecs, state.serverAssignedRole!)}. '
+                            'Cambiarlo aquí solo previsualiza la experiencia.',
+                            style: const TextStyle(
+                              color: Color(0xFFCCFBF1),
+                              fontSize: 10,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 Column(
                   children: rolesSpecs.map((roleSpec) {
@@ -372,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: isSel
                                       ? p.accent
-                                      : p.textPrimary,
+                                      : const Color(0xFF0F172A),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Icon(
@@ -396,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             fontSize: 11.5,
                                             fontWeight: FontWeight.bold,
                                             color: isSel
-                                                ? p.textPrimary
+                                                ? const Color(0xFF0F172A)
                                                 : Colors.white,
                                           ),
                                         ),
@@ -424,8 +475,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fontSize: 10,
                                         height: 1.3,
                                         color: isSel
-                                            ? p.textMuted
-                                            : p.textFaint,
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8),
                                       ),
                                     ),
                                   ],
@@ -589,8 +640,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               );
                                             }).toList(),
                                         onChanged: (val) {
-                                          if (val != null)
+                                          if (val != null) {
                                             setState(() => _depRel = val);
+                                          }
                                         },
                                       ),
                                     ),
@@ -1173,8 +1225,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     pay.type == 'mercadopago'
                                         ? 'MP'
                                         : pay.type.toUpperCase(),
-                                    style: TextStyle(
-                                      color: p.card,
+                                    style: const TextStyle(
+                                      color: Colors.white,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 10,
                                       letterSpacing: 0.5,
@@ -1190,10 +1242,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     pay.type == 'mercadopago'
                                         ? 'Mercado Pago Protegido'
                                         : 'Tarjeta de Crédito / Débito',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B),
+                                      color: p.textPrimary,
                                     ),
                                   ),
                                   if (pay.last4 != null)

@@ -3,6 +3,7 @@ import 'package:aura/theme/app_theme.dart';
 import '../models/past_service.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
+import 'appointments_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   final AppState state;
@@ -49,8 +50,8 @@ class HistoryScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Tienes una atención en progreso',
-                    style: TextStyle(
-                      color: p.card,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
@@ -58,8 +59,8 @@ class HistoryScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     'El especialista ya se encuentra coordinando los implementos médicos y en trayecto.',
-                    style: TextStyle(
-                      color: p.accentSurface,
+                    style: const TextStyle(
+                      color: Color(0xFFCCFBF1),
                       fontSize: 11,
                       height: 1.3,
                     ),
@@ -115,6 +116,34 @@ class HistoryScreen extends StatelessWidget {
           Text(
             'Historial clínico digital consolidado de su grupo familiar.',
             style: TextStyle(fontSize: 12, color: p.textMuted),
+          ),
+          const SizedBox(height: 16),
+
+          // Access to the scheduled-appointments agenda. Booking a new one is
+          // done from each professional's card in the catalog.
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AppointmentsScreen(state: state),
+                ),
+              );
+            },
+            icon: const Icon(Icons.event_note, size: 16),
+            label: const Text('Ver mis citas agendadas'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: p.accent,
+              side: BorderSide(color: p.border),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -465,8 +494,8 @@ class HistoryScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   past.details,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
+                  style: TextStyle(
+                    color: p.textSecondary,
                     fontSize: 10.5,
                     height: 1.4,
                     fontWeight: FontWeight.w500,

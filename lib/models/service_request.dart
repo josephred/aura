@@ -75,6 +75,14 @@ class ServiceRequest {
   final int etaMinutes;
   final int currentStep; // 0: Solicitado, 1: Asignado, 2: En Camino, 3: En Atención, 4: Completado
 
+  // Identity of the professional actually attending. All null while the
+  // request waits in the zone queue — the UI must say "asignando" instead of
+  // showing a placeholder name.
+  final String? professionalId;
+  final String? professionalName;
+  final String? professionalSpecialty;
+  final String? professionalPhone;
+
   const ServiceRequest({
     required this.id,
     required this.serviceId,
@@ -89,6 +97,10 @@ class ServiceRequest {
     this.patientLng,
     this.professionalLat,
     this.professionalLng,
+    this.professionalId,
+    this.professionalName,
+    this.professionalSpecialty,
+    this.professionalPhone,
     this.symptomsDescription,
     this.prescriptionName,
     this.prescriptionPreview,
@@ -117,6 +129,10 @@ class ServiceRequest {
     double? patientLng,
     double? professionalLat,
     double? professionalLng,
+    String? professionalId,
+    String? professionalName,
+    String? professionalSpecialty,
+    String? professionalPhone,
     String? symptomsDescription,
     String? prescriptionName,
     String? prescriptionPreview,
@@ -144,6 +160,10 @@ class ServiceRequest {
       patientLng: patientLng ?? this.patientLng,
       professionalLat: professionalLat ?? this.professionalLat,
       professionalLng: professionalLng ?? this.professionalLng,
+      professionalId: professionalId ?? this.professionalId,
+      professionalName: professionalName ?? this.professionalName,
+      professionalSpecialty: professionalSpecialty ?? this.professionalSpecialty,
+      professionalPhone: professionalPhone ?? this.professionalPhone,
       symptomsDescription: symptomsDescription ?? this.symptomsDescription,
       prescriptionName: prescriptionName ?? this.prescriptionName,
       prescriptionPreview: prescriptionPreview ?? this.prescriptionPreview,
@@ -194,7 +214,30 @@ class ServiceRequest {
       startTime: (json['start_time'] ?? json['startTime']) as String,
       etaMinutes: (json['eta_minutes'] ?? json['etaMinutes']) as int,
       currentStep: (json['current_step'] ?? json['currentStep']) as int,
+      // From the API the identity arrives nested under `assigned_professional`;
+      // from the local SQLite cache it comes back as flat columns.
+      professionalId: _assigned(json, 'id', 'professional_id'),
+      professionalName: _assigned(json, 'name', 'professional_name'),
+      professionalSpecialty:
+          _assigned(json, 'specialty', 'professional_specialty'),
+      professionalPhone: _assigned(json, 'phone', 'professional_phone'),
     );
+  }
+
+  /// Reads [nestedKey] from the `assigned_professional` object when present,
+  /// otherwise falls back to the flat [flatKey] used by the local cache.
+  static String? _assigned(
+    Map<String, dynamic> json,
+    String nestedKey,
+    String flatKey,
+  ) {
+    final nested = json['assigned_professional'];
+    if (nested is Map) {
+      final value = nested[nestedKey];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    final flat = json[flatKey];
+    return flat is String && flat.isNotEmpty ? flat : null;
   }
 
   Map<String, dynamic> toJson() {
@@ -212,6 +255,10 @@ class ServiceRequest {
       'patient_lng': patientLng,
       'professional_lat': professionalLat,
       'professional_lng': professionalLng,
+      'professional_id': professionalId,
+      'professional_name': professionalName,
+      'professional_specialty': professionalSpecialty,
+      'professional_phone': professionalPhone,
       'symptoms_description': symptomsDescription,
       'prescription_name': prescriptionName,
       'prescription_preview': prescriptionPreview,

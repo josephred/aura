@@ -194,6 +194,7 @@ class _MainShellState extends State<MainShell> {
     if (selectedService != null) {
       hideBottomNav = true;
       body = ServiceFormScreen(
+        state: _appState,
         service: selectedService,
         dependents: _appState.dependents,
         addresses: _appState.addresses,
@@ -214,6 +215,7 @@ class _MainShellState extends State<MainShell> {
               double? patientLat,
               double? patientLng,
               String? symptomsDescription,
+              String? symptomAudioPath,
               String? prescriptionName,
               String? prescriptionPreview,
               required int finalPrice,
@@ -229,6 +231,7 @@ class _MainShellState extends State<MainShell> {
                 patientLat: patientLat,
                 patientLng: patientLng,
                 symptomsDescription: symptomsDescription,
+                symptomAudioPath: symptomAudioPath,
                 prescriptionName: prescriptionName,
                 prescriptionPreview: prescriptionPreview,
                 finalPrice: finalPrice,
@@ -295,7 +298,7 @@ class _MainShellState extends State<MainShell> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Column(
@@ -423,7 +426,7 @@ class _SearchingOverlayState extends State<_SearchingOverlay>
               ),
               const SizedBox(height: 6),
               const Text(
-                'ASIGNANDO PROFESIONAL CLÍNICO...',
+                'ASIGNANDO SEGÚN LA DEMANDA DE TU ZONA...',
                 style: TextStyle(
                   color: Color(0xFF2DD4BF),
                   fontSize: 9,
@@ -446,9 +449,11 @@ class _SearchingOverlayState extends State<_SearchingOverlay>
                   children: [
                     _LogCheckRow(text: 'Orden Médica validada'),
                     SizedBox(height: 8),
-                    _LogCheckRow(text: 'Buscando radio de 5km geo-asistido'),
+                    _LogCheckRow(text: 'Ingresando a la cola de tu zona'),
                     SizedBox(height: 8),
-                    _LogCheckRow(text: 'Notificando enfermero calificado...'),
+                    _LogCheckRow(
+                      text: 'Notificando a los prestadores en turno del área...',
+                    ),
                   ],
                 ),
               ),

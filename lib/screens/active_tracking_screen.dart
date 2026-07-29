@@ -73,52 +73,90 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
     super.dispose();
   }
 
-  Map<String, String> _getAssignedProfessional(String serviceId) {
-    if (widget.state.assignedProfessionalName != null) {
+  /// Identity of the professional attending, taken from the request itself.
+  ///
+  /// Returns null while nobody has taken the request yet. There is deliberately
+  /// no placeholder: telling the patient a name and a phone number for someone
+  /// who is not coming to their home is worse than saying "still assigning".
+  Map<String, String>? _getAssignedProfessional() {
+    final request = widget.request;
+
+    // The backend sends the real identity in `assigned_professional`.
+    if (request.professionalName != null && request.professionalName!.isNotEmpty) {
       return {
-        'name': widget.state.assignedProfessionalName!,
+        'name': request.professionalName!,
+        'specialty': request.professionalSpecialty ?? '',
+        'phone': request.professionalPhone ?? '',
+      };
+    }
+
+    // Offline fallback simulation keeps its own copy in app state.
+    final simulatedName = widget.state.assignedProfessionalName;
+    if (simulatedName != null && simulatedName.isNotEmpty) {
+      return {
+        'name': simulatedName,
         'specialty': widget.state.assignedProfessionalSpecialty ?? '',
         'phone': widget.state.assignedProfessionalPhone ?? '',
       };
     }
-    switch (serviceId) {
-      case 'medico':
-        return {
-          'name': 'Dr. Alejandro Russo',
-          'specialty': 'Médico Generalista • Reg. 43102-B',
-          'phone': '+56 9 8812 3410',
-        };
-      case 'enfermeria':
-        return {
-          'name': 'Enf. Paulina Rojas',
-          'specialty': 'Enfermera Universitaria • Curaciones',
-          'phone': '+56 9 7721 9831',
-        };
-      case 'ambulancia':
-        return {
-          'name': 'P. Aránguiz & Dr. Soto',
-          'specialty': 'Paramédico & Médico de Traslado',
-          'phone': '+56 9 6610 2110',
-        };
-      default:
-        return {
-          'name': 'Klgo. Sebastián Fuentealba',
-          'specialty': 'Terapeuta Clínico Licenciado',
-          'phone': '+56 9 5543 2120',
-        };
-    }
+
+    return null;
+  }
+
+  /// Shown while the request sits in the zone queue and nobody has taken it.
+  Widget _buildAwaitingProfessionalCard() {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: p.border),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Asignando profesional',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: p.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Tu solicitud está en la cola de tu sector. Te mostraremos '
+                  'quién te atenderá apenas la tome un prestador en turno.',
+                  style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final request = widget.request;
-    final prof = _getAssignedProfessional(request.serviceId);
+    final prof = _getAssignedProfessional();
 
     final steps = [
       {
         'title': 'Solicitado',
-        'desc': 'Buscando prestador calificado disponible',
+        'desc': 'En cola de tu zona, a la espera del próximo prestador en turno',
       },
       {
         'title': 'Confirmado',
@@ -175,7 +213,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: p.textPrimary, // brand-dark (slate-900)
+              // Intentionally always-dark branded card (light content sits on it
+              // in both themes), so it must NOT follow the text/background token.
+              color: const Color(0xFF0F172A),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(color: const Color(0xFF1E293B)),
             ),
@@ -233,7 +273,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             Text(
                               'Evaluación en progreso. Complete el registro si requiere reembolso aseguradora.',
                               style: TextStyle(
-                                color: p.textFaint,
+                                color: const Color(0xFF94A3B8),
                                 fontSize: 10,
                                 height: 1.3,
                               ),
@@ -270,8 +310,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         const SizedBox(height: 2),
                         Text(
                           '00:${_secondsLeft < 10 ? '0$_secondsLeft' : _secondsLeft}',
-                          style: TextStyle(
-                            color: p.card,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
                           ),
@@ -283,8 +323,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'TIEMPO ESPERADO DE DEMORA',
-                  style: TextStyle(
-                    color: p.textMuted,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
@@ -293,8 +333,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '$_minutesLeft min',
-                  style: TextStyle(
-                    color: p.card,
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
@@ -307,7 +347,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     color: const Color(0xFF1E293B).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: p.textSecondary.withValues(alpha: 0.3),
+                      color: const Color(0xFF334155).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -318,8 +358,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         children: [
                           Text(
                             'VALOR DE LA PRESTACIÓN',
-                            style: TextStyle(
-                              color: p.textFaint,
+                            style: const TextStyle(
+                              color: Color(0xFF94A3B8),
                               fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
@@ -327,8 +367,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           const SizedBox(height: 2),
                           Text(
                             '\$${request.finalPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ARS',
-                            style: TextStyle(
-                              color: p.card,
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -378,16 +418,28 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Live Route Tracking Map Mockup
+          // Live route tracking. Despite the old name, this has never been a
+          // mock: it wraps the real TrackingMap (OSM tiles + OSRM route + the
+          // professional's live GPS) with a status header.
           if (request.currentStep >= 1 &&
               request.status != RequestStatus.cancelled) ...[
-            _buildMockTrackingMap(request.currentStep, request.serviceId),
+            _buildTrackingSection(request.currentStep, request.serviceId),
             const SizedBox(height: 16),
           ],
 
-          // Professional assigned details
+          // Professional assigned details — only once somebody has actually
+          // taken the request. While `prof` is null the placeholder below
+          // explains that the zone queue is still looking for someone.
           if (request.currentStep >= 1 &&
-              request.status != RequestStatus.cancelled) ...[
+              request.status != RequestStatus.cancelled &&
+              prof == null) ...[
+            _buildAwaitingProfessionalCard(),
+            const SizedBox(height: 16),
+          ],
+
+          if (request.currentStep >= 1 &&
+              request.status != RequestStatus.cancelled &&
+              prof != null) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -884,7 +936,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
     );
   }
 
-  Widget _buildMockTrackingMap(int step, String serviceId) {
+  /// Status header around the live [TrackingMap].
+  Widget _buildTrackingSection(int step, String serviceId) {
     String statusText = 'Preparando insumos clínicos';
     if (step == 2) {
       statusText = 'Vehículo de asistencia en trayecto';

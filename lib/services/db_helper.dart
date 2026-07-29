@@ -45,7 +45,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 5,
+        version: 6,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -61,7 +61,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 5,
+        version: 6,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -84,6 +84,14 @@ class DbHelper {
       await db.execute('ALTER TABLE service_requests ADD COLUMN patient_lng REAL');
       await db.execute('ALTER TABLE service_requests ADD COLUMN professional_lat REAL');
       await db.execute('ALTER TABLE service_requests ADD COLUMN professional_lng REAL');
+    }
+    if (oldVersion < 6) {
+      // Identity of the professional attending, so the offline cache shows the
+      // real person instead of falling back to a placeholder.
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_id TEXT');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_name TEXT');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_specialty TEXT');
+      await db.execute('ALTER TABLE service_requests ADD COLUMN professional_phone TEXT');
     }
   }
 
@@ -142,6 +150,10 @@ class DbHelper {
         patient_lng REAL,
         professional_lat REAL,
         professional_lng REAL,
+        professional_id TEXT,
+        professional_name TEXT,
+        professional_specialty TEXT,
+        professional_phone TEXT,
         symptoms_description TEXT,
         prescription_name TEXT,
         prescription_preview TEXT,

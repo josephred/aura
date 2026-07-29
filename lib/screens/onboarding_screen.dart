@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState state;
@@ -13,6 +14,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
+  AppPalette get p => context.palette;
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -157,14 +159,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
                           'Solicita atenciones de enfermería, kinesiología, radiología y médicos generalistas directamente a la puerta de tu hogar, con un nivel visual impecable, seguimiento en vivo y pagos protegidos.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF64748B), // slate-500
+                            color: p.textMuted,
                             height: 1.5,
                           ),
                         ),
@@ -195,13 +197,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               Colors.green,
                               'Equipos acreditados por Superintendencia de Salud.',
                             ),
-                            const Divider(height: 24, color: Color(0xFFF1F5F9)),
+                            Divider(height: 24, color: p.border),
                             _buildFeatureRow(
                               Icons.check_circle_rounded,
                               Colors.green,
                               'Carga rápida de orden médica o fotografía.',
                             ),
-                            const Divider(height: 24, color: Color(0xFFF1F5F9)),
+                            Divider(height: 24, color: p.border),
                             _buildFeatureRow(
                               Icons.check_circle_rounded,
                               Colors.green,

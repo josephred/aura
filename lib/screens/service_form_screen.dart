@@ -7,9 +7,15 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../models/clinical_service.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
+import '../models/zone_eta_estimate.dart';
+import '../state/app_state.dart';
+import '../utils/service_specialties.dart';
 import '../widgets/map_location_picker.dart';
+import '../widgets/symptom_voice_input.dart';
+import 'book_appointment_screen.dart';
 
 class ServiceFormScreen extends StatefulWidget {
+  final AppState state;
   final ClinicalService service;
   final List<Dependent> dependents;
   final List<SavedAddress> addresses;
@@ -26,6 +32,7 @@ class ServiceFormScreen extends StatefulWidget {
     double? patientLat,
     double? patientLng,
     String? symptomsDescription,
+    String? symptomAudioPath,
     String? prescriptionName,
     String? prescriptionPreview,
     required int finalPrice,
@@ -35,6 +42,7 @@ class ServiceFormScreen extends StatefulWidget {
 
   const ServiceFormScreen({
     super.key,
+    required this.state,
     required this.service,
     required this.dependents,
     required this.addresses,
@@ -59,6 +67,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   // Custom states per service
   final TextEditingController _symptomsController = TextEditingController();
+
+  /// Local path of the optional voice note describing the symptoms.
+  String? _symptomAudioPath;
   String? _uploadedFileName;
   String? _uploadedFilePreview;
   bool _isUploading = false;
@@ -76,6 +87,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   // Labs / Imaging
   final TextEditingController _examController = TextEditingController();
 
+  // Live zone demand / wait estimate
+  ZoneEtaEstimate? _zoneEta;
+  bool _loadingZoneEta = false;
+  Timer? _zoneEtaDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -85,10 +101,51 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     _originAddressController = TextEditingController(
       text: widget.addresses.isNotEmpty ? widget.addresses.first.text : '',
     );
+
+    // Changing the address changes the dispatch zone, and with it the wait.
+    _customAddressController.addListener(_refreshZoneEta);
+    _originAddressController.addListener(_refreshZoneEta);
+
+    _refreshZoneEta();
+  }
+
+  /// Address currently selected in the form — the input for the zone lookup.
+  String get _currentAddressText {
+    if (widget.service.id == 'ambulancia') {
+      return _originAddressController.text.trim();
+    }
+    if (_useCustomAddress) {
+      return _customAddressController.text.trim();
+    }
+    return widget.addresses.isNotEmpty
+        ? widget.addresses[_addressIndex].text
+        : '';
+  }
+
+  /// Asks the backend how long this service is taking right now in the zone
+  /// of the selected address. Debounced so typing an address doesn't spam it.
+  void _refreshZoneEta() {
+    _zoneEtaDebounce?.cancel();
+    _zoneEtaDebounce = Timer(const Duration(milliseconds: 400), () async {
+      if (!mounted) return;
+      setState(() => _loadingZoneEta = true);
+
+      final estimate = await widget.state.fetchZoneEta(
+        serviceId: widget.service.id,
+        address: _currentAddressText,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _zoneEta = estimate;
+        _loadingZoneEta = false;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _zoneEtaDebounce?.cancel();
     _customAddressController.dispose();
     _symptomsController.dispose();
     _originAddressController.dispose();
@@ -245,8 +302,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     }
 
     final price = _calculatePrice();
-    final baseEtaMinutes =
-        int.tryParse(widget.service.baseEta.split('-')[0].trim()) ?? 30;
+    // Prefer the live zone estimate over the static catalog range.
+    final baseEtaMinutes = _zoneEta?.etaMinMinutes ??
+        (int.tryParse(widget.service.baseEta.split('-')[0].trim()) ?? 30);
 
     // The patient coordinates are the attention location — for an ambulance
     // that is the pickup (origin), otherwise the picked service location.
@@ -267,6 +325,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       patientLat: patientPoint?.latitude,
       patientLng: patientPoint?.longitude,
       symptomsDescription: symptomsOrExam,
+      symptomAudioPath: _symptomAudioPath,
       prescriptionName: _uploadedFileName,
       prescriptionPreview: _uploadedFilePreview,
       finalPrice: price,
@@ -364,7 +423,19 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         color: p.textMuted,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+
+                    // Live wait estimate for the patient's zone.
+                    _buildZoneEtaBlock(),
+                    const SizedBox(height: 12),
+
+                    // Scheduled-appointment shortcut for this same discipline.
+                    // Replaces the old global "Citas con especialistas" banner.
+                    if (specialtyForService(service.id) != null) ...[
+                      _buildSchedulingShortcut(service),
+                      const SizedBox(height: 16),
+                    ] else
+                      const SizedBox(height: 4),
 
                     // Warning card if set
                     if (service.warningInfo != null) ...[
@@ -747,6 +818,211 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     );
   }
 
+  /// Live "how long will this take right now" card.
+  ///
+  /// Instead of promising a fixed ETA, it reflects the professionals on duty
+  /// and the requests already open in the patient's zone.
+  Widget _buildZoneEtaBlock() {
+    final estimate = _zoneEta;
+
+    if (_loadingZoneEta && estimate == null) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: p.fill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.border),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Calculando demora según la demanda de tu zona…',
+              style: TextStyle(fontSize: 11.5, color: p.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (estimate == null) {
+      // Backend unreachable: fall back to the catalog range.
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: p.fill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, size: 18, color: p.textMuted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Demora referencial ${widget.service.baseEta} min. '
+                'Se ajustará según la disponibilidad de tu sector.',
+                style: TextStyle(fontSize: 11.5, color: p.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final (Color background, Color border, Color foreground) =
+        switch (estimate.demandLevel) {
+      'high' => (
+          const Color(0xFFFEF2F2),
+          const Color(0xFFFCA5A5),
+          const Color(0xFFB91C1C),
+        ),
+      'medium' => (
+          const Color(0xFFFFFBEB),
+          const Color(0xFFFDE68A),
+          const Color(0xFF92400E),
+        ),
+      _ => (
+          const Color(0xFFECFDF5),
+          const Color(0xFFA7F3D0),
+          const Color(0xFF047857),
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.schedule, size: 18, color: foreground),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Demora estimada ${estimate.rangeLabel}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: foreground,
+                  ),
+                ),
+              ),
+              if (_loadingZoneEta)
+                SizedBox(
+                  height: 12,
+                  width: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: foreground,
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: foreground.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    estimate.demandLabel.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      color: foreground,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            estimate.message,
+            style: TextStyle(fontSize: 11, color: foreground, height: 1.4),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'No se busca un profesional puntual: tu solicitud entra a la cola de '
+            '${estimate.zone == 'General' ? 'tu sector' : estimate.zone} y la toma '
+            'el próximo prestador en turno del área.',
+            style: TextStyle(
+              fontSize: 10,
+              color: foreground.withValues(alpha: 0.8),
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// "Prefer a scheduled visit?" strip shown inside every service that maps to
+  /// a bookable discipline (médico, enfermería, kinesiología, cuidados).
+  Widget _buildSchedulingShortcut(ClinicalService service) {
+    final specialty = specialtyForService(service.id)!;
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BookAppointmentScreen(
+              state: widget.state,
+              specialtyFilter: specialty.searchTerms,
+              headerTitle: 'Agendar con ${specialty.label}',
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: p.accentSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.accent.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_month, color: p.accent, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '¿Prefieres agendar para otro día?',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: p.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Reserva hora con ${specialty.label} en el horario que te acomode.',
+                    style: TextStyle(fontSize: 10.5, color: p.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: p.accent, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSymptomsBlock() {
     final theme = Theme.of(context);
     return Container(
@@ -795,6 +1071,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 contentPadding: const EdgeInsets.all(10),
               ),
             ),
+          ),
+          const SizedBox(height: 10),
+          // Dictation + voice note. Both are optional: the field alone still
+          // works exactly as before.
+          SymptomVoiceInput(
+            controller: _symptomsController,
+            onAudioChanged: (path) => setState(() => _symptomAudioPath = path),
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -911,12 +1194,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         size: 32,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Cargar Orden Médica Digital o Foto',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          color: p.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -960,7 +1243,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 child: ElevatedButton(
                                   onPressed: () => _handleFileUpload('file'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: p.card,
                                     foregroundColor: p.accent,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
@@ -1115,7 +1398,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                             });
                           },
                           style: TextButton.styleFrom(
-                            backgroundColor: Colors.white,
+                            backgroundColor: p.card,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 4,
@@ -1570,6 +1853,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   setState(() {
                     _useCustomAddress = !_useCustomAddress;
                   });
+                  _refreshZoneEta();
                 },
                 child: Text(
                   _useCustomAddress ? 'Usar favoritas' : 'Nueva dirección',
@@ -1598,7 +1882,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: GestureDetector(
-                      onTap: () => setState(() => _addressIndex = idx),
+                      onTap: () {
+                        setState(() => _addressIndex = idx);
+                        _refreshZoneEta();
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -1711,18 +1998,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
-            p.textPrimary,
+            Color(0xFF0F172A),
             Color(0xFF115E59),
-          ], // brand-dark to teal-800
+          ], // brand-dark to teal-800 (always dark in both themes)
           begin: Alignment.bottomLeft,
           end: Alignment.topRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: p.textPrimary.withValues(alpha: 0.15),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1749,10 +2036,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   text: TextSpan(
                     text:
                         '\$${calculatedPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: p.card,
+                      color: Colors.white,
                     ),
                     children: const [
                       TextSpan(
@@ -1769,9 +2056,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 const SizedBox(height: 3),
                 Text(
                   'Incluye insumos médicos clínicos y traslado profesional',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 9,
-                    color: p.accentSurface,
+                    color: Color(0xFFCCFBF1),
                     height: 1.2,
                   ),
                 ),
@@ -1800,8 +2087,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(width: 4),
                     Text(
                       service.baseEta,
-                      style: TextStyle(
-                        color: p.card,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1811,7 +2098,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 const SizedBox(height: 2),
                 Text(
                   'Minutos de arribo',
-                  style: TextStyle(color: p.accentSurface, fontSize: 8),
+                  style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 8),
                 ),
               ],
             ),
