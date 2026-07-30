@@ -219,3 +219,40 @@ Para realizar una prueba global real donde el backend corre en tu PC local y el 
 3. Instala la APK generada en tu teléfono. El bypass de SSL en `main.dart` admitirá el certificado del proxy sin lanzar excepciones.
 4. **Para el médico (PC):** Ingresa por navegador seguro a `https://localhost:8000/doctor` para unirte a la llamada.
 5. **Para el paciente (Celular):** Abre la app móvil usando tus datos móviles y únete a la videollamada.
+
+---
+
+### E. Entorno de Producción en Vivo (Render Cloud)
+
+#### 🌐 URLs de Acceso Público HTTPS
+* **Servidor API (Backend)**: `https://aura-backend-v77n.onrender.com/api`
+* **Acceso Único a Portales (Login Staff)**: [https://aura-backend-v77n.onrender.com/doctor/login](https://aura-backend-v77n.onrender.com/doctor/login)
+  * **Portal Médico Clínico (`/doctor`)**: Gestión de atenciones en zona, chat en tiempo real y videoconsultas.
+  * **Panel de Administración (`/admin`)**: Métricas de demanda por comuna, monitoreo de turnos y gestión de cuentas.
+
+#### 📦 Generación de APK de Producción (Release)
+
+Para generar la aplicación ejecutable instalable en cualquier teléfono Android:
+
+```powershell
+flutter build apk --release
+```
+
+**Ubicación del APK compilado:**  
+`aura/build/app/outputs/flutter-apk/app-release.apk`
+
+---
+
+#### 🔑 Tabla de Cuentas y Accesos de Prueba
+
+| Rol | Correo Electrónico | Contraseña | Plataforma y Función |
+| :--- | :--- | :--- | :--- |
+| **Paciente** | `paciente@aura.cl` | `aura1234` | **App Móvil (Flutter)** — Solicitar atenciones a domicilio, ver tracking y chat. |
+| **Tutor / Familiar** | `tutor@aura.cl` | `aura1234` | **App Móvil (Flutter)** — Agendar/solicitar atenciones para dependientes. |
+| **Profesional / Médico** | `profesional@aura.cl` | `aura1234` | **App Móvil y Portal Web (`/doctor`)** — Aceptar solicitudes en zona y videoconsultas. |
+| **Operador / Admin** | `operador@aura.cl` | `aura1234` | **Portal Web (`/admin`)** — Monitoreo de demanda por comuna, turnos y cuentas staff. |
+| **Conductor Ambulancia** | `conductor@aura.cl` | `aura1234` | **App Móvil (Flutter)** — Flujo de traslado de emergencia. |
+| **Usuario Demo** | `principal@aura.cl` | `password` | **App Móvil (Flutter)** — Registro histórico con direcciones e historial médico. |
+
+> **Nota**: Desde la pantalla de inicio de la App Móvil, cualquier usuario puede hacer clic en **Registrarse** y crear su propia cuenta en vivo en la base de datos de producción.
+

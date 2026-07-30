@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
@@ -37,11 +36,7 @@ class AppState extends ChangeNotifier {
   // backend is reachable over HTTPS from any network.
   final String _baseUrl = const String.fromEnvironment('API_BASE').isNotEmpty
       ? const String.fromEnvironment('API_BASE')
-      : (kReleaseMode
-          ? 'https://aura.hstn.me/api'
-          : (kIsWeb
-              ? 'http://localhost:8000/api'
-              : 'https://emphatic-ranking-posh.ngrok-free.dev/api'));
+      : 'https://aura-backend-v77n.onrender.com/api';
 
   // API Service
   late final ApiService _apiService;

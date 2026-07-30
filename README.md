@@ -93,3 +93,43 @@ Dos cosas a tener presente
 El portal del doctor en el navegador: la primera vez ngrok muestra una pantalla de advertencia "You are about to visit…" — haces clic en Visit Site una vez y listo (la app no la ve porque le pusimos el header).
 
 La videollamada: ngrok arregla el acceso y los POST, pero recuerda que php artisan serve es de un solo hilo. Para uso normal (login, agendar, chat) funciona perfecto. Si al probar la videoconsulta los dos siguen sin verse, ahí sí sería la concurrencia → ese es el momento de RoadRunner/Octane. Vale la pena probar primero sobre ngrok: es posible que el problema anterior fuera el local-ssl-proxy rompiendo los POST, y que ahora ya funcione.
+
+
+---
+
+## 🚀 Entorno de Producción y Credenciales de Acceso
+
+### 🌐 Backend y Portales Web (Render HTTPS)
+* **API Server (Base URL)**: `https://aura-backend-v77n.onrender.com/api`
+* **Portal Login (Staff / Admin / Médicos)**: [https://aura-backend-v77n.onrender.com/doctor/login](https://aura-backend-v77n.onrender.com/doctor/login)
+  * **Portal Médico / Clínico**: `https://aura-backend-v77n.onrender.com/doctor`
+  * **Panel de Administración**: `https://aura-backend-v77n.onrender.com/admin`
+
+---
+
+### 📦 Compilación de APK de Producción (Release)
+
+Para generar la aplicación instalable lista para enviar a dispositivos móviles:
+
+```bash
+cd aura
+flutter build apk --release
+```
+
+**Ubicación del APK compilado:**  
+`aura/build/app/outputs/flutter-apk/app-release.apk`
+
+---
+
+### 🔑 Cuentas de Acceso y Prueba (Contraseña General: `aura1234`)
+
+| Rol | Correo Electrónico | Contraseña | Plataforma / Uso |
+| :--- | :--- | :--- | :--- |
+| **Paciente** | `paciente@aura.cl` | `aura1234` | App Móvil (Flutter) — Pedir atenciones, ver estado y chat en vivo. |
+| **Tutor / Familiar** | `tutor@aura.cl` | `aura1234` | App Móvil (Flutter) — Solicitudes para familiares/dependientes. |
+| **Profesional / Médico** | `profesional@aura.cl` | `aura1234` | App Móvil y Portal Web (`/doctor`) — Aceptar atenciones y videoconferencia. |
+| **Operador / Admin** | `operador@aura.cl` | `aura1234` | Portal Web (`/admin`) — Gestión de turnos, zonas y métricas operativas. |
+| **Conductor Ambulancia** | `conductor@aura.cl` | `aura1234` | App Móvil (Flutter) — Módulo de traslado de emergencia. |
+| **Usuario Demo** | `principal@aura.cl` | `password` | App Móvil — Cuenta histórica con direcciones y dependientes precargados. |
+
+> **Nota**: Puedes registrar nuevas cuentas directamente desde el botón **Registrarse** en la App Móvil y se guardarán en vivo en la base de datos de producción.
