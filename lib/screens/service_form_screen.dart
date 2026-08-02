@@ -10,6 +10,9 @@ import '../models/saved_address.dart';
 import '../models/zone_eta_estimate.dart';
 import '../state/app_state.dart';
 import '../utils/service_specialties.dart';
+import '../utils/symptom_validation.dart';
+import '../models/lab_models.dart';
+import '../widgets/lab_slot_picker.dart';
 import '../widgets/map_location_picker.dart';
 import '../widgets/symptom_voice_input.dart';
 import 'book_appointment_screen.dart';
@@ -70,6 +73,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   /// Local path of the optional voice note describing the symptoms.
   String? _symptomAudioPath;
+
+  /// Inline message when the consultation reason does not name two symptoms.
+  String? _symptomsError;
   String? _uploadedFileName;
   String? _uploadedFilePreview;
   bool _isUploading = false;
@@ -87,8 +93,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   // Labs / Imaging
   final TextEditingController _examController = TextEditingController();
 
+  // Laboratorio (Módulo E): la toma de muestras se agenda contra un cupo
+  // publicado, no se despacha como urgencia.
+  LabSlot? _labSlot;
+  final TextEditingController _labNotesController = TextEditingController();
+  bool _submittingLab = false;
+
+  /// True cuando el servicio se agenda en vez de despacharse de inmediato.
+  bool get _isScheduledLab => widget.service.id == 'laboratorio';
+
   // Live zone demand / wait estimate
   ZoneEtaEstimate? _zoneEta;
+  bool _zoneEtaExpanded = false;
   bool _loadingZoneEta = false;
   Timer? _zoneEtaDebounce;
 
@@ -151,6 +167,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     _originAddressController.dispose();
     _destinationAddressController.dispose();
     _examController.dispose();
+    _labNotesController.dispose();
     super.dispose();
   }
 
@@ -292,6 +309,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 : 'Sin dirección');
     }
 
+    // La toma de muestras no entra en la cola de despacho inmediato: va contra
+    // un cupo publicado y por su propio endpoint.
+    if (_isScheduledLab) {
+      _submitLabRequest(finalAddress);
+      return;
+    }
+
     String? symptomsOrExam;
     if (widget.service.id == 'medico') {
       symptomsOrExam = _symptomsController.text.trim();
@@ -299,6 +323,23 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         widget.service.id == 'radiologia' ||
         widget.service.id == 'electrocardiograma') {
       symptomsOrExam = _examController.text.trim();
+    }
+
+    // The clinical history is opened from this text: block the request until
+    // the patient names at least two symptoms. Mirrors the server rule.
+    if (widget.service.id == 'medico') {
+      final symptomsError = validateSymptoms(symptomsOrExam);
+      if (symptomsError != null) {
+        setState(() => _symptomsError = symptomsError);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(symptomsError),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+        return;
+      }
+      setState(() => _symptomsError = null);
     }
 
     final price = _calculatePrice();
@@ -333,6 +374,143 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     );
   }
 
+  /// E.1 — agenda la toma de muestras en el cupo elegido.
+  ///
+  /// No hay respaldo local: si el servidor no confirma la reserva, no hay
+  /// reserva. Mostrar "agendado" sin que el laboratorista lo sepa dejaría al
+  /// paciente esperando a alguien que nunca fue avisado.
+  Future<void> _submitLabRequest(String address) async {
+    final exam = _examController.text.trim();
+
+    if (_labSlot == null) {
+      _warn('Elige el día y el bloque horario para la toma de muestras.');
+      return;
+    }
+    if (exam.isEmpty) {
+      _warn('Indica qué exámenes necesitas (ej. hemograma, perfil lipídico).');
+      return;
+    }
+
+    setState(() => _submittingLab = true);
+
+    final (request, error) = await widget.state.createLabRequest(
+      slot: _labSlot!,
+      patientType: _patientType,
+      dependentId: _patientType == 'dependent' ? _selectedDependentId : null,
+      addressText: address,
+      patientLat: _locationLatLng?.latitude,
+      patientLng: _locationLatLng?.longitude,
+      examRequired: exam,
+      clinicalNotes: _labNotesController.text.trim(),
+      prescriptionName: _uploadedFileName,
+      prescriptionPath: _uploadedFilePreview,
+    );
+
+    if (!mounted) return;
+    setState(() => _submittingLab = false);
+
+    if (error != null || request == null) {
+      _warn(error ?? 'No se pudo agendar la toma de muestras.');
+      // El cupo pudo haberse ocupado mientras el paciente llenaba el resto del
+      // formulario: obligar a elegir de nuevo evita reintentar contra un
+      // horario que ya no existe.
+      setState(() => _labSlot = null);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          request.awaitsPayment
+              ? 'Cupo reservado. Confirma el pago para dejarla agendada.'
+              : 'Toma de muestras agendada para ${request.scheduledLabel ?? 'la fecha elegida'}.',
+        ),
+        backgroundColor: const Color(0xFF0D9488),
+      ),
+    );
+
+    widget.state.setTab('appointments');
+    widget.onBack();
+  }
+
+  void _warn(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.amber),
+    );
+  }
+
+  /// E.2 — comentarios e indicaciones clínicas para el laboratorista.
+  Widget _buildLabIndicationsBlock() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assignment_outlined, color: p.accent, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Comentarios e indicaciones',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Condiciones previas y para cuándo lo necesitas',
+                      style: TextStyle(fontSize: 10, color: p.textFaint),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: p.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: p.border),
+            ),
+            child: TextField(
+              controller: _labNotesController,
+              maxLines: 4,
+              maxLength: 1000,
+              style: TextStyle(
+                fontSize: 12,
+                color: p.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    'Ej. Ayuno de 12 horas. Tengo la orden médica en papel. '
+                    'Necesito el resultado antes del viernes.',
+                hintStyle: TextStyle(color: p.textFaint, fontSize: 11),
+                border: InputBorder.none,
+                counterStyle: TextStyle(fontSize: 9, color: p.textFaint),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -360,7 +538,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       children: [
                         Icon(Icons.chevron_left, color: p.accent),
                         Text(
-                          'Volver al catálogo',
+                          'Volver al inicio',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -425,9 +603,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Live wait estimate for the patient's zone.
-                    _buildZoneEtaBlock(),
-                    const SizedBox(height: 12),
+                    // Live wait estimate for the patient's zone. A scheduled
+                    // collection has no queue to wait in, so quoting a wait
+                    // there would be meaningless.
+                    if (!_isScheduledLab) ...[
+                      _buildZoneEtaBlock(),
+                      const SizedBox(height: 12),
+                    ],
 
                     // Scheduled-appointment shortcut for this same discipline.
                     // Replaces the old global "Citas con especialistas" banner.
@@ -515,6 +697,20 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       const SizedBox(height: 16),
                     ],
 
+                    // Block 5b: Lab scheduling (Módulo E). The slot picker
+                    // comes after the address because availability can be
+                    // filtered by sector.
+                    if (_isScheduledLab) ...[
+                      LabSlotPicker(
+                        state: widget.state,
+                        zone: _zoneEta?.zone,
+                        onSlotSelected: (slot) => setState(() => _labSlot = slot),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildLabIndicationsBlock(),
+                      const SizedBox(height: 16),
+                    ],
+
                     // Block 6: Pricing Card
                     _buildPricingCard(service, price),
                     const SizedBox(height: 24),
@@ -524,7 +720,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _submitForm,
+                        onPressed: _submittingLab ? null : _submitForm,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: p.accent,
                           foregroundColor: Colors.white,
@@ -532,30 +728,45 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              service.id == 'medico'
-                                  ? 'SOLICITAR MÉDICO'
-                                  : 'CONFIRMAR SOLICITUD',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                        child: _submittingLab
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    switch (service.id) {
+                                      'medico' => 'SOLICITAR MÉDICO',
+                                      'laboratorio' => 'AGENDAR TOMA DE MUESTRAS',
+                                      _ => 'CONFIRMAR SOLICITUD',
+                                    },
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward_rounded, size: 16),
+                                ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded, size: 16),
-                          ],
-                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
-                          'Al confirmar, nuestro sistema conectará con el prestador clínico de guardia más cercano en base a su ubicación. Pago online protegido.',
+                          _isScheduledLab
+                              ? 'La toma de muestras no es un servicio de urgencia: queda reservada '
+                                  'en el horario que elegiste y el laboratorista recibe tus indicaciones. '
+                                  'Pago online protegido.'
+                              : 'Al confirmar, nuestro sistema conectará con el prestador clínico de guardia más cercano en base a su ubicación. Pago online protegido.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 10,
@@ -822,147 +1033,133 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   ///
   /// Instead of promising a fixed ETA, it reflects the professionals on duty
   /// and the requests already open in the patient's zone.
+  /// Compact wait indicator.
+  ///
+  /// Deliberately one line: the previous version was a full paragraph card that
+  /// dominated the form. The demand detail is still available, but folded away
+  /// behind a tap so it does not compete with the actual request.
   Widget _buildZoneEtaBlock() {
     final estimate = _zoneEta;
 
     if (_loadingZoneEta && estimate == null) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: p.fill,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: p.border),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              height: 16,
-              width: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Calculando demora según la demanda de tu zona…',
-              style: TextStyle(fontSize: 11.5, color: p.textMuted),
-            ),
-          ],
-        ),
+      return Row(
+        children: [
+          SizedBox(
+            height: 12,
+            width: 12,
+            child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Calculando demora…',
+            style: TextStyle(fontSize: 12, color: p.textMuted),
+          ),
+        ],
       );
     }
 
     if (estimate == null) {
       // Backend unreachable: fall back to the catalog range.
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: p.fill,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: p.border),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.schedule, size: 18, color: p.textMuted),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Demora referencial ${widget.service.baseEta} min. '
-                'Se ajustará según la disponibilidad de tu sector.',
-                style: TextStyle(fontSize: 11.5, color: p.textSecondary),
-              ),
-            ),
-          ],
-        ),
+      return Row(
+        children: [
+          Icon(Icons.schedule, size: 14, color: p.textMuted),
+          const SizedBox(width: 6),
+          Text(
+            'Demora referencial ${widget.service.baseEta} min',
+            style: TextStyle(fontSize: 12, color: p.textSecondary),
+          ),
+        ],
       );
     }
 
-    final (Color background, Color border, Color foreground) =
-        switch (estimate.demandLevel) {
-      'high' => (
-          const Color(0xFFFEF2F2),
-          const Color(0xFFFCA5A5),
-          const Color(0xFFB91C1C),
-        ),
-      'medium' => (
-          const Color(0xFFFFFBEB),
-          const Color(0xFFFDE68A),
-          const Color(0xFF92400E),
-        ),
-      _ => (
-          const Color(0xFFECFDF5),
-          const Color(0xFFA7F3D0),
-          const Color(0xFF047857),
-        ),
+    final Color tone = switch (estimate.demandLevel) {
+      'high' => const Color(0xFFB91C1C),
+      'medium' => const Color(0xFF92400E),
+      _ => const Color(0xFF047857),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border),
-      ),
+    return GestureDetector(
+      onTap: () => setState(() => _zoneEtaExpanded = !_zoneEtaExpanded),
+      behavior: HitTestBehavior.opaque,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, size: 18, color: foreground),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Demora estimada ${estimate.rangeLabel}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: foreground,
-                  ),
+              Icon(Icons.schedule, size: 14, color: tone),
+              const SizedBox(width: 6),
+              Text(
+                'Llega en ${estimate.rangeLabel}',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.bold,
+                  color: tone,
                 ),
               ),
+              if (estimate.demandLevel != 'low') ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  estimate.demandLevel == 'high' ? 'alta demanda' : 'demanda media',
+                  style: TextStyle(fontSize: 11, color: tone),
+                ),
+              ],
+              const Spacer(),
               if (_loadingZoneEta)
                 SizedBox(
-                  height: 12,
-                  width: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: foreground,
-                  ),
+                  height: 11,
+                  width: 11,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: tone),
                 )
               else
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: foreground.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    estimate.demandLabel.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.bold,
-                      color: foreground,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
+                Icon(
+                  _zoneEtaExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: p.textFaint,
                 ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            estimate.message,
-            style: TextStyle(fontSize: 11, color: foreground, height: 1.4),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'No se busca un profesional puntual: tu solicitud entra a la cola de '
-            '${estimate.zone == 'General' ? 'tu sector' : estimate.zone} y la toma '
-            'el próximo prestador en turno del área.',
-            style: TextStyle(
-              fontSize: 10,
-              color: foreground.withValues(alpha: 0.8),
-              height: 1.4,
+          if (_zoneEtaExpanded) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: p.fill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    estimate.message,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: p.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tu solicitud entra a la cola de '
+                    '${estimate.zone == 'General' ? 'tu sector' : estimate.zone} '
+                    'y la toma el próximo prestador en turno del área.',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: p.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1055,22 +1252,63 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             decoration: BoxDecoration(
               color: p.background,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: p.border),
+              border: Border.all(
+                color: _symptomsError != null ? const Color(0xFFDC2626) : p.border,
+              ),
             ),
             child: TextField(
               controller: _symptomsController,
               maxLines: 3,
-              style: TextStyle(fontSize: 12, color: p.textSecondary),
+              style: TextStyle(fontSize: 13, color: p.textSecondary),
+              // Re-validate while typing so the error clears as soon as the
+              // second symptom appears, instead of waiting for another submit.
+              onChanged: (value) {
+                final stillInvalid = !hasTwoSymptoms(value);
+                if ((_symptomsError != null) != stillInvalid) return;
+                if (_symptomsError != null && !stillInvalid) {
+                  setState(() => _symptomsError = null);
+                }
+              },
               decoration: InputDecoration(
                 hintText: widget.service.placeholderText,
                 hintStyle: TextStyle(
                   color: p.textFaint,
-                  fontSize: 11,
+                  fontSize: 12,
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.all(10),
               ),
             ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                _symptomsError != null
+                    ? Icons.error_outline
+                    : Icons.info_outline,
+                size: 13,
+                color: _symptomsError != null
+                    ? const Color(0xFFDC2626)
+                    : p.textFaint,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  _symptomsError ??
+                      'Indica al menos dos síntomas, separados por coma o «y». '
+                          'Ayuda al profesional a llegar preparado.',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    height: 1.35,
+                    color: _symptomsError != null
+                        ? const Color(0xFFDC2626)
+                        : p.textFaint,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           // Dictation + voice note. Both are optional: the field alone still

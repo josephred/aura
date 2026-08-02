@@ -150,6 +150,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  /// Snaps any stored scale to the closest offered step, so an install that
+  /// saved an older value (1.0, 1.2, 1.4) still shows a valid selection
+  /// instead of crashing the SegmentedButton.
+  double _nearestTextScaleStep(double value) {
+    const steps = [1.15, 1.3, 1.5];
+    var closest = steps.first;
+    for (final step in steps) {
+      if ((step - value).abs() < (closest - value).abs()) closest = step;
+    }
+    return closest;
+  }
+
   /// Human label for a role id, taken from the same specs the switcher uses.
   String _roleLabel(List<Map<String, Object>> specs, String roleId) {
     for (final spec in specs) {
@@ -1397,21 +1409,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(fontSize: 12, color: p.textMuted),
                     ),
                     SegmentedButton<double>(
+                      // 1.15 is the new baseline, so the steps start there.
+                      // Older installs may still hold 1.0/1.2/1.4, hence the
+                      // snap below instead of passing the raw value.
                       segments: const [
                         ButtonSegment<double>(
-                          value: 1.0,
+                          value: 1.15,
                           label: Text('Normal', style: TextStyle(fontSize: 11)),
                         ),
                         ButtonSegment<double>(
-                          value: 1.2,
+                          value: 1.3,
                           label: Text('Grande', style: TextStyle(fontSize: 11)),
                         ),
                         ButtonSegment<double>(
-                          value: 1.4,
+                          value: 1.5,
                           label: Text('Muy Grande', style: TextStyle(fontSize: 11)),
                         ),
                       ],
-                      selected: {state.textScaleFactor},
+                      selected: {_nearestTextScaleStep(state.textScaleFactor)},
                       onSelectionChanged: (Set<double> newSelection) {
                         state.setTextScaleFactor(newSelection.first);
                       },
@@ -1424,6 +1439,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
+
+                // Bring the home-screen safety notice back after dismissing it.
+                if (state.safetyNoticeDismissed) ...[
+                  Divider(height: 24, color: p.border),
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: p.textMuted),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Aviso de uso en el inicio',
+                          style: TextStyle(fontSize: 12, color: p.textMuted),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: state.restoreSafetyNotice,
+                        child: const Text(
+                          'Mostrar de nuevo',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

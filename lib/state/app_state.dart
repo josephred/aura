@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/mock_data.dart';
 import '../models/clinical_service.dart';
 import '../models/dependent.dart';
+import '../models/lab_models.dart';
 import '../models/saved_address.dart';
 import '../models/saved_payment_method.dart';
 import '../models/service_request.dart';
@@ -132,7 +133,9 @@ class AppState extends ChangeNotifier {
   String? _assignedProfessionalPhone;
   String? _assignedProfessionalSpecialty;
   ThemeMode _themeMode = ThemeMode.system;
-  double _textScaleFactor = 1.0;
+  // Baseline above 1.0: a large share of patients are older adults, and the
+  // default type sizes were reported as too small to use comfortably.
+  double _textScaleFactor = 1.15;
 
   AppState() {
     _apiService = ApiService(
@@ -212,7 +215,10 @@ class AppState extends ChangeNotifier {
           orElse: () => ThemeMode.system,
         );
       }
-      _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.0;
+      // Older installs have no stored value; 1.15 is the new baseline so the
+      // app is legible for older adults out of the box.
+      _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.15;
+      _safetyNoticeDismissed = prefs.getBool('safety_notice_dismissed') ?? false;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
         _authToken = token;
@@ -978,6 +984,27 @@ class AppState extends ChangeNotifier {
     await prefs.setString('theme_mode', mode.name);
   }
 
+  /// Whether the patient dismissed the "what Aura is / when to call 131"
+  /// notice on the home screen. Persisted so a returning user does not have to
+  /// read it every single time.
+  bool _safetyNoticeDismissed = false;
+  bool get safetyNoticeDismissed => _safetyNoticeDismissed;
+
+  Future<void> dismissSafetyNotice() async {
+    _safetyNoticeDismissed = true;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('safety_notice_dismissed', true);
+  }
+
+  /// Brings the notice back from the accessibility section of the profile.
+  Future<void> restoreSafetyNotice() async {
+    _safetyNoticeDismissed = false;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('safety_notice_dismissed', false);
+  }
+
   Future<void> setTextScaleFactor(double factor) async {
     _textScaleFactor = factor;
     notifyListeners();
@@ -1553,6 +1580,252 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('cancelAppointment failed. Error: $e');
       return 'Sin conexión. Intenta de nuevo.';
+    }
+  }
+
+  // ==================== Laboratorio (Módulo E) ====================
+  //
+  // La toma de muestras se agenda contra bloques que el laboratorista publicó,
+  // así que no pasa por `/bookings` ni por la cola por zona. Y a diferencia del
+  // resto del estado, aquí no hay simulación local de respaldo: inventar un
+  // cupo que el servidor no reservó le prometería al paciente una visita que
+  // nadie va a hacer.
+
+  List<LabRequest> _labRequests = [];
+  List<LabResult> _labResults = [];
+
+  List<LabRequest> get labRequests => _labRequests;
+  List<LabResult> get labResults => _labResults;
+
+  /// Próxima toma de muestras vigente, si la hay.
+  LabRequest? get nextLabRequest {
+    final upcoming = _labRequests
+        .where((r) => r.isCancellable && r.scheduledAt != null)
+        .toList()
+      ..sort((a, b) => a.scheduledAt!.compareTo(b.scheduledAt!));
+
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
+
+  /// Fechas próximas con al menos un cupo libre, para marcar el calendario.
+  Future<List<DateTime>> fetchLabAvailability({String? zone, int days = 14}) async {
+    try {
+      final query = StringBuffer('/lab/availability?days=$days');
+      if (zone != null && zone.isNotEmpty) {
+        query.write('&zone=${Uri.encodeQueryComponent(zone)}');
+      }
+      final response = await _apiService.get(query.toString(), timeout: const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        return (data['dates'] as List<dynamic>)
+            .map((d) => DateTime.parse('${d}T00:00:00').toLocal())
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('fetchLabAvailability failed. Error: $e');
+    }
+    return const [];
+  }
+
+  /// Cupos libres de una fecha concreta.
+  Future<List<LabSlot>> fetchLabSlots(DateTime date, {String? zone}) async {
+    final day = DateFormat('yyyy-MM-dd').format(date);
+    try {
+      final query = StringBuffer('/lab/slots?date=$day');
+      if (zone != null && zone.isNotEmpty) {
+        query.write('&zone=${Uri.encodeQueryComponent(zone)}');
+      }
+      final response = await _apiService.get(query.toString(), timeout: const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        return (data['slots'] as List<dynamic>)
+            .map((s) => LabSlot.fromJson(s as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('fetchLabSlots failed. Error: $e');
+    }
+    return const [];
+  }
+
+  /// Agenda una toma de muestras. Devuelve (solicitud, null) o (null, error).
+  Future<(LabRequest?, String?)> createLabRequest({
+    required LabSlot slot,
+    required String patientType,
+    String? dependentId,
+    required String addressText,
+    double? patientLat,
+    double? patientLng,
+    required String examRequired,
+    String? clinicalNotes,
+    String? prescriptionName,
+    String? prescriptionPath,
+  }) async {
+    try {
+      final fields = <String, String>{
+        'schedule_id': slot.scheduleId.toString(),
+        'starts_at': slot.startsAt.toUtc().toIso8601String(),
+        'patient_type': patientType,
+        // ignore: use_null_aware_elements
+        if (dependentId != null) 'dependent_id': dependentId,
+        'address_text': addressText,
+        if (patientLat != null) 'patient_lat': patientLat.toString(),
+        if (patientLng != null) 'patient_lng': patientLng.toString(),
+        'exam_required': examRequired,
+        if (clinicalNotes != null && clinicalNotes.isNotEmpty)
+          'clinical_notes': clinicalNotes,
+        // ignore: use_null_aware_elements
+        if (prescriptionName != null) 'prescription_name': prescriptionName,
+      };
+
+      final hasPrescription = prescriptionPath != null &&
+          prescriptionPath.isNotEmpty &&
+          File(prescriptionPath).existsSync();
+
+      final http.Response response;
+      if (hasPrescription) {
+        response = await _apiService.postMultipart(
+          '/lab/requests',
+          fields: fields,
+          files: [
+            await http.MultipartFile.fromPath(
+              'prescription_file',
+              prescriptionPath,
+              filename: prescriptionName,
+            ),
+          ],
+        );
+      } else {
+        response = await _apiService.post(
+          '/lab/requests',
+          body: fields,
+          timeout: const Duration(seconds: 15),
+        );
+      }
+
+      final body = json.decode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 201) {
+        final request = LabRequest.fromJson(body);
+        await fetchLabRequests();
+        return (request, null);
+      }
+
+      if (response.statusCode == 409) {
+        return (null, 'Ese horario acaba de ser tomado. Elige otro bloque.');
+      }
+
+      // 422 trae el detalle por campo; mostrar el primero es más útil que un
+      // "revisa los datos" genérico.
+      if (response.statusCode == 422 && body['errors'] is Map) {
+        final errors = (body['errors'] as Map).values.first;
+        if (errors is List && errors.isNotEmpty) {
+          return (null, errors.first as String);
+        }
+      }
+
+      return (null, (body['error'] ?? body['message'] ?? 'No se pudo agendar la toma de muestras.') as String);
+    } catch (e) {
+      debugPrint('createLabRequest failed. Error: $e');
+      return (null, 'Sin conexión. Intenta de nuevo.');
+    }
+  }
+
+  Future<void> fetchLabRequests() async {
+    try {
+      final response = await _apiService.get('/lab/requests', timeout: const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        _labRequests = data
+            .map((j) => LabRequest.fromJson(j as Map<String, dynamic>))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchLabRequests failed. Error: $e');
+    }
+  }
+
+  Future<String?> cancelLabRequest(String id) async {
+    try {
+      final response = await _apiService.post('/lab/requests/$id/cancel');
+      if (response.statusCode == 200) {
+        await fetchLabRequests();
+        return null;
+      }
+      final body = json.decode(response.body) as Map<String, dynamic>;
+      return (body['error'] ?? 'No se pudo cancelar la toma de muestras.') as String;
+    } catch (e) {
+      debugPrint('cancelLabRequest failed. Error: $e');
+      return 'Sin conexión. Intenta de nuevo.';
+    }
+  }
+
+  /// Re-consulta el pago de una toma agendada. True cuando quedó confirmada.
+  Future<bool> verifyLabPayment(String id) async {
+    try {
+      final response = await _apiService.get(
+        '/lab/requests/$id/payment-status',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final request = LabRequest.fromJson(
+          json.decode(response.body) as Map<String, dynamic>,
+        );
+        final index = _labRequests.indexWhere((r) => r.id == id);
+        if (index >= 0) {
+          _labRequests[index] = request;
+          notifyListeners();
+        }
+        return !request.awaitsPayment;
+      }
+    } catch (e) {
+      debugPrint('verifyLabPayment failed. Error: $e');
+    }
+    return false;
+  }
+
+  /// "Mis Exámenes": histórico de informes descargables.
+  Future<void> fetchLabResults() async {
+    try {
+      final response = await _apiService.get('/lab/results', timeout: const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        _labResults = data
+            .map((j) => LabResult.fromJson(j as Map<String, dynamic>))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchLabResults failed. Error: $e');
+    }
+  }
+
+  /// Abre el informe en el visor del sistema.
+  ///
+  /// El visor externo no lleva el token de sesión, así que primero se pide al
+  /// servidor un enlace firmado de vida corta. Abrir directamente
+  /// `downloadUrl` devolvería 403, y dejar esa URL accesible sin firma
+  /// convertiría un informe clínico en un enlace público.
+  Future<bool> openLabResult(LabResult result) async {
+    try {
+      final response = await _apiService.get(
+        '/lab/results/${result.id}/link',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode != 200) return false;
+
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final url = data['url'] as String?;
+      if (url == null || url.isEmpty) return false;
+
+      return await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      debugPrint('openLabResult failed. Error: $e');
+      return false;
     }
   }
 

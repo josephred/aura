@@ -4,6 +4,7 @@ import '../models/past_service.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
 import 'appointments_screen.dart';
+import 'lab_results_screen.dart';
 
 class HistoryScreen extends StatelessWidget {
   final AppState state;
@@ -132,6 +133,33 @@ class HistoryScreen extends StatelessWidget {
             },
             icon: const Icon(Icons.event_note, size: 16),
             label: const Text('Ver mis citas agendadas'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: p.accent,
+              side: BorderSide(color: p.border),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Módulo E — tomas de muestra agendadas e informes descargables.
+          OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LabResultsScreen(state: state),
+                ),
+              );
+            },
+            icon: const Icon(Icons.science_outlined, size: 16),
+            label: const Text('Mis exámenes de laboratorio'),
             style: OutlinedButton.styleFrom(
               foregroundColor: p.accent,
               side: BorderSide(color: p.border),

@@ -521,46 +521,64 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // 5. Emergency Warning Card
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? const Color(0xFF78350F).withValues(alpha: 0.2)
-                        : const Color(0xFFFFFBEB),
-                    border: Border.all(
+                // 5. Safety notice. Dismissible and remembered, so a returning
+                // patient is not made to read it on every visit. It can be
+                // brought back from Mi Cuenta › Accesibilidad.
+                if (!state.safetyNoticeDismissed) ...[
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+                    decoration: BoxDecoration(
                       color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
-                          : const Color(0xFFFDE68A).withValues(alpha: 0.4),
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Colors.amber,
-                        size: 18,
+                          ? const Color(0xFF78350F).withValues(alpha: 0.2)
+                          : const Color(0xFFFFFBEB),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+                            : const Color(0xFFFDE68A).withValues(alpha: 0.4),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Aura es una plataforma de servicios clínicos domiciliarios programados y semi-urgentes. En caso de riesgo vital llame inmediatamente a urgencias.',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).brightness == Brightness.dark
-                                ? const Color(0xFFFBBF24)
-                                : const Color(0xFF92400E),
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.amber,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Aura es una plataforma de servicios clínicos domiciliarios programados y semi-urgentes. En caso de riesgo vital llame inmediatamente a urgencias.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFFBBF24)
+                                  : const Color(0xFF92400E),
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        IconButton(
+                          onPressed: state.dismissSafetyNotice,
+                          icon: const Icon(Icons.close_rounded, size: 16),
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFFFBBF24)
+                              : const Color(0xFF92400E),
+                          tooltip: 'No volver a mostrar',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                ],
 
                 // 6. Specialties Title
                 const Text(

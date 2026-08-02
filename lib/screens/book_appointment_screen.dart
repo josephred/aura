@@ -3,6 +3,7 @@ import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
+import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
 
@@ -37,6 +38,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   ];
 
   final _reasonController = TextEditingController();
+
+  /// Inline error when the reason does not name two symptoms.
+  String? _reasonError;
 
   bool _loadingProfessionals = true;
   bool _loadingSlots = false;
@@ -119,7 +123,25 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Future<void> _confirm() async {
     if (_professional == null || _slot == null || _submitting) return;
-    setState(() => _submitting = true);
+
+    // The consultation reason opens the clinical history, so it is required
+    // and must name at least two symptoms. Mirrors the server rule.
+    final reasonError = validateSymptoms(_reasonController.text.trim());
+    if (reasonError != null) {
+      setState(() => _reasonError = reasonError);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(reasonError),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _reasonError = null;
+      _submitting = true;
+    });
 
     final (appointment, error) = await widget.state.createAppointment(
       professionalId: _professional!.id,
@@ -268,16 +290,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   _buildDatePicker(),
                   _sectionTitle('3 · Horario'),
                   _buildSlots(),
-                  _sectionTitle('Motivo de la consulta (opcional)'),
+                  _sectionTitle('Motivo de la consulta'),
                   TextField(
                     controller: _reasonController,
                     maxLength: 500,
                     maxLines: 2,
+                    onChanged: (value) {
+                      if (_reasonError != null && hasTwoSymptoms(value)) {
+                        setState(() => _reasonError = null);
+                      }
+                    },
                     decoration: InputDecoration(
-                      hintText: 'Ej: control de presión, dolor lumbar…',
+                      hintText: 'Ej: dolor de cabeza y fiebre',
                       filled: true,
                       fillColor: Colors.white,
                       counterText: '',
+                      errorText: _reasonError,
+                      helperText: _reasonError == null
+                          ? 'Indica al menos dos síntomas, separados por coma o «y».'
+                          : null,
+                      helperMaxLines: 2,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide:
