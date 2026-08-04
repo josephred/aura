@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_typography.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/past_service.dart';
 import '../models/service_request.dart';
@@ -51,19 +52,16 @@ class HistoryScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Tienes una atención en progreso',
-                    style: const TextStyle(
+                    style: AppType.bodySmall.copyWith(
                       color: Colors.white,
-                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'El especialista ya se encuentra coordinando los implementos médicos y en trayecto.',
-                    style: const TextStyle(
+                    style: AppType.bodySmall.copyWith(
                       color: Color(0xFFCCFBF1),
-                      fontSize: 11,
-                      height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -83,15 +81,16 @@ class HistoryScreen extends StatelessWidget {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Ver estado en tiempo real',
-                          style: TextStyle(
-                            fontSize: 10,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
+                        ),
                         ),
                         SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded, size: 12),
@@ -107,8 +106,7 @@ class HistoryScreen extends StatelessWidget {
           // Title
           Text(
             'Mis Citas y Consultas',
-            style: TextStyle(
-              fontSize: 20,
+            style: AppType.titleLarge.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
             ),
@@ -116,7 +114,8 @@ class HistoryScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Historial clínico digital consolidado de su grupo familiar.',
-            style: TextStyle(fontSize: 12, color: p.textMuted),
+            style: AppType.bodySmall.copyWith( color: p.textMuted,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -140,8 +139,7 @@ class HistoryScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(
-                fontSize: 12,
+              textStyle: AppType.bodySmall.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -167,8 +165,7 @@ class HistoryScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(
-                fontSize: 12,
+              textStyle: AppType.bodySmall.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -180,14 +177,15 @@ class HistoryScreen extends StatelessWidget {
             children: [
               Icon(Icons.calendar_month, color: p.accent, size: 16),
               SizedBox(width: 8),
-              Text(
+              Flexible(
+                child: Text(
                 'PRÓXIMOS AGENDAMIENTOS DOMICILIARIOS',
-                style: TextStyle(
-                  fontSize: 9,
+                style: AppType.label.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textFaint,
                   letterSpacing: 0.5,
                 ),
+              ),
               ),
             ],
           ),
@@ -211,8 +209,7 @@ class HistoryScreen extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(
                     'No hay citas programadas para hoy',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                       color: p.textSecondary,
                     ),
@@ -221,10 +218,8 @@ class HistoryScreen extends StatelessWidget {
                   Text(
                     'Visite el catálogo para solicitar un profesional clínico de forma inmediata.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10,
+                    style: AppType.bodySmall.copyWith(
                       color: p.textFaint,
-                      height: 1.3,
                     ),
                   ),
                 ],
@@ -279,9 +274,8 @@ class HistoryScreen extends StatelessWidget {
                             ),
                             child: Text(
                               'Cita Activa hoy',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: p.accent,
-                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -289,8 +283,7 @@ class HistoryScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Evaluación en progreso en Casa',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textPrimary,
                             ),
@@ -304,30 +297,33 @@ class HistoryScreen extends StatelessWidget {
                                 size: 10,
                               ),
                               const SizedBox(width: 3),
-                              Text(
+                              Flexible(
+                                child: Text(
                                 'En camino',
-                                style: TextStyle(
-                                  fontSize: 9,
+                                style: AppType.bodySmall.copyWith(
                                   color: p.textMuted,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
+                              ),
                               const SizedBox(width: 6),
-                              Text(
+                              Flexible(
+                                child: Text(
                                 '•',
-                                style: TextStyle(
+                                style: AppType.bodySmall.copyWith(
                                   color: p.borderStrong,
-                                  fontSize: 8,
                                 ),
                               ),
+                              ),
                               const SizedBox(width: 6),
-                              Text(
+                              Flexible(
+                                child: Text(
                                 'Providencia',
-                                style: TextStyle(
-                                  fontSize: 9,
+                                style: AppType.bodySmall.copyWith(
                                   color: p.textMuted,
                                   fontWeight: FontWeight.w500,
                                 ),
+                              ),
                               ),
                             ],
                           ),
@@ -347,8 +343,7 @@ class HistoryScreen extends StatelessWidget {
                     ),
                     child: Text(
                       'Ver',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.accent,
                         decoration: TextDecoration.underline,
@@ -365,14 +360,15 @@ class HistoryScreen extends StatelessWidget {
             children: [
               Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
               SizedBox(width: 8),
-              Text(
+              Flexible(
+                child: Text(
                 'HISTORIAL DE ATENCIONES REALIZADAS',
-                style: TextStyle(
-                  fontSize: 9,
+                style: AppType.label.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textFaint,
                   letterSpacing: 0.5,
                 ),
+              ),
               ),
             ],
           ),
@@ -399,14 +395,13 @@ class HistoryScreen extends StatelessWidget {
                 color: const Color(0xFFFDE68A).withValues(alpha: 0.4),
               ),
             ),
-            child: const Column(
+            child: Column(
               children: [
                 Icon(Icons.favorite, color: Colors.amber, size: 20),
                 SizedBox(height: 8),
                 Text(
                   'ASEGURAMIENTO Y CONTROL DE CALIDAD',
-                  style: TextStyle(
-                    fontSize: 9,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF92400E),
                     letterSpacing: 0.5,
@@ -416,10 +411,8 @@ class HistoryScreen extends StatelessWidget {
                 Text(
                   'Aura cuenta con acreditación de la Superintendencia de Salud. Todo nuestro personal pasa por un estricto proceso de validación de antecedentes penales, títulos universitarios y especialidades clínicas.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppType.bodySmall.copyWith(
                     color: Color(0xFF92400E),
-                    height: 1.4,
                   ),
                 ),
               ],
@@ -461,8 +454,7 @@ class HistoryScreen extends StatelessWidget {
                   children: [
                     Text(
                       past.serviceTitle,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textPrimary,
                       ),
@@ -470,8 +462,7 @@ class HistoryScreen extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${past.date} • Paciente: ${past.patient}',
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppType.bodySmall.copyWith(
                         color: p.textFaint,
                       ),
                     ),
@@ -486,11 +477,10 @@ class HistoryScreen extends StatelessWidget {
                   border: Border.all(color: const Color(0xFFD1FAE5)),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
+                child: Text(
                   'Completada',
-                  style: TextStyle(
+                  style: AppType.bodySmall.copyWith(
                     color: Color(0xFF065F46),
-                    fontSize: 8,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -512,9 +502,8 @@ class HistoryScreen extends StatelessWidget {
               children: [
                 Text(
                   'RESUMEN DE ATENCIÓN (${past.professional.toUpperCase()})',
-                  style: TextStyle(
+                  style: AppType.label.copyWith(
                     color: p.accent,
-                    fontSize: 8,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
@@ -522,10 +511,8 @@ class HistoryScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   past.details,
-                  style: TextStyle(
+                  style: AppType.bodySmall.copyWith(
                     color: p.textSecondary,
-                    fontSize: 10.5,
-                    height: 1.4,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -570,13 +557,14 @@ class HistoryScreen extends StatelessWidget {
                       color: p.accent,
                     ),
                     SizedBox(width: 4),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Pedido/Receta',
-                      style: TextStyle(
+                      style: AppType.bodySmall.copyWith(
                         color: p.accent,
-                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
                     ),
                   ],
                 ),
@@ -597,16 +585,17 @@ class HistoryScreen extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(Icons.refresh, size: 12),
                     SizedBox(width: 4),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Pedir de nuevo',
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
                     ),
                   ],
                 ),

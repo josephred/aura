@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_typography.dart';
+
 /// Semantic color tokens for Aura's custom UI. The app is styled with a fixed
 /// slate + teal palette; instead of hardcoding those literals (which never
 /// adapt to dark mode) every screen reads them from here via `context.palette`,
@@ -15,9 +17,24 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color textPrimary; // headings (was slate-900)
   final Color textSecondary; // body (was slate-700)
   final Color textMuted; // secondary body (was slate-500)
-  final Color textFaint; // captions / hints (was slate-400)
-  final Color accent; // brand teal-600
-  final Color accentSurface; // teal-50 tint behind accents
+
+  /// Captions and hints.
+  ///
+  /// Deliberately identical to [textMuted] in light mode. It used to be
+  /// slate-400, which sits at 2.56:1 on white — below even the 3:1 floor WCAG
+  /// reserves for large text, while being used almost exclusively on 8-11pt
+  /// captions. A token that is only legal at 24pt, in an app where nothing
+  /// reaches 24pt, has no valid use; the name survives so the ~68 call sites
+  /// keep their intent, the colour does not.
+  final Color textFaint;
+
+  /// Brand teal used for text, icons and button fills.
+  ///
+  /// teal-700, not teal-600: on white, teal-600 is 3.74:1, so every primary
+  /// button in the app failed 1.4.3 for its white label. teal-700 lifts that
+  /// to 5.47:1 and the visual difference is barely perceptible.
+  final Color accent;
+  final Color accentSurface; // teal tint behind accents
   final Color accentText; // text/icons on accentSurface
 
   const AppPalette({
@@ -43,13 +60,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
     fill: Color(0xFFF1F5F9),
     border: Color(0xFFE2E8F0),
     borderStrong: Color(0xFFCBD5E1),
-    textPrimary: Color(0xFF0F172A),
-    textSecondary: Color(0xFF334155),
-    textMuted: Color(0xFF64748B),
-    textFaint: Color(0xFF94A3B8),
-    accent: Color(0xFF0D9488),
+    textPrimary: Color(0xFF0F172A), // 17.85:1 sobre blanco
+    textSecondary: Color(0xFF334155), // 10.35:1
+    textMuted: Color(0xFF64748B), // 4.76:1
+    textFaint: Color(0xFF64748B), // era 94A3B8 → 2.56:1, ahora 4.76:1
+    accent: Color(0xFF0F766E), // era 0D9488 → 3.74:1, ahora 5.47:1
     accentSurface: Color(0xFFE6F6F4),
-    accentText: Color(0xFF0D9488),
+    accentText: Color(0xFF115E59), // 7.58:1 sobre accentSurface
   );
 
   static const dark = AppPalette(
@@ -59,13 +76,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
     fill: Color(0xFF334155),
     border: Color(0xFF334155),
     borderStrong: Color(0xFF475569),
-    textPrimary: Color(0xFFF1F5F9),
-    textSecondary: Color(0xFFCBD5E1),
-    textMuted: Color(0xFF94A3B8),
-    textFaint: Color(0xFF64748B),
-    accent: Color(0xFF14B8A6),
+    textPrimary: Color(0xFFF1F5F9), // 13.35:1 sobre la tarjeta oscura
+    textSecondary: Color(0xFFCBD5E1), // 9.85:1
+    // En oscuro los grises se invierten: slate-400 es el que contrasta contra
+    // la tarjeta (#1E293B), y slate-500 el que fallaba.
+    textMuted: Color(0xFF94A3B8), // 5.71:1
+    textFaint: Color(0xFF94A3B8), // era 64748B → 3.07:1, ahora 5.71:1
+    accent: Color(0xFF14B8A6), // 5.88:1
     accentSurface: Color(0xFF134E4A),
-    accentText: Color(0xFF2DD4BF),
+    accentText: Color(0xFF2DD4BF), // 5.09:1 sobre accentSurface
   );
 
   @override
@@ -131,7 +150,10 @@ extension AppThemeContext on BuildContext {
 }
 
 class AppTheme {
-  static const _brandPrimary = Color(0xFF0D9488);
+  /// teal-700. Es también el relleno por defecto de los botones de Material,
+  /// así que subirlo desde teal-600 es lo que pone el texto blanco de esos
+  /// botones en 5.47:1 en vez de 3.74:1.
+  static const _brandPrimary = Color(0xFF0F766E);
 
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
@@ -169,10 +191,55 @@ class AppTheme {
       dividerColor: palette.border,
       canvasColor: palette.card,
       extensions: [palette],
-      textTheme: TextTheme(
-        displayLarge: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold),
-        bodyLarge: TextStyle(fontFamily: 'Inter', color: palette.textPrimary),
-        bodyMedium: TextStyle(fontFamily: 'Inter', color: palette.textSecondary),
+      textTheme: _textTheme(palette),
+    );
+  }
+
+  /// Escala del tema, derivada de [AppType] para que haya una sola definición
+  /// de "cuánto mide el cuerpo de texto".
+  ///
+  /// Gobierna el texto que no lleva estilo propio: `bodyMedium` es el que hereda
+  /// cualquier `Text` suelto, y `labelLarge` el de los botones de Material.
+  ///
+  /// Aquí sí se fijan peso y color, porque en este nivel no hay un sitio de uso
+  /// que los aporte.
+  ///
+  /// Ya no declara `fontFamily: 'Inter'`: esa fuente nunca estuvo empaquetada
+  /// —no hay sección `fonts:` en `pubspec.yaml` ni un solo `.ttf` en el
+  /// proyecto—, así que Flutter caía al tipo del sistema en silencio. Se quitó
+  /// la referencia en lugar de arrastrar la mentira; empaquetar Inter de verdad
+  /// es un cambio aparte.
+  static TextTheme _textTheme(AppPalette palette) {
+    return TextTheme(
+      headlineLarge: AppType.display.copyWith(
+        fontWeight: FontWeight.w800,
+        color: palette.textPrimary,
+      ),
+      titleLarge: AppType.titleLarge.copyWith(
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
+      ),
+      titleMedium: AppType.titleMedium.copyWith(
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
+      ),
+      titleSmall: AppType.titleSmall.copyWith(
+        fontWeight: FontWeight.w600,
+        color: palette.textPrimary,
+      ),
+      bodyLarge: AppType.bodyLarge.copyWith(color: palette.textPrimary),
+      bodyMedium: AppType.bodyMedium.copyWith(color: palette.textSecondary),
+      bodySmall: AppType.bodySmall.copyWith(color: palette.textMuted),
+      labelLarge: AppType.button.copyWith(fontWeight: FontWeight.w700),
+      labelMedium: AppType.label.copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: palette.textSecondary,
+      ),
+      labelSmall: AppType.label.copyWith(
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.4,
+        color: palette.textMuted,
       ),
     );
   }

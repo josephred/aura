@@ -224,7 +224,8 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Total a pagar',
                       style: TextStyle(
                         fontSize: 13,
@@ -232,13 +233,16 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                         color: p.textSecondary,
                       ),
                     ),
-                    Text(
+                    ),
+                    Flexible(
+                      child: Text(
                       priceFormat.format(widget.request.finalPrice),
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: p.accentText,
                       ),
+                    ),
                     ),
                   ],
                 ),

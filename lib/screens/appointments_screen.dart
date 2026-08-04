@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/money.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../state/app_state.dart';
@@ -19,15 +20,10 @@ String formatAppointmentDate(DateTime dt) {
   return '$day ${dt.day} $month · $hour:$minute';
 }
 
-String formatClp(int amount) {
-  final digits = amount.toString();
-  final buffer = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
-    buffer.write(digits[i]);
-  }
-  return '\$$buffer';
-}
+/// Se mantiene el nombre porque lo importan otras pantallas, pero el formato
+/// vive ahora en [Money]: había tres implementaciones distintas del mismo
+/// importe y dos de ellas lo etiquetaban en la moneda equivocada.
+String formatClp(int amount) => Money.format(amount);
 
 class AppointmentsScreen extends StatefulWidget {
   final AppState state;
@@ -208,7 +204,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         child: Text(
           text.toUpperCase(),
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
             color: p.textMuted,
@@ -262,7 +258,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 child: Text(
                   chipText,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: chipColor,
                   ),
@@ -303,7 +299,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             children: [
               Icon(Icons.schedule, size: 15, color: p.accent),
               const SizedBox(width: 6),
-              Text(
+              Flexible(
+                child: Text(
                 formatAppointmentDate(appointment.scheduledAt),
                 style: TextStyle(
                   fontSize: 13,
@@ -311,14 +308,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   color: p.textSecondary,
                 ),
               ),
+              ),
               const Spacer(),
-              Text(
+              Flexible(
+                child: Text(
                 formatClp(appointment.price),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: p.textPrimary,
                 ),
+              ),
               ),
             ],
           ),

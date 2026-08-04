@@ -203,7 +203,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                 color: Colors.white70,
                 child: const Text(
                   '© OpenStreetMap',
-                  style: TextStyle(fontSize: 7, color: Color(0xFF475569)),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
                 ),
               ),
             ),

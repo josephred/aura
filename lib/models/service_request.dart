@@ -1,3 +1,5 @@
+import 'professional.dart';
+
 enum RequestStatus {
   pending,
   pendingPayment,
@@ -83,6 +85,12 @@ class ServiceRequest {
   final String? professionalSpecialty;
   final String? professionalPhone;
 
+  /// Ficha completa del profesional asignado (B.3): currículum, registro,
+  /// experiencia y evaluación. Solo llega del servidor; la caché local guarda
+  /// los campos planos de arriba y deja esto en null, porque una ficha
+  /// desactualizada es peor que no mostrarla.
+  final Professional? professionalProfile;
+
   const ServiceRequest({
     required this.id,
     required this.serviceId,
@@ -101,6 +109,7 @@ class ServiceRequest {
     this.professionalName,
     this.professionalSpecialty,
     this.professionalPhone,
+    this.professionalProfile,
     this.symptomsDescription,
     this.prescriptionName,
     this.prescriptionPreview,
@@ -164,6 +173,7 @@ class ServiceRequest {
       professionalName: professionalName ?? this.professionalName,
       professionalSpecialty: professionalSpecialty ?? this.professionalSpecialty,
       professionalPhone: professionalPhone ?? this.professionalPhone,
+      professionalProfile: professionalProfile,
       symptomsDescription: symptomsDescription ?? this.symptomsDescription,
       prescriptionName: prescriptionName ?? this.prescriptionName,
       prescriptionPreview: prescriptionPreview ?? this.prescriptionPreview,
@@ -221,6 +231,11 @@ class ServiceRequest {
       professionalSpecialty:
           _assigned(json, 'specialty', 'professional_specialty'),
       professionalPhone: _assigned(json, 'phone', 'professional_phone'),
+      professionalProfile: json['assigned_professional'] is Map
+          ? Professional.fromAssignment(
+              Map<String, dynamic>.from(json['assigned_professional'] as Map),
+            )
+          : null,
     );
   }
 

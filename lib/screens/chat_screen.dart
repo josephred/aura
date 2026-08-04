@@ -89,13 +89,15 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           Row(
                             children: [
-                              Text(
+                              Flexible(
+                                child: Text(
                                 'Mesa de Asistencia Aura',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: p.textPrimary,
                                 ),
+                              ),
                               ),
                               const SizedBox(width: 6),
                               Container(
@@ -112,7 +114,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           Text(
                             'Canal de Chat Seguro Encriptado',
                             style: TextStyle(
-                              fontSize: 9,
+                              fontSize: 12,
                               color: p.textMuted,
                             ),
                           ),
@@ -137,13 +139,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           size: 10,
                         ),
                         const SizedBox(width: 4),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Clínica Digital',
                           style: TextStyle(
                             color: p.accentText,
-                            fontSize: 8,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
+                        ),
                         ),
                       ],
                     ),
@@ -203,7 +207,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           hintText: 'Escriba su consulta al profesional...',
                           hintStyle: TextStyle(
                             color: p.textFaint,
-                            fontSize: 11,
+                            fontSize: 12,
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
@@ -255,7 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: p.textPrimary,
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.2,
           ),
@@ -304,7 +308,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     msg.senderName!,
                     style: TextStyle(
                       color: p.accentText,
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -326,7 +330,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     color: isMe
                         ? const Color(0xFF99F6E4)
                         : p.textFaint,
-                    fontSize: 8,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -417,7 +421,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   'El canal de chat directo con los profesionales clínicos se activará automáticamente al confirmar una solicitud de atención domiciliaria.',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     color: p.textMuted,
                     height: 1.5,
                   ),
@@ -438,7 +442,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       Text(
                         'ESPECIALIDADES DISPONIBLES',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: p.accentText,
                           letterSpacing: 0.8,
@@ -484,7 +488,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       'SOLICITAR NUEVA ATENCIÓN',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontSize: 12,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -518,7 +522,7 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
@@ -526,7 +530,7 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(height: 1),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 9, color: p.textFaint),
+                style: TextStyle(fontSize: 12, color: p.textFaint),
               ),
             ],
           ),

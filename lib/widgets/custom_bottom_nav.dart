@@ -91,7 +91,7 @@ class CustomBottomNav extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     
     final activeColor = theme.colorScheme.primary;
-    final inactiveColor = isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8);
+    final inactiveColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
     return Expanded(
       child: GestureDetector(
@@ -145,7 +145,7 @@ class CustomBottomNav extends StatelessWidget {
                             '$badgeCount',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 9,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -161,7 +161,7 @@ class CustomBottomNav extends StatelessWidget {
                   color: isActive
                       ? (isDark ? const Color(0xFF2DD4BF) : Colors.teal.shade800)
                       : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
                 ),
               ),

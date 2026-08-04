@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:aura/theme/app_theme.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../utils/money.dart';
+import '../theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../models/clinical_service.dart';
@@ -101,6 +103,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   /// True cuando el servicio se agenda en vez de despacharse de inmediato.
   bool get _isScheduledLab => widget.service.id == 'laboratorio';
+
+  // Tarifas base del traslado. Viven aquí y no repetidas en los rótulos para
+  // que el precio que se anuncia y el que se cobra no puedan divergir.
+  static const int _ambulanceBasicPrice = 18500;
+  static const int _ambulanceMedicalizedPrice = 28500;
 
   // Live zone demand / wait estimate
   ZoneEtaEstimate? _zoneEta;
@@ -224,8 +231,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               children: [
                 Text(
                   'Seleccionar Cámara',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: AppType.bodyLarge.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -266,7 +272,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   int _calculatePrice() {
     if (widget.service.id == 'ambulancia') {
-      final base = _ambulanceType == 'medicalized' ? 28500 : 18500;
+      final base = _ambulanceType == 'medicalized'
+          ? _ambulanceMedicalizedPrice
+          : _ambulanceBasicPrice;
       return (base * (1.0 + widget.commissionRate)).round();
     }
     return (widget.service.basePrice * (1.0 + widget.commissionRate)).round();
@@ -425,7 +433,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               ? 'Cupo reservado. Confirma el pago para dejarla agendada.'
               : 'Toma de muestras agendada para ${request.scheduledLabel ?? 'la fecha elegida'}.',
         ),
-        backgroundColor: const Color(0xFF0D9488),
+        backgroundColor: const Color(0xFF0F766E),
       ),
     );
 
@@ -461,15 +469,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   children: [
                     Text(
                       'Comentarios e indicaciones',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textPrimary,
                       ),
                     ),
                     Text(
                       'Condiciones previas y para cuándo lo necesitas',
-                      style: TextStyle(fontSize: 10, color: p.textFaint),
+                      style: AppType.bodySmall.copyWith( color: p.textFaint,
+                      ),
                     ),
                   ],
                 ),
@@ -487,8 +495,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               controller: _labNotesController,
               maxLines: 4,
               maxLength: 1000,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.bodySmall.copyWith(
                 color: p.textPrimary,
                 fontWeight: FontWeight.w500,
               ),
@@ -496,9 +503,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 hintText:
                     'Ej. Ayuno de 12 horas. Tengo la orden médica en papel. '
                     'Necesito el resultado antes del viernes.',
-                hintStyle: TextStyle(color: p.textFaint, fontSize: 11),
+                hintStyle: AppType.bodySmall.copyWith(color: p.textFaint,
+                ),
                 border: InputBorder.none,
-                counterStyle: TextStyle(fontSize: 9, color: p.textFaint),
+                counterStyle: AppType.bodySmall.copyWith( color: p.textFaint,
+                ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
@@ -537,24 +546,26 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.chevron_left, color: p.accent),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Volver al inicio',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: AppType.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.accent,
                           ),
                         ),
+                        ),
                       ],
                     ),
                   ),
-                  Text(
+                  Flexible(
+                    child: Text(
                     'PASO 1 DE 2',
-                    style: TextStyle(
-                      fontSize: 10,
+                    style: AppType.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                       color: p.textFaint,
                     ),
+                  ),
                   ),
                 ],
               ),
@@ -577,9 +588,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       ),
                       child: Text(
                         'Solicitud de Prestación',
-                        style: TextStyle(
+                        style: AppType.bodySmall.copyWith(
                           color: p.accent,
-                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -587,8 +597,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(height: 8),
                     Text(
                       service.title,
-                      style: TextStyle(
-                        fontSize: 22,
+                      style: AppType.titleLarge.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textPrimary,
                       ),
@@ -596,8 +605,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(height: 4),
                     Text(
                       service.subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppType.bodySmall.copyWith(
                         color: p.textMuted,
                       ),
                     ),
@@ -641,10 +649,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'AVISO IMPORTANTE',
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    style: AppType.bodySmall.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF92400E),
                                     ),
@@ -652,10 +659,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                   const SizedBox(height: 3),
                                   Text(
                                     service.warningInfo!,
-                                    style: const TextStyle(
-                                      fontSize: 11,
+                                    style: AppType.bodySmall.copyWith(
                                       color: Color(0xFF92400E),
-                                      height: 1.4,
                                     ),
                                   ),
                                 ],
@@ -740,16 +745,17 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
+                                  Flexible(
+                                    child: Text(
                                     switch (service.id) {
                                       'medico' => 'SOLICITAR MÉDICO',
                                       'laboratorio' => 'AGENDAR TOMA DE MUESTRAS',
                                       _ => 'CONFIRMAR SOLICITUD',
                                     },
-                                    style: const TextStyle(
+                                    style: AppType.bodySmall.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 13,
                                     ),
+                                  ),
                                   ),
                                   const SizedBox(width: 8),
                                   const Icon(Icons.arrow_forward_rounded, size: 16),
@@ -768,10 +774,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                   'Pago online protegido.'
                               : 'Al confirmar, nuestro sistema conectará con el prestador clínico de guardia más cercano en base a su ubicación. Pago online protegido.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 10,
+                          style: AppType.bodySmall.copyWith(
                             color: p.textFaint,
-                            height: 1.4,
                           ),
                         ),
                       ),
@@ -807,13 +811,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 size: 20,
               ),
               SizedBox(width: 8),
-              Text(
+              Flexible(
+                child: Text(
                 '¿Para quién es la atención?',
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppType.bodySmall.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
+              ),
               ),
             ],
           ),
@@ -846,8 +851,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           ),
                           child: Text(
                             'Yo',
-                            style: TextStyle(
-                              fontSize: 10,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.accent,
                             ),
@@ -856,8 +860,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'Paciente Principal',
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
@@ -903,8 +906,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'Familiar / Dependiente',
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
@@ -920,8 +922,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             const SizedBox(height: 16),
             Text(
               'SELECCIONE FAMILIAR GUARDADO',
-              style: TextStyle(
-                fontSize: 9,
+              style: AppType.label.copyWith(
                 fontWeight: FontWeight.bold,
                 color: p.textFaint,
                 letterSpacing: 0.5,
@@ -931,7 +932,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             if (widget.dependents.isEmpty) ...[
               Text(
                 'No tienes familiares agregados.',
-                style: TextStyle(fontSize: 11, color: p.textMuted),
+                style: AppType.bodySmall.copyWith( color: p.textMuted,
+                ),
               ),
             ] else ...[
               Column(
@@ -963,8 +965,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               children: [
                                 Text(
                                   dep.name,
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: p.textSecondary,
                                   ),
@@ -972,8 +973,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   '${dep.relationship} • ${dep.age} años • ${dep.healthInsurance}',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppType.bodySmall.copyWith(
                                     color: p.textMuted,
                                   ),
                                 ),
@@ -1011,13 +1011,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   children: [
                     Icon(Icons.add, size: 14, color: p.accent),
                     SizedBox(width: 6),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Agregar Nuevo Familiar Dependiente',
-                      style: TextStyle(
+                      style: AppType.bodySmall.copyWith(
                         color: p.accent,
-                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
                     ),
                   ],
                 ),
@@ -1050,9 +1051,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
           ),
           const SizedBox(width: 8),
-          Text(
+          Flexible(
+            child: Text(
             'Calculando demora…',
-            style: TextStyle(fontSize: 12, color: p.textMuted),
+            style: AppType.bodySmall.copyWith( color: p.textMuted,
+            ),
+          ),
           ),
         ],
       );
@@ -1064,9 +1068,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         children: [
           Icon(Icons.schedule, size: 14, color: p.textMuted),
           const SizedBox(width: 6),
-          Text(
+          Flexible(
+            child: Text(
             'Demora referencial ${widget.service.baseEta} min',
-            style: TextStyle(fontSize: 12, color: p.textSecondary),
+            style: AppType.bodySmall.copyWith( color: p.textSecondary,
+            ),
+          ),
           ),
         ],
       );
@@ -1088,13 +1095,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             children: [
               Icon(Icons.schedule, size: 14, color: tone),
               const SizedBox(width: 6),
-              Text(
+              Flexible(
+                child: Text(
                 'Llega en ${estimate.rangeLabel}',
-                style: TextStyle(
-                  fontSize: 12.5,
+                style: AppType.bodySmall.copyWith(
                   fontWeight: FontWeight.bold,
                   color: tone,
                 ),
+              ),
               ),
               if (estimate.demandLevel != 'low') ...[
                 const SizedBox(width: 6),
@@ -1106,7 +1114,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 const SizedBox(width: 6),
                 Text(
                   estimate.demandLevel == 'high' ? 'alta demanda' : 'demanda media',
-                  style: TextStyle(fontSize: 11, color: tone),
+                  style: AppType.bodySmall.copyWith( color: tone,
+                  ),
                 ),
               ],
               const Spacer(),
@@ -1139,10 +1148,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 children: [
                   Text(
                     estimate.message,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: AppType.bodySmall.copyWith(
                       color: p.textSecondary,
-                      height: 1.4,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -1150,10 +1157,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     'Tu solicitud entra a la cola de '
                     '${estimate.zone == 'General' ? 'tu sector' : estimate.zone} '
                     'y la toma el próximo prestador en turno del área.',
-                    style: TextStyle(
-                      fontSize: 10.5,
+                    style: AppType.bodySmall.copyWith(
                       color: p.textMuted,
-                      height: 1.4,
                     ),
                   ),
                 ],
@@ -1199,8 +1204,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 children: [
                   Text(
                     '¿Prefieres agendar para otro día?',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                       color: p.accent,
                     ),
@@ -1208,7 +1212,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Reserva hora con ${specialty.label} en el horario que te acomode.',
-                    style: TextStyle(fontSize: 10.5, color: p.textMuted),
+                    style: AppType.bodySmall.copyWith( color: p.textMuted,
+                    ),
                   ),
                 ],
               ),
@@ -1236,13 +1241,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             children: [
               Icon(Icons.favorite_outline, color: p.accent, size: 20),
               SizedBox(width: 8),
-              Text(
+              Flexible(
+                child: Text(
                 'Describa Síntomas',
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppType.bodySmall.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
+              ),
               ),
             ],
           ),
@@ -1259,7 +1265,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             child: TextField(
               controller: _symptomsController,
               maxLines: 3,
-              style: TextStyle(fontSize: 13, color: p.textSecondary),
+              style: AppType.bodySmall.copyWith( color: p.textSecondary,
+              ),
               // Re-validate while typing so the error clears as soon as the
               // second symptom appears, instead of waiting for another submit.
               onChanged: (value) {
@@ -1271,9 +1278,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               },
               decoration: InputDecoration(
                 hintText: widget.service.placeholderText,
-                hintStyle: TextStyle(
+                hintStyle: AppType.bodySmall.copyWith(
                   color: p.textFaint,
-                  fontSize: 12,
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.all(10),
@@ -1299,9 +1305,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   _symptomsError ??
                       'Indica al menos dos síntomas, separados por coma o «y». '
                           'Ayuda al profesional a llegar preparado.',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    height: 1.35,
+                  style: AppType.bodySmall.copyWith(
                     color: _symptomsError != null
                         ? const Color(0xFFDC2626)
                         : p.textFaint,
@@ -1335,8 +1339,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         padding: const EdgeInsets.all(0),
                         label: Text(
                           tag,
-                          style: TextStyle(
-                            fontSize: 9,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textMuted,
                           ),
@@ -1391,8 +1394,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   children: [
                     Text(
                       'Ingrese el pedido médico',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textPrimary,
                       ),
@@ -1400,8 +1402,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     const SizedBox(height: 1),
                     Text(
                       'Toda prestación clínica de ${widget.service.shortTitle} requiere orden',
-                      style: TextStyle(
-                        fontSize: 9,
+                      style: AppType.bodySmall.copyWith(
                         color: p.accent,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1434,8 +1435,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Cargar Orden Médica Digital o Foto',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppType.bodySmall.copyWith(
                           fontWeight: FontWeight.bold,
                           color: p.textPrimary,
                         ),
@@ -1443,8 +1443,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Soporta formatos PDF, PNG o JPG desde su teléfono',
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: AppType.bodySmall.copyWith(
                           color: p.textFaint,
                         ),
                       ),
@@ -1462,13 +1461,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               ),
                             ),
                             SizedBox(width: 8),
-                            Text(
+                            Flexible(
+                              child: Text(
                               'PROCESANDO DOCUMENTO...',
-                              style: TextStyle(
-                                fontSize: 9,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: p.accent,
                               ),
+                            ),
                             ),
                           ],
                         )
@@ -1491,7 +1491,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                       ),
                                     ),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
@@ -1499,12 +1499,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                         size: 14,
                                       ),
                                       SizedBox(width: 4),
-                                      Text(
+                                      Flexible(
+                                        child: Text(
                                         'Subir archivo',
-                                        style: TextStyle(
-                                          fontSize: 10,
+                                        style: AppType.bodySmall.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
+                                      ),
                                       ),
                                     ],
                                   ),
@@ -1528,17 +1529,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                       ),
                                     ),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.camera_alt_outlined, size: 14),
                                       SizedBox(width: 4),
-                                      Text(
+                                      Flexible(
+                                        child: Text(
                                         'Foto',
-                                        style: TextStyle(
-                                          fontSize: 10,
+                                        style: AppType.bodySmall.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
+                                      ),
                                       ),
                                     ],
                                   ),
@@ -1599,17 +1601,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               children: [
                                 Text(
                                   _uploadedFileName!,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: p.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                const Text(
+                                Text(
                                   'Verificado exitosamente',
-                                  style: TextStyle(
-                                    fontSize: 8,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF10B981),
                                   ),
@@ -1647,11 +1647,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Borrar',
-                            style: TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: Color(0xFFF43F5E),
-                              fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1666,8 +1665,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             const SizedBox(height: 14),
             Text(
               'ESPECIFIQUE EXAMEN SOLICITADO',
-              style: TextStyle(
-                fontSize: 9,
+              style: AppType.label.copyWith(
                 fontWeight: FontWeight.bold,
                 color: p.textFaint,
                 letterSpacing: 0.5,
@@ -1682,16 +1680,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               ),
               child: TextField(
                 controller: _examController,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppType.bodySmall.copyWith(
                   color: p.textPrimary,
                   fontWeight: FontWeight.w500,
                 ),
                 decoration: InputDecoration(
                   hintText: widget.service.placeholderText,
-                  hintStyle: TextStyle(
+                  hintStyle: AppType.bodySmall.copyWith(
                     color: p.textFaint,
-                    fontSize: 11,
                   ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
@@ -1738,16 +1734,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         children: [
                           Text(
                             'Desde dónde',
-                            style: TextStyle(
-                              fontSize: 13,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textPrimary,
                             ),
                           ),
                           Text(
                             'Inicio del traslado',
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppType.bodySmall.copyWith(
                               color: p.textFaint,
                             ),
                           ),
@@ -1785,16 +1779,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 ),
                 child: TextField(
                   controller: _originAddressController,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodySmall.copyWith(
                     color: p.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Dirección exacta de inicio',
-                    hintStyle: TextStyle(
+                    hintStyle: AppType.bodySmall.copyWith(
                       color: p.textFaint,
-                      fontSize: 11,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
@@ -1835,16 +1827,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         children: [
                           Text(
                             'Lugar de llegada',
-                            style: TextStyle(
-                              fontSize: 13,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textPrimary,
                             ),
                           ),
                           Text(
                             'Destino programado',
-                            style: TextStyle(
-                              fontSize: 9,
+                            style: AppType.bodySmall.copyWith(
                               color: p.textFaint,
                             ),
                           ),
@@ -1859,13 +1849,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       color: p.fill,
                       shape: BoxShape.circle,
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text(
                         'B',
-                        style: TextStyle(
+                        style: AppType.bodySmall.copyWith(
                           color: Color(0xFF475569),
                           fontWeight: FontWeight.bold,
-                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -1893,16 +1882,14 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 ),
                 child: TextField(
                   controller: _destinationAddressController,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodySmall.copyWith(
                     color: p.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Dirección exacta de destino',
-                    hintStyle: TextStyle(
+                    hintStyle: AppType.bodySmall.copyWith(
                       color: p.textFaint,
-                      fontSize: 11,
                     ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
@@ -1933,8 +1920,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         children: [
           Text(
             'TIPO DE AMBULANCIA',
-            style: TextStyle(
-              fontSize: 9,
+            style: AppType.label.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textFaint,
               letterSpacing: 0.5,
@@ -1963,17 +1949,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       children: [
                         Text(
                           'Básica',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
                         Text(
-                          '\$18,500 ARS Base',
-                          style: TextStyle(
-                            fontSize: 10,
+                          '${Money.format(_ambulanceBasicPrice)} base',
+                          style: AppType.bodySmall.copyWith(
                             color: p.accent,
                             fontWeight: FontWeight.bold,
                           ),
@@ -2004,17 +1988,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       children: [
                         Text(
                           'Medicalizada',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
                         Text(
-                          '\$28,500 ARS Base',
-                          style: TextStyle(
-                            fontSize: 10,
+                          '${Money.format(_ambulanceMedicalizedPrice)} base',
+                          style: AppType.bodySmall.copyWith(
                             color: p.accent,
                             fontWeight: FontWeight.bold,
                           ),
@@ -2031,11 +2013,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             child: Text(
               'La Ambulancia Medicalizada incluye médico a bordo e instrumentación de cuidados intermedios/UTI.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
+              style: AppType.bodySmall.copyWith(
                 color: p.textFaint,
                 fontWeight: FontWeight.bold,
-                height: 1.3,
               ),
             ),
           ),
@@ -2072,15 +2052,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     children: [
                       Text(
                         'Lugar de la atención',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: AppType.bodySmall.copyWith(
                           fontWeight: FontWeight.bold,
                           color: p.textPrimary,
                         ),
                       ),
                       Text(
                         '¿Dónde asistirá el personal clínico?',
-                        style: TextStyle(fontSize: 9, color: p.textFaint),
+                        style: AppType.bodySmall.copyWith( color: p.textFaint,
+                        ),
                       ),
                     ],
                   ),
@@ -2095,8 +2075,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 },
                 child: Text(
                   _useCustomAddress ? 'Usar favoritas' : 'Nueva dirección',
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppType.bodySmall.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.accent,
                     decoration: TextDecoration.underline,
@@ -2110,7 +2089,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             if (widget.addresses.isEmpty) ...[
               Text(
                 'No hay direcciones disponibles.',
-                style: TextStyle(fontSize: 11, color: p.textMuted),
+                style: AppType.bodySmall.copyWith( color: p.textMuted,
+                ),
               ),
             ] else ...[
               Column(
@@ -2146,8 +2126,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                 children: [
                                   Text(
                                     addr.label,
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    style: AppType.bodySmall.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: p.accent,
                                     ),
@@ -2155,10 +2134,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     addr.text,
-                                    style: TextStyle(
-                                      fontSize: 11,
+                                    style: AppType.bodySmall.copyWith(
                                       color: p.textSecondary,
-                                      height: 1.3,
                                     ),
                                   ),
                                 ],
@@ -2189,17 +2166,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                   ),
                   child: TextField(
                     controller: _customAddressController,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.bodySmall.copyWith(
                       color: p.textPrimary,
                       fontWeight: FontWeight.w500,
                     ),
                     decoration: InputDecoration(
                       hintText:
                           'Ej: Calle Suecia 120, depto 201, Providencia, Santiago',
-                      hintStyle: TextStyle(
+                      hintStyle: AppType.bodySmall.copyWith(
                         color: p.textFaint,
-                        fontSize: 11,
                       ),
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.all(12),
@@ -2222,7 +2197,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Mueva el mapa para ajustar el pin sobre la dirección exacta.',
-                  style: TextStyle(fontSize: 9, color: p.textFaint),
+                  style: AppType.bodySmall.copyWith( color: p.textFaint,
+                  ),
                 ),
               ],
             ),
@@ -2260,11 +2236,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'TARIFA COTIZADA ESTIMADA',
-                  style: TextStyle(
+                  style: AppType.label.copyWith(
                     color: Color(0xFF2DD4BF),
-                    fontSize: 8,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
@@ -2273,17 +2248,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 RichText(
                   text: TextSpan(
                     text:
-                        '\$${calculatedPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ',
-                    style: const TextStyle(
-                      fontSize: 22,
+                        '${Money.format(calculatedPrice)} ',
+                    style: AppType.titleLarge.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
-                    children: const [
+                    children: [
                       TextSpan(
-                        text: 'ARS',
-                        style: TextStyle(
-                          fontSize: 12,
+                        text: Money.code,
+                        style: AppType.bodySmall.copyWith(
                           fontWeight: FontWeight.normal,
                           color: Color(0xFF99F6E4),
                         ),
@@ -2294,10 +2267,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 const SizedBox(height: 3),
                 Text(
                   'Incluye insumos médicos clínicos y traslado profesional',
-                  style: const TextStyle(
-                    fontSize: 9,
+                  style: AppType.bodySmall.copyWith(
                     color: Color(0xFFCCFBF1),
-                    height: 1.2,
                   ),
                 ),
               ],
@@ -2323,20 +2294,22 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       size: 14,
                     ),
                     const SizedBox(width: 4),
-                    Text(
+                    Flexible(
+                      child: Text(
                       service.baseEta,
-                      style: const TextStyle(
+                      style: AppType.bodySmall.copyWith(
                         color: Colors.white,
-                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
+                    ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Minutos de arribo',
-                  style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 8),
+                  style: AppType.bodySmall.copyWith(color: Color(0xFFCCFBF1),
+                  ),
                 ),
               ],
             ),

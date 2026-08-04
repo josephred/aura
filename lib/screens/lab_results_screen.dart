@@ -87,7 +87,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               : 'Todavía no vemos el pago acreditado. Si acabas de pagar, espera unos segundos.',
         ),
         backgroundColor:
-            confirmed ? const Color(0xFF0D9488) : const Color(0xFFF59E0B),
+            confirmed ? const Color(0xFF0F766E) : const Color(0xFFF59E0B),
       ),
     );
   }
@@ -123,7 +123,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(error ?? 'Toma de muestras cancelada.'),
-        backgroundColor: error != null ? const Color(0xFFDC2626) : const Color(0xFF0D9488),
+        backgroundColor: error != null ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
       ),
     );
   }
@@ -183,7 +183,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                   Text(
                     'Los informes son documentos clínicos: no reemplazan la interpretación de un '
                     'profesional. Si tienes dudas sobre lo que indican, agenda una consulta para revisarlos.',
-                    style: TextStyle(fontSize: 10, color: p.textFaint, height: 1.5),
+                    style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.5),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -197,14 +197,16 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
       children: [
         Icon(icon, color: p.accent, size: 16),
         const SizedBox(width: 8),
-        Text(
+        Flexible(
+          child: Text(
           text,
           style: TextStyle(
-            fontSize: 9,
+            fontSize: 12,
             fontWeight: FontWeight.bold,
             color: p.textFaint,
             letterSpacing: 0.5,
           ),
+        ),
         ),
       ],
     );
@@ -235,7 +237,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: p.textFaint, height: 1.3),
+            style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.3),
           ),
         ],
       ),
@@ -277,7 +279,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                 child: Text(
                   request.statusLabel,
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: request.awaitsPayment
                         ? const Color(0xFF92400E)
@@ -290,17 +292,17 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
           const SizedBox(height: 6),
           Text(
             '📍 ${request.addressText}',
-            style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.4),
+            style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
           ),
           if (request.professionalName != null)
             Text(
               '🧪 ${request.professionalName}',
-              style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.4),
+              style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
             ),
           if (request.examRequired != null)
             Text(
               'Exámenes: ${request.examRequired}',
-              style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.4),
+              style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
             ),
           if (request.clinicalNotes != null && request.clinicalNotes!.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -314,7 +316,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               child: Text(
                 request.clinicalNotes!,
                 style: const TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   color: Color(0xFF92400E),
                   height: 1.4,
                 ),
@@ -343,19 +345,19 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                   ),
                   child: Text(
                     'Pagar \$${request.finalPrice}',
-                    style: const TextStyle(fontSize: 11),
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ),
               if (request.awaitsPayment)
                 TextButton(
                   onPressed: () => _verifyPayment(request),
-                  child: const Text('Ya pagué', style: TextStyle(fontSize: 11)),
+                  child: const Text('Ya pagué', style: TextStyle(fontSize: 12)),
                 ),
               TextButton(
                 onPressed: () => _cancel(request),
                 child: const Text(
                   'Cancelar',
-                  style: TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
+                  style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
                 ),
               ),
             ],
@@ -410,14 +412,14 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                     ?size,
                     if (result.emailedAt != null) 'enviado por correo',
                   ].join(' · '),
-                  style: TextStyle(fontSize: 10, color: p.textFaint),
+                  style: TextStyle(fontSize: 12, color: p.textFaint),
                 ),
                 if (result.notes != null && result.notes!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       result.notes!,
-                      style: TextStyle(fontSize: 10, color: p.textMuted, height: 1.4),
+                      style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
                     ),
                   ),
               ],

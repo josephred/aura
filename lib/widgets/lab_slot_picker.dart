@@ -144,7 +144,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                     ),
                     Text(
                       'Elige el día y el bloque horario que te acomode',
-                      style: TextStyle(fontSize: 10, color: p.textFaint),
+                      style: TextStyle(fontSize: 12, color: p.textFaint),
                     ),
                   ],
                 ),
@@ -164,7 +164,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
             else if (_slots.isEmpty)
               Text(
                 'No quedan bloques libres ese día. Prueba con otra fecha.',
-                style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.5),
+                style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.5),
               )
             else
               _buildSlotGrid(),
@@ -183,7 +183,9 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
           child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
         ),
         const SizedBox(width: 10),
-        Text(message, style: TextStyle(fontSize: 11, color: p.textMuted)),
+        Flexible(
+          child: Text(message, style: TextStyle(fontSize: 12, color: p.textMuted)),
+        ),
       ],
     );
   }
@@ -205,7 +207,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
             child: Text(
               'Por ahora no hay horarios publicados para toma de muestras. '
               'Vuelve a intentarlo más tarde o comunícate con nosotros para coordinar.',
-              style: TextStyle(fontSize: 11, color: Color(0xFF92400E), height: 1.4),
+              style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.4),
             ),
           ),
           TextButton(
@@ -215,7 +217,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Reintentar', style: TextStyle(fontSize: 11)),
+            child: const Text('Reintentar', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -223,8 +225,13 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
   }
 
   Widget _buildDateStrip() {
+    // El alto acompaña al escalado de fuente. Con un valor fijo, subir la letra
+    // al doble recorta el número del día justo en el control que la persona con
+    // problemas de vista necesita leer.
+    final scale = MediaQuery.textScalerOf(context).scale(1.0);
+
     return SizedBox(
-      height: 64,
+      height: 64 * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _availableDates.length,
@@ -249,7 +256,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                   Text(
                     _dayLabel(date),
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: selected ? Colors.white : p.textMuted,
                     ),
@@ -266,7 +273,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                   Text(
                     _months[date.month - 1],
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 12,
                       color: selected ? Colors.white70 : p.textFaint,
                     ),
                   ),
@@ -310,7 +317,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                 Text(
                   slot.professionalName,
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     color: selected ? Colors.white70 : p.textFaint,
                   ),
                 ),

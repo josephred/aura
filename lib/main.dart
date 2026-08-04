@@ -70,9 +70,24 @@ class _MainAppState extends State<MainApp> {
       themeMode: _appState.themeMode,
       builder: (context, child) {
         final mediaQueryData = MediaQuery.of(context);
+
+        // El ajuste de la app *multiplica* la preferencia del sistema, no la
+        // reemplaza. Antes se pasaba `textScaleFactor` a secas: alguien que
+        // había puesto la letra al 200% en los ajustes de accesibilidad de su
+        // teléfono abría Aura y veía 1.15, es decir, la app deshacía en
+        // silencio una decisión que esa persona sí se había tomado el trabajo
+        // de configurar.
+        //
+        // El techo de 2.0 es lo que exige WCAG 1.4.4 (redimensionar hasta el
+        // 200% sin perder contenido) y a la vez el punto donde las tarjetas
+        // dejan de soportar más crecimiento sin desbordarse.
+        final systemScale = mediaQueryData.textScaler.scale(1.0);
+        final combinedScale =
+            (systemScale * _appState.textScaleFactor).clamp(1.0, 2.0);
+
         return MediaQuery(
           data: mediaQueryData.copyWith(
-            textScaler: TextScaler.linear(_appState.textScaleFactor),
+            textScaler: TextScaler.linear(combinedScale),
           ),
           child: child!,
         );
@@ -129,14 +144,14 @@ class _MainShellState extends State<MainShell> {
                 width: 84,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                    colors: [Color(0xFF0F766E), Color(0xFF2DD4BF)],
                     begin: Alignment.bottomLeft,
                     end: Alignment.topRight,
                   ),
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF0D9488).withValues(alpha: 0.25),
+                      color: const Color(0xFF0F766E).withValues(alpha: 0.25),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -163,7 +178,7 @@ class _MainShellState extends State<MainShell> {
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                  color: Color(0xFF0D9488),
+                  color: Color(0xFF0F766E),
                   strokeWidth: 2.5,
                 ),
               ),
@@ -384,7 +399,7 @@ class _SearchingOverlayState extends State<_SearchingOverlay>
                       height: 110,
                       width: 110,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -392,7 +407,7 @@ class _SearchingOverlayState extends State<_SearchingOverlay>
                       height: 90,
                       width: 90,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.2),
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -429,7 +444,7 @@ class _SearchingOverlayState extends State<_SearchingOverlay>
                 'ASIGNANDO SEGÚN LA DEMANDA DE TU ZONA...',
                 style: TextStyle(
                   color: Color(0xFF2DD4BF),
-                  fontSize: 9,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.0,
                 ),
@@ -482,7 +497,7 @@ class _LogCheckRow extends StatelessWidget {
             style: const TextStyle(
               color: Color(0xFFCCFBF1),
               fontFamily: 'monospace',
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),

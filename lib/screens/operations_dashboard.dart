@@ -140,7 +140,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
           'Prestadores en turno',
           '${m.professionalsOnDuty} / ${m.professionalsTotal}',
           Icons.people,
-          const Color(0xFF0D9488),
+          const Color(0xFF0F766E),
         ),
         _metricCard(
           'Solicitudes abiertas',
@@ -184,7 +184,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: p.textMuted,
                     fontWeight: FontWeight.bold,
                   ),
@@ -250,18 +250,20 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                       ),
                       Text(
                         '${zone.openRequests} abiertas · ${zone.professionalsOnDuty} en turno',
-                        style: TextStyle(fontSize: 10, color: p.textMuted),
+                        style: TextStyle(fontSize: 12, color: p.textMuted),
                       ),
                     ],
                   ),
                 ),
-                Text(
+                Flexible(
+                  child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
+                ),
                 ),
               ],
             ),
@@ -319,7 +321,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                         provider.coverageZones?.isNotEmpty == true
                             ? '${provider.specialty} · ${provider.coverageZones}'
                             : provider.specialty,
-                        style: TextStyle(fontSize: 10, color: p.textMuted),
+                        style: TextStyle(fontSize: 12, color: p.textMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -330,7 +332,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                   value: provider.dutyStatus,
                   underline: const SizedBox(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -354,7 +356,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                           error ?? '${provider.name} cambiado a "$value".',
                         ),
                         backgroundColor: error == null
-                            ? const Color(0xFF0D9488)
+                            ? const Color(0xFF0F766E)
                             : const Color(0xFFDC2626),
                         duration: const Duration(seconds: 2),
                       ),

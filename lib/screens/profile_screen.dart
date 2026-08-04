@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import '../theme/app_typography.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
 import '../models/saved_payment_method.dart';
 import '../state/app_state.dart';
+import '../widgets/video_onboarding_dialog.dart';
+import 'preventive_health_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AppState state;
@@ -255,8 +258,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         state.userName.isNotEmpty
                             ? state.userName
                             : 'Usuario Aura',
-                        style: TextStyle(
-                          fontSize: 15,
+                        style: AppType.bodyLarge.copyWith(
                           fontWeight: FontWeight.bold,
                           color: p.textPrimary,
                         ),
@@ -265,8 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         state.userEmail.isNotEmpty
                             ? state.userEmail
                             : 'Paciente Frecuente • Miembro VIP Aura',
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: AppType.bodySmall.copyWith(
                           color: p.textMuted,
                         ),
                       ),
@@ -289,13 +290,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 12,
                             ),
                             SizedBox(width: 4),
-                            Text(
+                            Flexible(
+                              child: Text(
                               'Plan Cobertura Preferencial Plus',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: p.accent,
-                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
                             ),
                           ],
                         ),
@@ -343,24 +345,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       size: 18,
                     ),
                     SizedBox(width: 6),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Simulador de Roles del Ecosistema Aura',
-                      style: const TextStyle(
+                      style: AppType.label.copyWith(
                         color: Color(0xFFCCFBF1),
-                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
                       ),
                     ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text(
+                Text(
                   'La plataforma Aura está diseñada para interactuar entre múltiples actores de salud. Alterne su rol en la simulación abajo para modelar la experiencia:',
-                  style: TextStyle(
+                  style: AppType.bodySmall.copyWith(
                     color: Color(0xFF99F6E4),
-                    fontSize: 10.5,
-                    height: 1.3,
                   ),
                 ),
                 if (state.serverAssignedRole != null) ...[
@@ -387,10 +388,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             'Rol real de esta cuenta: '
                             '${_roleLabel(rolesSpecs, state.serverAssignedRole!)}. '
                             'Cambiarlo aquí solo previsualiza la experiencia.',
-                            style: const TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: Color(0xFFCCFBF1),
-                              fontSize: 10,
-                              height: 1.3,
                             ),
                           ),
                         ),
@@ -453,15 +452,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        Text(
+                                        Flexible(
+                                          child: Text(
                                           roleSpec['label'] as String,
-                                          style: TextStyle(
-                                            fontSize: 11.5,
+                                          style: AppType.bodySmall.copyWith(
                                             fontWeight: FontWeight.bold,
                                             color: isSel
                                                 ? const Color(0xFF0F172A)
                                                 : Colors.white,
                                           ),
+                                        ),
                                         ),
                                         if (isSel) ...[
                                           const SizedBox(width: 6),
@@ -483,12 +483,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     const SizedBox(height: 3),
                                     Text(
                                       roleSpec['desc'] as String,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        height: 1.3,
-                                        color: isSel
-                                            ? const Color(0xFF64748B)
-                                            : const Color(0xFF94A3B8),
+                                      style: AppType.bodySmall.copyWith(
+                                        color: p.textMuted,
                                       ),
                                     ),
                                   ],
@@ -528,13 +524,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 18,
                         ),
                         SizedBox(width: 8),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Cargas y Familiares',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
+                        ),
                         ),
                       ],
                     ),
@@ -566,13 +563,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: p.accent,
                             ),
                             const SizedBox(width: 4),
-                            Text(
+                            Flexible(
+                              child: Text(
                               _showAddDep ? 'Ocultar' : 'Agregar',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: p.accent,
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
                             ),
                           ],
                         ),
@@ -594,8 +592,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           _editingDependent != null ? 'Editar Familiar Paciente' : 'Registrar Nuevo Familiar Paciente',
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F766E),
                           ),
@@ -633,8 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         decoration: const InputDecoration(
                                           border: InputBorder.none,
                                         ),
-                                        style: TextStyle(
-                                          fontSize: 12,
+                                        style: AppType.bodySmall.copyWith(
                                           color: p.textPrimary,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -708,8 +704,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             child: Text(
                               _editingDependent != null ? 'Actualizar Familiar Dependiente' : 'Guardar Familiar Dependiente',
-                              style: const TextStyle(
-                                fontSize: 11,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -739,8 +734,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Text(
                                   dep.name,
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: p.textPrimary,
                                   ),
@@ -748,8 +742,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   '${dep.relationship} • ${dep.age} años • ${dep.healthInsurance}',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppType.bodySmall.copyWith(
                                     color: p.textMuted,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -757,8 +750,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Obs: ${dep.medicalConditions}',
-                                  style: TextStyle(
-                                    fontSize: 9,
+                                  style: AppType.bodySmall.copyWith(
                                     color: p.accent,
                                     fontStyle: FontStyle.italic,
                                     fontWeight: FontWeight.bold,
@@ -772,6 +764,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
+                                tooltip: 'Editar a ${dep.name}',
                                 onPressed: () {
                                   setState(() {
                                     _editingDependent = dep;
@@ -797,6 +790,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(width: 6),
                               IconButton(
+                                tooltip: 'Eliminar a ${dep.name}',
                                 onPressed: () => state.deleteDependent(dep.id),
                                 icon: const Icon(
                                   Icons.delete_outline,
@@ -844,13 +838,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 18,
                         ),
                         SizedBox(width: 8),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Direcciones Frecuentes',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
+                        ),
                         ),
                       ],
                     ),
@@ -881,13 +876,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: p.accent,
                             ),
                             const SizedBox(width: 4),
-                            Text(
+                            Flexible(
+                              child: Text(
                               _showAddAddr ? 'Ocultar' : 'Agregar',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: p.accent,
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
                             ),
                           ],
                         ),
@@ -909,8 +905,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Text(
                           _editingAddress != null ? 'Editar Dirección Frecuente' : 'Registrar Nueva Dirección',
-                          style: const TextStyle(
-                            fontSize: 11,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F766E),
                           ),
@@ -939,8 +934,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             child: Text(
                               _editingAddress != null ? 'Actualizar Dirección' : 'Agregar Dirección',
-                              style: const TextStyle(
-                                fontSize: 11,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -979,8 +973,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Text(
                                   addr.label,
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: p.textPrimary,
                                   ),
@@ -988,10 +981,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 2),
                                 Text(
                                   addr.text,
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: AppType.bodySmall.copyWith(
                                     color: p.textMuted,
-                                    height: 1.3,
                                   ),
                                 ),
                               ],
@@ -1002,6 +993,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
+                                tooltip: 'Editar la dirección ${addr.label}',
                                 onPressed: () {
                                   setState(() {
                                     _editingAddress = addr;
@@ -1024,6 +1016,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(width: 6),
                               IconButton(
+                                tooltip: 'Eliminar la dirección ${addr.label}',
                                 onPressed: () => state.deleteAddress(addr.id),
                                 icon: const Icon(
                                   Icons.delete_outline,
@@ -1067,13 +1060,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
                         SizedBox(width: 8),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'Medios de Pago Vinculados',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
+                        ),
                         ),
                       ],
                     ),
@@ -1102,13 +1096,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: const Color(0xFF0284C7),
                             ),
                             const SizedBox(width: 4),
-                            Text(
+                            Flexible(
+                              child: Text(
                               _showAddPay ? 'Ocultar' : 'Agregar',
-                              style: const TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: Color(0xFF0284C7),
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
                             ),
                           ],
                         ),
@@ -1128,10 +1123,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Vincular Nuevo Medio de Pago',
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0369A1),
                           ),
@@ -1149,8 +1143,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: DropdownButtonFormField<String>(
                               initialValue: _payType,
                               decoration: const InputDecoration(border: InputBorder.none),
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: AppType.bodySmall.copyWith(
                                 color: p.textPrimary,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1189,10 +1182,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Guardar Medio de Pago',
-                              style: TextStyle(
-                                fontSize: 11,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1237,10 +1229,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     pay.type == 'mercadopago'
                                         ? 'MP'
                                         : pay.type.toUpperCase(),
-                                    style: const TextStyle(
+                                    style: AppType.label.copyWith(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 10,
                                       letterSpacing: 0.5,
                                     ),
                                   ),
@@ -1254,8 +1245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     pay.type == 'mercadopago'
                                         ? 'Mercado Pago Protegido'
                                         : 'Tarjeta de Crédito / Débito',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
+                                    style: AppType.bodySmall.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: p.textPrimary,
                                     ),
@@ -1263,8 +1253,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   if (pay.last4 != null)
                                     Text(
                                       '•••• •••• •••• ${pay.last4}',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
+                                      style: AppType.bodySmall.copyWith(
                                         color: p.textFaint,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1276,16 +1265,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
+                              Flexible(
+                                child: Text(
                                 'PREDETERMINADO',
-                                style: TextStyle(
+                                style: AppType.bodySmall.copyWith(
                                   color: Color(0xFF059669),
-                                  fontSize: 8,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              ),
                               const SizedBox(width: 8),
                               IconButton(
+                                tooltip: 'Eliminar este medio de pago',
                                 onPressed: () => state.deletePaymentMethod(pay.id),
                                 icon: const Icon(
                                   Icons.delete_outline,
@@ -1329,9 +1320,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Icon(Icons.palette_outlined, color: p.accent, size: 20),
                     SizedBox(width: 8),
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Tema de la Aplicación',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     ),
                   ],
                 ),
@@ -1339,26 +1333,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Apariencia visual',
-                      style: TextStyle(fontSize: 12, color: p.textMuted),
+                      style: AppType.bodySmall.copyWith( color: p.textMuted,
+                      ),
+                    ),
                     ),
                     SegmentedButton<ThemeMode>(
-                      segments: const [
+                      segments: [
                         ButtonSegment<ThemeMode>(
                           value: ThemeMode.light,
                           icon: Icon(Icons.light_mode_outlined, size: 16),
-                          label: Text('Claro', style: TextStyle(fontSize: 11)),
+                          label: Text('Claro', style: AppType.bodySmall),
                         ),
                         ButtonSegment<ThemeMode>(
                           value: ThemeMode.dark,
                           icon: Icon(Icons.dark_mode_outlined, size: 16),
-                          label: Text('Oscuro', style: TextStyle(fontSize: 11)),
+                          label: Text('Oscuro', style: AppType.bodySmall),
                         ),
                         ButtonSegment<ThemeMode>(
                           value: ThemeMode.system,
                           icon: Icon(Icons.settings_suggest_outlined, size: 16),
-                          label: Text('Sistema', style: TextStyle(fontSize: 11)),
+                          label: Text('Sistema', style: AppType.bodySmall),
                         ),
                       ],
                       selected: {state.themeMode},
@@ -1373,6 +1370,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Salud preventiva (D.2) y guía de ayuda (A.3). Van juntas porque
+          // ambas son "cosas que puedo consultar", no ajustes de la cuenta.
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              children: [
+                _buildProfileLink(
+                  icon: Icons.vaccines_outlined,
+                  title: 'Salud preventiva',
+                  subtitle: 'Calendario de vacunas y chequeos según la edad',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PreventiveHealthScreen(state: state),
+                    ),
+                  ),
+                ),
+                Divider(height: 20, color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
+                _buildProfileLink(
+                  icon: Icons.help_outline_rounded,
+                  title: 'Guía de primeros pasos',
+                  subtitle: 'Cómo pedir, cómo seguir tu atención y dónde ver resultados',
+                  onTap: () => VideoOnboardingDialog.show(context),
                 ),
               ],
             ),
@@ -1394,36 +1425,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Icon(Icons.text_fields_rounded, color: p.accent, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      'Tamaño de Texto (Accesibilidad)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    Flexible(
+                      child: Text(
+                      'Tamaño de texto',
+                      style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Se suma al tamaño de letra que ya tengas configurado en tu '
+                  'teléfono.',
+                  style: AppType.bodySmall.copyWith( color: p.textMuted,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    Flexible(
+                      child: Text(
                       'Escalar fuentes',
-                      style: TextStyle(fontSize: 12, color: p.textMuted),
+                      style: AppType.bodySmall.copyWith( color: p.textMuted,
+                      ),
+                    ),
                     ),
                     SegmentedButton<double>(
                       // 1.15 is the new baseline, so the steps start there.
                       // Older installs may still hold 1.0/1.2/1.4, hence the
                       // snap below instead of passing the raw value.
-                      segments: const [
+                      segments: [
                         ButtonSegment<double>(
                           value: 1.15,
-                          label: Text('Normal', style: TextStyle(fontSize: 11)),
+                          label: Text('Normal', style: AppType.bodySmall),
                         ),
                         ButtonSegment<double>(
                           value: 1.3,
-                          label: Text('Grande', style: TextStyle(fontSize: 11)),
+                          label: Text('Grande', style: AppType.bodySmall),
                         ),
                         ButtonSegment<double>(
                           value: 1.5,
-                          label: Text('Muy Grande', style: TextStyle(fontSize: 11)),
+                          label: Text('Muy Grande', style: AppType.bodySmall),
                         ),
                       ],
                       selected: {_nearestTextScaleStep(state.textScaleFactor)},
@@ -1450,14 +1494,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Expanded(
                         child: Text(
                           'Aviso de uso en el inicio',
-                          style: TextStyle(fontSize: 12, color: p.textMuted),
+                          style: AppType.bodySmall.copyWith( color: p.textMuted,
+                          ),
                         ),
                       ),
                       TextButton(
                         onPressed: state.restoreSafetyNotice,
-                        child: const Text(
+                        child: Text(
                           'Mostrar de nuevo',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: AppType.bodySmall.copyWith( fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -1480,9 +1526,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               label: Text(
                 state.isDemoMode ? 'Salir del modo demo' : 'Cerrar sesión',
-                style: const TextStyle(
+                style: AppType.bodySmall.copyWith(
                   color: Color(0xFFDC2626),
-                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1501,13 +1546,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Fila navegable de la sección "consultar" del perfil.
+  Widget _buildProfileLink({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final p = context.palette;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, color: p.accent, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppType.bodyMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppType.bodySmall.copyWith( color: p.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: p.textFaint, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Text(
         text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 8,
+        style: AppType.label.copyWith(
           fontWeight: FontWeight.bold,
           color: p.textFaint,
           letterSpacing: 0.5,
@@ -1533,16 +1622,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: isNum ? TextInputType.number : TextInputType.text,
-        style: TextStyle(
-          fontSize: 12,
+        style: AppType.bodySmall.copyWith(
           color: Theme.of(context).colorScheme.onSurface,
           fontWeight: FontWeight.bold,
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(
+          hintStyle: AppType.bodySmall.copyWith(
             color: p.textFaint,
-            fontSize: 11,
             fontWeight: FontWeight.normal,
           ),
           border: InputBorder.none,

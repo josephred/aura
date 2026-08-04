@@ -218,6 +218,7 @@ class AppState extends ChangeNotifier {
       // Older installs have no stored value; 1.15 is the new baseline so the
       // app is legible for older adults out of the box.
       _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.15;
+      _userAge = prefs.getInt('user_age');
       _safetyNoticeDismissed = prefs.getBool('safety_notice_dismissed') ?? false;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
@@ -1010,6 +1011,25 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('text_scale_factor', factor);
+  }
+
+  /// Edad del titular, usada por las alertas preventivas por rango etario
+  /// (D.2). Vive en el dispositivo y no en el servidor: la cuenta todavía no
+  /// tiene fecha de nacimiento, y guardarla aquí evita inventar un dato
+  /// clínico en el perfil. Persistirla en el backend es el paso siguiente.
+  int? _userAge;
+  int? get userAge => _userAge;
+
+  Future<void> setUserAge(int? age) async {
+    _userAge = (age != null && age > 0 && age < 120) ? age : null;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_userAge == null) {
+      await prefs.remove('user_age');
+    } else {
+      await prefs.setInt('user_age', _userAge!);
+    }
   }
 
   void _initializeChat() {

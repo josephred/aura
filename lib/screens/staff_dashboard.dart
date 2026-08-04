@@ -65,7 +65,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       SnackBar(
         content: Text(error ?? 'Atención actualizada.'),
         backgroundColor:
-            error == null ? const Color(0xFF0D9488) : const Color(0xFFDC2626),
+            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
       ),
     );
   }
@@ -141,7 +141,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             const SizedBox(height: 4),
             Text(
               'Puedes tomarlas si nadie del sector responde.',
-              style: TextStyle(fontSize: 11, color: p.textFaint),
+              style: TextStyle(fontSize: 12, color: p.textFaint),
             ),
             const SizedBox(height: 12),
             ...outside.map(_buildBookingCard),
@@ -183,7 +183,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: widget.ambulanceOnly
-              ? const [Color(0xFF0D9488), Color(0xFF1E3A8A)]
+              ? const [Color(0xFF0F766E), Color(0xFF1E3A8A)]
               : const [Color(0xFF0F172A), Color(0xFF0F766E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -228,7 +228,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   const SizedBox(height: 6),
                   Text(
                     'Cubre: ${profile.coverageZones.join(', ')}',
-                    style: const TextStyle(color: Color(0xFF99F6E4), fontSize: 10),
+                    style: const TextStyle(color: Color(0xFF99F6E4), fontSize: 12),
                   ),
                 ],
               ],
@@ -279,7 +279,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ),
               Switch(
                 value: onDuty,
-                activeThumbColor: const Color(0xFF0D9488),
+                activeThumbColor: const Color(0xFF0F766E),
                 onChanged: busy ? null : _toggleDuty,
               ),
             ],
@@ -311,7 +311,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             color: p.textPrimary,
           ),
         ),
-        Text(label, style: TextStyle(fontSize: 10, color: p.textMuted)),
+        Text(label, style: TextStyle(fontSize: 12, color: p.textMuted)),
       ],
     );
   }
@@ -359,17 +359,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Color(0xFF0D9488),
+                    color: Color(0xFF0F766E),
                   ),
                 ),
               ),
-              Text(
+              Flexible(
+                child: Text(
                 '\$${booking.finalPrice}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                   color: p.textPrimary,
                 ),
+              ),
               ),
             ],
           ),
@@ -417,7 +419,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 child: Text(
                   booking.statusLabel.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: p.textMuted,
                     letterSpacing: 0.4,
@@ -428,7 +430,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               if (booking.startTime.isNotEmpty)
                 Text(
                   'Solicitada ${booking.startTime}',
-                  style: TextStyle(fontSize: 10, color: p.textFaint),
+                  style: TextStyle(fontSize: 12, color: p.textFaint),
                 ),
             ],
           ),
@@ -440,7 +442,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               child: ElevatedButton(
                 onPressed: isBusy ? null : () => _advance(booking, next),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
+                  backgroundColor: const Color(0xFF0F766E),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -487,7 +489,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
   Widget _attachmentChip(IconData icon, String label, String url) {
     return ActionChip(
       avatar: Icon(icon, size: 14, color: p.accent),
-      label: Text(label, style: const TextStyle(fontSize: 10)),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
       backgroundColor: p.accentSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       onPressed: () async {

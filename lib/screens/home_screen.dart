@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../theme/app_typography.dart';
 import '../models/clinical_service.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/service_specialties.dart';
+import '../widgets/video_onboarding_dialog.dart';
 import 'book_appointment_screen.dart';
 import 'operations_dashboard.dart';
 import 'staff_dashboard.dart';
@@ -46,7 +48,7 @@ class HomeScreen extends StatelessWidget {
   Color _getIconColor(String iconName) {
     switch (iconName) {
       case 'Activity':
-        return const Color(0xFF0D9488); // teal-600
+        return const Color(0xFF0F766E); // teal-600
       case 'UserRoundPlus':
         return const Color(0xFF10B981); // emerald-600
       case 'Footprints':
@@ -54,7 +56,7 @@ class HomeScreen extends StatelessWidget {
       case 'Lungs':
         return const Color(0xFF0EA5E9); // sky-600
       case 'HeartHandshake':
-        return const Color(0xFF0D9488); // teal-600
+        return const Color(0xFF0F766E); // teal-600
       case 'Truck':
         return const Color(0xFF2563EB); // blue-600
       case 'ScanFace':
@@ -64,7 +66,7 @@ class HomeScreen extends StatelessWidget {
       case 'Heart':
         return const Color(0xFFF43F5E); // rose-500
       default:
-        return const Color(0xFF0D9488);
+        return const Color(0xFF0F766E);
     }
   }
 
@@ -136,12 +138,12 @@ class HomeScreen extends StatelessWidget {
                               height: 38,
                               width: 38,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0D9488),
+                                color: const Color(0xFF0F766E),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(
-                                      0xFF0D9488,
+                                      0xFF0F766E,
                                     ).withValues(alpha: 0.2),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
@@ -175,8 +177,7 @@ class HomeScreen extends StatelessWidget {
                             RichText(
                               text: TextSpan(
                                 text: 'Aura ',
-                                style: TextStyle(
-                                  fontSize: 16,
+                                style: AppType.bodyLarge.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).colorScheme.onSurface,
                                 ),
@@ -185,7 +186,7 @@ class HomeScreen extends StatelessWidget {
                                     text: 'Salud',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w400,
-                                      color: Color(0xFF0D9488),
+                                      color: Color(0xFF0F766E),
                                     ),
                                   ),
                                 ],
@@ -202,14 +203,15 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
+                                Flexible(
+                                  child: Text(
                                   'COBERTURA ACTIVA',
-                                  style: TextStyle(
-                                    fontSize: 8,
+                                  style: AppType.label.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: context.palette.textMuted,
                                     letterSpacing: 0.5,
                                   ),
+                                ),
                                 ),
                               ],
                             ),
@@ -242,17 +244,18 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.location_on,
-                                  color: Color(0xFF0D9488),
+                                  color: Color(0xFF0F766E),
                                   size: 12,
                                 ),
                                 const SizedBox(width: 4),
-                                Text(
+                                Flexible(
+                                  child: Text(
                                   'Providencia',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context).colorScheme.onSurface,
                                   ),
+                                ),
                                 ),
                               ],
                             ),
@@ -294,12 +297,11 @@ class HomeScreen extends StatelessWidget {
                                     color: Color(0xFFF43F5E),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Text(
                                       '1',
-                                      style: TextStyle(
+                                      style: AppType.bodySmall.copyWith(
                                         color: Colors.white,
-                                        fontSize: 8,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -320,25 +322,26 @@ class HomeScreen extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.star_rounded,
-                        color: Color(0xFF0D9488),
+                        color: Color(0xFF0F766E),
                         size: 12,
                       ),
                       SizedBox(width: 4),
-                      Text(
+                      Flexible(
+                        child: Text(
                         'Atención Domiciliaria Profesional',
-                        style: TextStyle(
-                          fontSize: 9,
+                        style: AppType.bodySmall.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D9488),
+                          color: Color(0xFF0F766E),
                         ),
+                      ),
                       ),
                     ],
                   ),
@@ -346,8 +349,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   '¿Cómo podemos ayudar?',
-                  style: TextStyle(
-                    fontSize: 24,
+                  style: AppType.display.copyWith(
                     fontWeight: FontWeight.w900,
                     color: Theme.of(context).colorScheme.onSurface,
                     letterSpacing: -0.5,
@@ -358,8 +360,7 @@ class HomeScreen extends StatelessWidget {
                   primaryDependent != null
                       ? 'Solicitando para: ${primaryDependent.name} (${primaryDependent.relationship})'
                       : 'Bienvenido(a) a Aura. Servicios médicos en la puerta de su hogar.',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodySmall.copyWith(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? const Color(0xFF94A3B8)
                         : const Color(0xFF64748B),
@@ -408,8 +409,7 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   'Atención activa en curso',
-                                  style: TextStyle(
-                                    fontSize: 12,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context).brightness == Brightness.dark
                                         ? const Color(0xFF34D399)
@@ -419,8 +419,7 @@ class HomeScreen extends StatelessWidget {
                                 const SizedBox(height: 2),
                                 Text(
                                   'Seguimiento y ETA estimados para Providencia.',
-                                  style: TextStyle(
-                                    fontSize: 10,
+                                  style: AppType.bodySmall.copyWith(
                                     color: Theme.of(context).brightness == Brightness.dark
                                         ? const Color(0xFF059669)
                                         : const Color(0xFF047857),
@@ -441,14 +440,13 @@ class HomeScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF0D9488)
+                                    ? const Color(0xFF0F766E)
                                     : const Color(0xFFD1FAE5),
                               ),
                             ),
                             child: Text(
                               'Ver Mapa',
-                              style: TextStyle(
-                                fontSize: 10,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).brightness == Brightness.dark
                                     ? const Color(0xFF2DD4BF)
@@ -482,19 +480,17 @@ class HomeScreen extends StatelessWidget {
                     decoration: InputDecoration(
                       prefixIcon: const Icon(
                         Icons.search,
-                        color: Color(0xFF0D9488),
+                        color: Color(0xFF0F766E),
                         size: 20,
                       ),
                       hintText: 'Buscar enfermería, kine, médico...',
-                      hintStyle: TextStyle(
+                      hintStyle: AppType.bodySmall.copyWith(
                         color: context.palette.textFaint,
-                        fontSize: 13,
                       ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: AppType.bodySmall.copyWith(
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w500,
                     ),
@@ -550,13 +546,11 @@ class HomeScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             'Aura es una plataforma de servicios clínicos domiciliarios programados y semi-urgentes. En caso de riesgo vital llame inmediatamente a urgencias.',
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: AppType.bodySmall.copyWith(
                               color: Theme.of(context).brightness == Brightness.dark
                                   ? const Color(0xFFFBBF24)
                                   : const Color(0xFF92400E),
                               fontWeight: FontWeight.w600,
-                              height: 1.4,
                             ),
                           ),
                         ),
@@ -566,11 +560,15 @@ class HomeScreen extends StatelessWidget {
                           color: Theme.of(context).brightness == Brightness.dark
                               ? const Color(0xFFFBBF24)
                               : const Color(0xFF92400E),
-                          tooltip: 'No volver a mostrar',
-                          visualDensity: VisualDensity.compact,
+                          tooltip: 'No volver a mostrar este aviso',
+                          // 48×48 aunque el icono mida 16: el objetivo táctil
+                          // no es el dibujo. Con 32 y densidad compacta este
+                          // botón quedaba por debajo del mínimo recomendado, y
+                          // es el que cierra el aviso de riesgo vital —fallar
+                          // el toque aquí significa tocar otra cosa.
                           constraints: const BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                            minWidth: 48,
+                            minHeight: 48,
                           ),
                           padding: EdgeInsets.zero,
                         ),
@@ -580,11 +578,33 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                 ],
 
+                // 5b. A.3 — acceso a la guía de primeros pasos. Va aquí, sobre
+                // el catálogo, porque el momento en que alguien no sabe cómo
+                // pedir es justo antes de elegir un servicio, no dentro de los
+                // ajustes de su cuenta.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => VideoOnboardingDialog.show(context),
+                    icon: const Icon(Icons.help_outline_rounded, size: 16),
+                    label: const Text('¿Cómo funciona? Guía de primeros pasos'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F766E),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      textStyle: AppType.bodySmall.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // 6. Specialties Title
-                const Text(
+                Text(
                   'ESPECIALIDADES DISPONIBLES',
-                  style: TextStyle(
-                    fontSize: 10,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF0F766E),
                     letterSpacing: 1.0,
@@ -605,9 +625,8 @@ class HomeScreen extends StatelessWidget {
                         child: Center(
                           child: Text(
                             'No se han encontrado especialidades médicas.',
-                            style: TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: context.palette.textFaint,
-                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -639,17 +658,17 @@ class HomeScreen extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0D9488) : Theme.of(context).cardColor,
+          color: isSelected ? const Color(0xFF0F766E) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF0D9488)
+                ? const Color(0xFF0F766E)
                 : Theme.of(context).dividerColor.withValues(alpha: 0.1),
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF0D9488).withValues(alpha: 0.15),
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.15),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -658,9 +677,8 @@ class HomeScreen extends StatelessWidget {
         ),
         child: Text(
           label.toUpperCase(),
-          style: TextStyle(
+          style: AppType.label.copyWith(
             color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
-            fontSize: 9,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
           ),
@@ -739,8 +757,7 @@ class HomeScreen extends StatelessWidget {
                           Flexible(
                             child: Text(
                               service.shortTitle,
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: AppType.bodySmall.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.onSurface,
                               ),
@@ -767,11 +784,10 @@ class HomeScreen extends StatelessWidget {
                               ),
                               child: Text(
                                 'REQUIERE ORDEN',
-                                style: TextStyle(
+                                style: AppType.bodySmall.copyWith(
                                   color: theme.brightness == Brightness.dark
                                       ? const Color(0xFFFBBF24)
                                       : const Color(0xFFB45309),
-                                  fontSize: 7,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -782,8 +798,7 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         service.subtitle,
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: AppType.bodySmall.copyWith(
                           color: theme.textTheme.bodyMedium?.color,
                           fontWeight: FontWeight.w400,
                         ),
@@ -806,10 +821,9 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${service.baseEta} min',
-                      style: const TextStyle(
-                        fontSize: 9,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D9488),
+                        color: Color(0xFF0F766E),
                       ),
                     ),
                   ],
@@ -829,8 +843,7 @@ class HomeScreen extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Ahora a domicilio',
-                      style: TextStyle(
-                        fontSize: 10,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.w600,
                         color: context.palette.textMuted,
                       ),
@@ -841,12 +854,11 @@ class HomeScreen extends StatelessWidget {
                     icon: const Icon(Icons.calendar_month, size: 14),
                     label: const Text('Agendar cita'),
                     style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF0D9488),
+                      foregroundColor: const Color(0xFF0F766E),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       minimumSize: const Size(0, 30),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      textStyle: const TextStyle(
-                        fontSize: 11,
+                      textStyle: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),

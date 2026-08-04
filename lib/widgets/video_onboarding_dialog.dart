@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-/// Modal interactivo de ayuda con guías paso a paso e instrucciones en video
-/// para guiarlos en la reserva de atención clínica y llamadas.
+/// A.3 — guía de ayuda paso a paso para el primer ingreso.
+///
+/// Los videotutoriales están previstos pero **aún no existen**: falta decidir
+/// dónde se alojan. El punto de enchufe es el campo `video` de cada paso: en
+/// cuanto tenga una URL, ese paso muestra un botón de reproducción real. Hasta
+/// entonces la guía no anuncia un video que nadie puede ver.
 class VideoOnboardingDialog extends StatefulWidget {
   const VideoOnboardingDialog({super.key});
 
@@ -19,30 +24,44 @@ class VideoOnboardingDialog extends StatefulWidget {
 class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
   int _currentStep = 0;
 
-  final List<Map<String, String>> _tutorials = [
+  /// Pasos de la guía. `video` queda vacío hasta que existan los tutoriales
+  /// grabados; poner ahí la URL es todo lo que hace falta para activarlos.
+  static const List<Map<String, String>> _tutorials = [
     {
       'title': '1. Cómo solicitar médico a domicilio',
       'description':
-          'Ingresa a la aplicación, elige la especialidad o "Médico a domicilio", indica al menos dos síntomas (ej: "fiebre y dolor de cabeza") y confirma tu ubicación.',
+          'Elige "Médico a domicilio" en el catálogo, describe al menos dos '
+          'síntomas (por ejemplo "fiebre y dolor de cabeza") y confirma tu '
+          'dirección. Verás el tiempo de espera de tu sector antes de aceptar.',
       'icon': 'medical_services',
+      'video': '',
     },
     {
       'title': '2. Seguimiento y mapa en tiempo real',
       'description':
-          'Una vez asignado el profesional, podrás ver su ubicación GPS en vivo, tiempo estimado de llegada y contactarte por chat o llamada.',
+          'Una vez que un profesional toma tu solicitud verás quién es, podrás '
+          'abrir su ficha con su registro y experiencia, y seguir su llegada '
+          'en el mapa. También puedes escribirle por el chat clínico.',
       'icon': 'map',
+      'video': '',
     },
     {
-      'title': '3. Toma de Muestras y Exámenes',
+      'title': '3. Toma de muestras y exámenes',
       'description':
-          'Programa la recolección de muestras (sangre/orina) seleccionando tu bloque de horario preferido y adjuntando si cuentas con orden médica.',
+          'El laboratorio no es un servicio de urgencia: eliges un bloque de '
+          'horario que el laboratorista publicó, indicas los exámenes y '
+          'anotas tus condiciones previas, como el ayuno.',
       'icon': 'biotech',
+      'video': '',
     },
     {
-      'title': '4. Videoconsultas y Resultados',
+      'title': '4. Videoconsultas y resultados',
       'description':
-          'Accede a telemedicina directa y descarga tus resultados clínicos e historial en formato PDF desde la sección "Mis Exámenes".',
+          'Puedes agendar una consulta por videollamada, y descargar tus '
+          'informes de laboratorio desde "Mis exámenes". También te llegan '
+          'por correo apenas el laboratorio los carga.',
       'icon': 'video_call',
+      'video': '',
     },
   ];
 
@@ -68,29 +87,31 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.play_circle_fill_rounded,
-                        color: Color(0xFF0D9488),
+                        color: Color(0xFF0F766E),
                         size: 24,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Guía y Video Tutoriales',
+                    Flexible(
+                      child: const Text(
+                      'Primeros pasos en Aura',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    ),
                   ],
                 ),
                 IconButton(
+                  tooltip: 'Cerrar la guía',
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close_rounded),
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -100,7 +121,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
               height: 140,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0F766E), Color(0xFF0D9488)],
+                  colors: [Color(0xFF0F766E), Color(0xFF0F766E)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -118,35 +139,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
                         color: Colors.white,
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Reproducir Video Guía (0:45)',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildStepBadge(tutorial),
                     ],
                   ),
                 ],
@@ -173,9 +166,11 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Flexible(
+                  child: Text(
                   'Paso ${_currentStep + 1} de ${_tutorials.length}',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 ),
                 Row(
                   children: [
@@ -187,7 +182,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D9488),
+                        backgroundColor: const Color(0xFF0F766E),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -213,6 +208,57 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Distintivo bajo el icono del paso.
+  ///
+  /// Con video muestra un botón que lo abre de verdad; sin él, solo el número
+  /// de paso. Anunciar "Reproducir video guía (0:45)" sobre un contenedor
+  /// inerte hace que la ayuda parezca rota, que es peor que no ofrecerla.
+  Widget _buildStepBadge(Map<String, String> tutorial) {
+    final video = tutorial['video'] ?? '';
+    final hasVideo = video.isNotEmpty;
+
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            hasVideo ? Icons.play_arrow_rounded : Icons.menu_book_rounded,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+            hasVideo
+                ? 'Ver video'
+                : 'Paso ${_currentStep + 1} de ${_tutorials.length}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          ),
+        ],
+      ),
+    );
+
+    if (!hasVideo) return badge;
+
+    return GestureDetector(
+      onTap: () => launchUrl(
+        Uri.parse(video),
+        mode: LaunchMode.externalApplication,
+      ),
+      child: badge,
     );
   }
 

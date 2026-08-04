@@ -1,33 +1,49 @@
 import 'package:flutter/material.dart';
 
-/// Screen / Modal displaying a doctor's full profile, curriculum, experience,
-/// registration number (Superintendencia de Salud), and rating stars.
+import '../models/professional.dart';
+
+/// B.3 — ficha del profesional que va a atender: currículum, experiencia,
+/// registro de la Superintendencia de Salud y evaluación.
+///
+/// Nada aquí tiene valor por defecto. Un número de registro, unos años de
+/// experiencia o unas estrellas inventadas son exactamente el tipo de dato con
+/// el que un paciente decide si deja entrar a alguien a su casa: si el servidor
+/// no lo envía, la ficha dice que no está informado.
 class DoctorProfileScreen extends StatelessWidget {
-  final Map<String, dynamic> doctorData;
+  final Professional professional;
 
-  const DoctorProfileScreen({super.key, required this.doctorData});
+  /// Teléfono de contacto. Solo llega cuando el profesional está asignado a una
+  /// atención del paciente; no viaja en el catálogo público.
+  final String? phone;
 
-  static Future<void> showModal(BuildContext context, Map<String, dynamic> doctorData) {
+  const DoctorProfileScreen({
+    super.key,
+    required this.professional,
+    this.phone,
+  });
+
+  static Future<void> showModal(
+    BuildContext context,
+    Professional professional, {
+    String? phone,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DoctorProfileScreen(doctorData: doctorData),
+      builder: (context) => DoctorProfileScreen(
+        professional: professional,
+        phone: phone,
+      ),
     );
   }
+
+  static const _accent = Color(0xFF0F766E);
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final name = doctorData['name'] ?? 'Profesional Clínico';
-    final specialty = doctorData['specialty'] ?? 'Medicina General';
-    final bio = doctorData['bio'] ??
-        'Médico Cirujano titulado con amplia experiencia en atención domiciliaria, medicina preventiva y telemedicina.';
-    final registration = doctorData['registration_number'] ?? 'SIS-492015';
-    final years = doctorData['years_of_experience'] ?? 7;
-    final rating = (doctorData['rating_avg'] ?? 4.9).toDouble();
-    final ratingCount = doctorData['rating_count'] ?? 42;
-    final phone = doctorData['phone'] ?? '+56 9 8765 4321';
+    final muted = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Container(
       decoration: BoxDecoration(
@@ -58,55 +74,32 @@ class DoctorProfileScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Row(
               children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.15),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    size: 40,
-                    color: Color(0xFF0D9488),
-                  ),
-                ),
+                _buildAvatar(),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        professional.name,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        specialty,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF0D9488),
-                          fontWeight: FontWeight.w600,
+                      if (professional.specialty.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          professional.specialty,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: _accent,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 16,
-                            color: Colors.amber,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$rating ($ratingCount evaluaciones)',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildRating(muted),
                     ],
                   ),
                 ),
@@ -115,52 +108,45 @@ class DoctorProfileScreen extends StatelessWidget {
             const SizedBox(height: 20),
             const Divider(),
             const SizedBox(height: 12),
-            const Text(
-              'INFORMACIÓN PROFESIONAL Y REGISTRO',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-                color: Color(0xFF0D9488),
-              ),
-            ),
+            _buildSectionTitle('INFORMACIÓN PROFESIONAL Y REGISTRO'),
             const SizedBox(height: 12),
             _buildInfoRow(
               icon: Icons.verified_user_rounded,
               label: 'Registro Superintendencia de Salud',
-              value: registration,
+              value: professional.registrationNumber ?? 'No informado',
               isDark: isDark,
             ),
             const SizedBox(height: 10),
             _buildInfoRow(
               icon: Icons.work_history_rounded,
-              label: 'Experiencia Clínica',
-              value: '$years años de práctica médica',
+              label: 'Experiencia clínica',
+              value: professional.yearsOfExperience != null
+                  ? '${professional.yearsOfExperience} años de práctica'
+                  : 'No informada',
               isDark: isDark,
             ),
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              icon: Icons.phone_rounded,
-              label: 'Contacto de Emergencia',
-              value: phone,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'BIOGRAFÍA Y CURRÍCULUM',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-                color: Color(0xFF0D9488),
+            if (phone != null && phone!.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildInfoRow(
+                icon: Icons.phone_rounded,
+                label: 'Contacto durante la atención',
+                value: phone!,
+                isDark: isDark,
               ),
-            ),
+            ],
+            const SizedBox(height: 16),
+            _buildSectionTitle('BIOGRAFÍA Y CURRÍCULUM'),
             const SizedBox(height: 8),
             Text(
-              bio,
+              professional.bio?.trim().isNotEmpty == true
+                  ? professional.bio!
+                  : 'Este profesional todavía no ha publicado su reseña.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.5,
+                fontStyle: professional.bio?.trim().isNotEmpty == true
+                    ? FontStyle.normal
+                    : FontStyle.italic,
                 color: isDark ? Colors.grey[300] : Colors.grey[700],
               ),
             ),
@@ -170,7 +156,7 @@ class DoctorProfileScreen extends StatelessWidget {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
+                  backgroundColor: _accent,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -178,13 +164,70 @@ class DoctorProfileScreen extends StatelessWidget {
                 ),
                 onPressed: () => Navigator.pop(context),
                 child: const Text(
-                  'Cerrar Perfil',
+                  'Cerrar perfil',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    final photo = professional.photoUrl;
+
+    return CircleAvatar(
+      radius: 36,
+      backgroundColor: _accent.withValues(alpha: 0.15),
+      // `foregroundImage` deja el icono debajo como respaldo: si la foto no
+      // carga, la ficha no queda con un hueco gris.
+      foregroundImage: (photo != null && photo.isNotEmpty)
+          ? NetworkImage(photo)
+          : null,
+      child: const Icon(Icons.person_rounded, size: 40, color: _accent),
+    );
+  }
+
+  Widget _buildRating(Color? muted) {
+    if (!professional.hasRating) {
+      return Text(
+        'Sin evaluaciones aún',
+        style: TextStyle(fontSize: 12, color: muted, fontStyle: FontStyle.italic),
+      );
+    }
+
+    final average = professional.ratingAvg!;
+    final count = professional.ratingCount;
+
+    return Row(
+      children: [
+        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+          '${average.toStringAsFixed(1)} '
+          '($count ${count == 1 ? 'evaluación' : 'evaluaciones'})',
+          style: TextStyle(
+            fontSize: 12,
+            color: muted,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.8,
+        color: _accent,
       ),
     );
   }
@@ -196,27 +239,30 @@ class DoctorProfileScreen extends StatelessWidget {
     required bool isDark,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF0D9488)),
+        Icon(icon, size: 18, color: _accent),
         const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
               ),
-            ),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

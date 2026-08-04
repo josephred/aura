@@ -74,7 +74,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               widget.state.themeMode == ThemeMode.dark
                                   ? Icons.light_mode_outlined
                                   : Icons.dark_mode_outlined,
-                              color: const Color(0xFF0D9488),
+                              color: const Color(0xFF0F766E),
                             ),
                             tooltip: 'Alternar Tema',
                             onPressed: () {
@@ -87,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           IconButton(
                             icon: const Icon(
                               Icons.text_fields_rounded,
-                              color: Color(0xFF0D9488),
+                              color: Color(0xFF0F766E),
                             ),
                             tooltip: 'Ajustar tamaño de letra',
                             onPressed: () {
@@ -111,7 +111,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF0D9488),
+                                    Color(0xFF0F766E),
                                     Color(0xFF2DD4BF),
                                   ], // teal-600 to teal-400
                                   begin: Alignment.bottomLeft,
@@ -121,7 +121,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 boxShadow: [
                                   BoxShadow(
                                     color: const Color(
-                                      0xFF0D9488,
+                                      0xFF0F766E,
                                     ).withValues(alpha: 0.3),
                                     blurRadius: 20,
                                     offset: const Offset(0, 8),
@@ -155,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF0D9488), // teal-600
+                          color: Color(0xFF0F766E), // teal-600
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -220,26 +220,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         child: ElevatedButton(
                           onPressed: widget.onStart,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D9488),
+                            backgroundColor: const Color(0xFF0F766E),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
                             elevation: 2,
                             shadowColor: const Color(
-                              0xFF0D9488,
+                              0xFF0F766E,
                             ).withValues(alpha: 0.4),
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
+                              Flexible(
+                                child: Text(
                                 'INGRESAR A LA PLATAFORMA',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.0,
                                 ),
+                              ),
                               ),
                               SizedBox(width: 8),
                               Icon(Icons.chevron_right, size: 18),

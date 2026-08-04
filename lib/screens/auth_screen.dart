@@ -92,7 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         widget.state.themeMode == ThemeMode.dark
                             ? Icons.light_mode_outlined
                             : Icons.dark_mode_outlined,
-                        color: const Color(0xFF0D9488),
+                        color: const Color(0xFF0F766E),
                       ),
                       tooltip: 'Alternar Tema',
                       onPressed: () {
@@ -105,7 +105,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     IconButton(
                       icon: const Icon(
                         Icons.text_fields_rounded,
-                        color: Color(0xFF0D9488),
+                        color: Color(0xFF0F766E),
                       ),
                       tooltip: 'Ajustar tamaño de letra',
                       onPressed: () {
@@ -125,14 +125,14 @@ class _AuthScreenState extends State<AuthScreen> {
                     width: 84,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF0D9488), Color(0xFF2DD4BF)],
+                        colors: [Color(0xFF0F766E), Color(0xFF2DD4BF)],
                         begin: Alignment.bottomLeft,
                         end: Alignment.topRight,
                       ),
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0D9488).withValues(alpha: 0.3),
+                          color: const Color(0xFF0F766E).withValues(alpha: 0.3),
                           blurRadius: 24,
                           offset: const Offset(0, 8),
                         ),
@@ -202,6 +202,9 @@ class _AuthScreenState extends State<AuthScreen> {
                         icon: Icons.lock_outline_rounded,
                         obscureText: _obscurePassword,
                         suffix: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Mostrar contraseña'
+                              : 'Ocultar contraseña',
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_off_outlined
@@ -262,7 +265,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: FilledButton(
                     onPressed: _isSubmitting ? null : _submit,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D9488),
+                      backgroundColor: const Color(0xFF0F766E),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -306,7 +309,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextSpan(
                           text: _isRegistering ? 'Inicia sesión' : 'Regístrate',
                           style: const TextStyle(
-                            color: Color(0xFF0D9488),
+                            color: Color(0xFF0F766E),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -349,7 +352,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         color: Color(0xFFEA4335),
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
-                        fontFamily: 'Inter',
                       ),
                     ),
                     label: Text(
@@ -380,7 +382,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 22,
-                        fontFamily: 'Inter',
                       ),
                     ),
                     label: const Text(
@@ -439,21 +440,23 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               Icon(Icons.science_outlined, size: 16, color: p.textMuted),
               const SizedBox(width: 6),
-              Text(
+              Flexible(
+                child: Text(
                 'CUENTAS DE PRUEBA',
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.8,
                   color: p.textMuted,
                 ),
+              ),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
             'Contraseña común: $_testAccountPassword',
-            style: TextStyle(fontSize: 10, color: p.textFaint),
+            style: TextStyle(fontSize: 12, color: p.textFaint),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -465,7 +468,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     label: Text(
                       entry.key,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -535,7 +538,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF0D9488), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

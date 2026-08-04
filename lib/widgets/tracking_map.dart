@@ -234,7 +234,7 @@ class _TrackingMapState extends State<TrackingMap> {
                   alignment: Alignment.center,
                   child: Text(
                     'Ubicando al profesional…',
-                    style: TextStyle(fontSize: 11, color: context.palette.textMuted),
+                    style: TextStyle(fontSize: 12, color: context.palette.textMuted),
                   ),
                 ),
 
@@ -246,7 +246,7 @@ class _TrackingMapState extends State<TrackingMap> {
                   color: Colors.white70,
                   child: const Text(
                     '© OpenStreetMap',
-                    style: TextStyle(fontSize: 7, color: Color(0xFF475569)),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
                   ),
                 ),
               ),
@@ -262,26 +262,30 @@ class _TrackingMapState extends State<TrackingMap> {
               children: [
                 Icon(Icons.route, color: p.accent, size: 14),
                 const SizedBox(width: 6),
-                Text(
+                Flexible(
+                  child: Text(
                   '${_distanceKm!.toStringAsFixed(1)} km restantes',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: context.palette.textPrimary,
                   ),
                 ),
+                ),
                 const Spacer(),
                 Icon(Icons.access_time, color: p.accent, size: 14),
                 const SizedBox(width: 6),
-                Text(
+                Flexible(
+                  child: Text(
                   _pro == null
                       ? 'Esperando GPS'
                       : '≈ ${_etaMin ?? '--'} min',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: context.palette.textPrimary,
                   ),
+                ),
                 ),
               ],
             ),

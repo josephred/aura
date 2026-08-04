@@ -6,6 +6,7 @@ import '../state/app_state.dart';
 import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
+import 'doctor_profile_screen.dart';
 
 class BookAppointmentScreen extends StatefulWidget {
   final AppState state;
@@ -328,7 +329,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         child: Text(
           text.toUpperCase(),
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
             color: p.textMuted,
@@ -369,7 +370,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 12,
                 color:
                     selected ? p.accentSurface : p.textMuted,
               ),
@@ -431,6 +432,47 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     style: TextStyle(
                         fontSize: 12, color: p.textMuted),
                   ),
+                  const SizedBox(height: 4),
+                  // B.3 — conocer al profesional antes de agendar con él.
+                  // El toque abre la ficha sin seleccionar la tarjeta: mirar
+                  // un currículum no debería comprometer una reserva.
+                  GestureDetector(
+                    onTap: () => DoctorProfileScreen.showModal(
+                      context,
+                      professional,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.badge_outlined, size: 12, color: p.accent),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                          'Ver ficha',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: p.accent,
+                          ),
+                        ),
+                        ),
+                        if (professional.hasRating) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.star_rounded,
+                              size: 12, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(
+                            professional.ratingAvg!.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: p.textMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -448,7 +490,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 Text(
                   '${professional.consultationDurationMinutes} min',
                   style: TextStyle(
-                      fontSize: 11, color: p.textMuted),
+                      fontSize: 12, color: p.textMuted),
                 ),
               ],
             ),
@@ -460,8 +502,12 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Widget _buildDatePicker() {
     final today = DateTime.now();
+    // Igual que el selector de laboratorio: el alto sigue al escalado de
+    // fuente, o el calendario recorta el día al subir la letra.
+    final scale = MediaQuery.textScalerOf(context).scale(1.0);
+
     return SizedBox(
-      height: 76,
+      height: 76 * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 14,
@@ -492,7 +538,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   Text(
                     _daysEs[date.weekday - 1],
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: selected ? Colors.white70 : p.textMuted,
                     ),
@@ -509,7 +555,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   Text(
                     _monthsEs[date.month - 1],
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       color: selected ? Colors.white70 : p.textFaint,
                     ),
                   ),

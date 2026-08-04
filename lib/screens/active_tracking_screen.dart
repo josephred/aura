@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:aura/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../utils/money.dart';
+import '../theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/dependent.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
 import '../widgets/tracking_map.dart';
+import 'doctor_profile_screen.dart';
 
 class ActiveTrackingScreen extends StatefulWidget {
   final AppState state;
@@ -127,8 +130,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
               children: [
                 Text(
                   'Asignando profesional',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -137,7 +139,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 Text(
                   'Tu solicitud está en la cola de tu sector. Te mostraremos '
                   'quién te atenderá apenas la tome un prestador en turno.',
-                  style: TextStyle(fontSize: 11, color: p.textMuted, height: 1.4),
+                  style: AppType.bodySmall.copyWith( color: p.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -196,13 +199,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
+              Flexible(
+                child: Text(
                 'Seguimiento Clínico',
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppType.bodyLarge.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
+              ),
               ),
             ],
           ),
@@ -262,9 +266,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           children: [
                             Text(
                               'ESTADO DEL TRASLADO / ATENCIÓN',
-                              style: TextStyle(
+                              style: AppType.label.copyWith(
                                 color: Color(0xFF2DD4BF),
-                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                               ),
@@ -272,10 +275,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             SizedBox(height: 2),
                             Text(
                               'Evaluación en progreso. Complete el registro si requiere reembolso aseguradora.',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: const Color(0xFF94A3B8),
-                                fontSize: 10,
-                                height: 1.3,
                               ),
                             ),
                           ],
@@ -323,9 +324,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'TIEMPO ESPERADO DE DEMORA',
-                  style: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 9,
+                  style: AppType.label.copyWith(
+                    color: Color(0xFF94A3B8),
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.5,
                   ),
@@ -333,9 +333,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '$_minutesLeft min',
-                  style: const TextStyle(
+                  style: AppType.titleLarge.copyWith(
                     color: Colors.white,
-                    fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -358,18 +357,16 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         children: [
                           Text(
                             'VALOR DE LA PRESTACIÓN',
-                            style: const TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: Color(0xFF94A3B8),
-                              fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '\$${request.finalPrice.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')} ARS',
-                            style: const TextStyle(
+                            Money.format(request.finalPrice, withCode: true),
+                            style: AppType.bodyLarge.copyWith(
                               color: Colors.white,
-                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -382,16 +379,16 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: const Color(
-                            0xFF0D9488,
+                            0xFF0F766E,
                           ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: const Color(
-                              0xFF0D9488,
+                              0xFF0F766E,
                             ).withValues(alpha: 0.4),
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Icon(
                               Icons.shield_rounded,
@@ -399,13 +396,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                               size: 12,
                             ),
                             SizedBox(width: 4),
-                            Text(
+                            Flexible(
+                              child: Text(
                               'Pago Confirmado',
-                              style: TextStyle(
+                              style: AppType.bodySmall.copyWith(
                                 color: Color(0xFF2DD4BF),
-                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
                             ),
                           ],
                         ),
@@ -467,9 +465,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             ),
                             child: Text(
                               'PROFESIONAL CLÍNICO ASIGNADO',
-                              style: TextStyle(
+                              style: AppType.label.copyWith(
                                 color: p.accent,
-                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.5,
                               ),
@@ -478,8 +475,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           const SizedBox(height: 8),
                           Text(
                             prof['name']!,
-                            style: TextStyle(
-                              fontSize: 14,
+                            style: AppType.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textPrimary,
                             ),
@@ -487,11 +483,41 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           const SizedBox(height: 2),
                           Text(
                             prof['specialty']!,
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: AppType.bodySmall.copyWith(
                               color: p.textMuted,
                             ),
                           ),
+                          // B.3 — el paciente puede conocer la experiencia y el
+                          // registro de quien va a entrar a su casa, antes de
+                          // que llegue. Solo aparece con datos del servidor: en
+                          // el modo de respaldo local no hay ficha que mostrar.
+                          if (request.professionalProfile != null) ...[
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () => DoctorProfileScreen.showModal(
+                                context,
+                                request.professionalProfile!,
+                                phone: request.professionalPhone,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.badge_outlined,
+                                      size: 13, color: p.accent),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                    'Ver ficha profesional',
+                                    style: AppType.bodySmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: p.accent,
+                                    ),
+                                  ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       Container(
@@ -524,7 +550,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -532,12 +558,13 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                   size: 14,
                                 ),
                                 SizedBox(width: 6),
-                                Text(
+                                Flexible(
+                                  child: Text(
                                   'Chatear',
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
+                                ),
                                 ),
                               ],
                             ),
@@ -590,17 +617,18 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.phone_outlined, size: 14),
                                 SizedBox(width: 6),
-                                Text(
+                                Flexible(
+                                  child: Text(
                                   'Llamar',
-                                  style: TextStyle(
-                                    fontSize: 11,
+                                  style: AppType.bodySmall.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
+                                ),
                                 ),
                               ],
                             ),
@@ -628,8 +656,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
               children: [
                 Text(
                   'PROGRESO DEL SERVICIO',
-                  style: TextStyle(
-                    fontSize: 9,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textFaint,
                     letterSpacing: 0.5,
@@ -697,10 +724,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      Text(
+                                      Flexible(
+                                        child: Text(
                                         step['title']!,
-                                        style: TextStyle(
-                                          fontSize: 12,
+                                        style: AppType.bodySmall.copyWith(
                                           fontWeight: FontWeight.bold,
                                           color: isCurrent
                                               ? p.textPrimary
@@ -708,6 +735,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                                     ? p.textSecondary
                                                     : p.textFaint),
                                         ),
+                                      ),
                                       ),
                                       if (isCurrent) ...[
                                         const SizedBox(width: 8),
@@ -724,9 +752,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                           ),
                                           child: Text(
                                             'ACTUAL',
-                                            style: TextStyle(
+                                            style: AppType.bodySmall.copyWith(
                                               color: p.accent,
-                                              fontSize: 7,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
@@ -737,8 +764,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     step['desc']!,
-                                    style: TextStyle(
-                                      fontSize: 10,
+                                    style: AppType.bodySmall.copyWith(
                                       color: p.textMuted,
                                     ),
                                   ),
@@ -769,8 +795,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
               children: [
                 Text(
                   'DETALLES DE LA CITA',
-                  style: TextStyle(
-                    fontSize: 9,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textFaint,
                     letterSpacing: 0.5,
@@ -792,9 +817,8 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         children: [
                           Text(
                             'PACIENTE',
-                            style: TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: p.textFaint,
-                              fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -802,8 +826,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             widget.dependent != null
                                 ? '${widget.dependent!.name} (${widget.dependent!.relationship})'
                                 : 'Usuario Principal',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textSecondary,
                             ),
@@ -811,8 +834,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           if (widget.dependent != null)
                             Text(
                               widget.dependent!.medicalConditions,
-                              style: TextStyle(
-                                fontSize: 10,
+                              style: AppType.bodySmall.copyWith(
                                 color: p.textMuted,
                               ),
                             ),
@@ -837,16 +859,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         children: [
                           Text(
                             'DOMICILIO',
-                            style: TextStyle(
+                            style: AppType.bodySmall.copyWith(
                               color: p.textFaint,
-                              fontSize: 8,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             request.addressText,
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textSecondary,
                             ),
@@ -903,9 +923,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     side: const BorderSide(color: Color(0xFFFFE4E6)),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Cancelar Solicitud de Servicio',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             )
@@ -924,9 +945,10 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Volver a Inicio',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -969,8 +991,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   children: [
                     Text(
                       'SEGUIMIENTO EN TIEMPO REAL',
-                      style: TextStyle(
-                        fontSize: 8,
+                      style: AppType.label.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textMuted,
                         letterSpacing: 0.5,
@@ -979,8 +1000,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     const SizedBox(height: 2),
                     Text(
                       statusText,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textPrimary,
                       ),
@@ -1006,13 +1026,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         size: 11,
                       ),
                       const SizedBox(width: 4),
-                      const Text(
+                      Flexible(
+                        child: Text(
                         'GPS ACTIVO',
-                        style: TextStyle(
+                        style: AppType.bodySmall.copyWith(
                           color: Color(0xFF0369A1),
-                          fontSize: 8,
                           fontWeight: FontWeight.bold,
                         ),
+                      ),
                       ),
                     ],
                   ),
@@ -1054,8 +1075,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   Expanded(
                     child: Text(
                       'El vehículo clínico se desplaza por autopista principal. Tránsito fluido.',
-                      style: TextStyle(
-                        fontSize: 9.5,
+                      style: AppType.bodySmall.copyWith(
                         color: p.accent.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w500,
                       ),

@@ -366,6 +366,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             Text(
                               _status,
                               textAlign: TextAlign.center,
+                              // Esta pantalla tiene fondo casi negro propio, no
+                              // el del tema: aquí el gris claro es el que
+                              // contrasta (7.86:1 contra 4.23:1).
                               style: const TextStyle(
                                   color: Color(0xFF94A3B8), fontSize: 13),
                             ),
