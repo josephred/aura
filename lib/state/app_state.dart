@@ -1549,9 +1549,11 @@ class AppState extends ChangeNotifier {
       );
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        return (data['slots'] as List<dynamic>)
-            .map((iso) => DateTime.parse(iso as String).toLocal())
-            .toList();
+        return (data['slots'] as List<dynamic>).map((iso) {
+          final s = iso as String;
+          final clean = s.length >= 19 ? s.substring(0, 19) : s;
+          return DateTime.parse(clean);
+        }).toList();
       }
     } catch (e) {
       debugPrint('fetchSlots failed. Error: $e');
@@ -1583,11 +1585,14 @@ class AppState extends ChangeNotifier {
     String type = 'presencial',
   }) async {
     try {
+      final formattedScheduledAt =
+          '${scheduledAt.year.toString().padLeft(4, '0')}-${scheduledAt.month.toString().padLeft(2, '0')}-${scheduledAt.day.toString().padLeft(2, '0')}T${scheduledAt.hour.toString().padLeft(2, '0')}:${scheduledAt.minute.toString().padLeft(2, '0')}:00';
+
       final response = await _apiService.post(
         '/appointments',
         body: {
           'professional_id': professionalId,
-          'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+          'scheduled_at': formattedScheduledAt,
           'type': type,
           if (reason != null && reason.isNotEmpty) 'reason': reason,
         },
