@@ -304,7 +304,7 @@ class HistoryScreen extends StatelessWidget {
                               // mirar nada: se anunciaba a un profesional en
                               // ruta aunque la solicitud siguiera en cola.
                               Text(
-                                activeRequest!.status.label,
+                                activeRequest.status.label,
                                 style: AppType.bodySmall.copyWith(
                                   color: p.textMuted,
                                   fontWeight: FontWeight.w500,
@@ -320,7 +320,7 @@ class HistoryScreen extends StatelessWidget {
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                  activeRequest!.addressText,
+                                  activeRequest.addressText,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppType.bodySmall.copyWith(

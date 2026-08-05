@@ -83,7 +83,7 @@ class _MainAppState extends State<MainApp> {
         // dejan de soportar más crecimiento sin desbordarse.
         final systemScale = mediaQueryData.textScaler.scale(1.0);
         final combinedScale =
-            (systemScale * _appState.textScaleFactor).clamp(1.0, 2.0);
+            (systemScale * _appState.textScaleFactor).clamp(0.85, 2.2);
 
         return MediaQuery(
           data: mediaQueryData.copyWith(
