@@ -24,6 +24,7 @@ import '../models/past_service.dart';
 import '../models/staff_models.dart';
 import '../models/zone_eta_estimate.dart';
 import '../services/api_service.dart';
+import '../services/locality_service.dart';
 import '../services/db_helper.dart';
 import '../services/outbox_service.dart';
 import '../services/push_service.dart';
@@ -219,6 +220,8 @@ class AppState extends ChangeNotifier {
       // app is legible for older adults out of the box.
       _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.15;
       _userAge = prefs.getInt('user_age');
+      // Última comuna conocida: se pinta de inmediato y se refresca por detrás.
+      _currentLocality = prefs.getString('last_locality');
       _safetyNoticeDismissed = prefs.getBool('safety_notice_dismissed') ?? false;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
@@ -1011,6 +1014,53 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('text_scale_factor', factor);
+  }
+
+  // ==================== Ubicación del usuario ====================
+
+  final _localityService = const LocalityService();
+
+  String? _currentLocality;
+  LocalityStatus _localityStatus = LocalityStatus.idle;
+  double? _currentLat;
+  double? _currentLng;
+
+  /// Comuna donde está el usuario, o null si aún no se sabe.
+  ///
+  /// Nunca se rellena con un valor por defecto: la cabecera mostraba
+  /// "Providencia" fijo, lo que le decía a cualquiera —viviese donde viviese—
+  /// que estaba en una comuna de Santiago.
+  String? get currentLocality => _currentLocality;
+  LocalityStatus get localityStatus => _localityStatus;
+  double? get currentLat => _currentLat;
+  double? get currentLng => _currentLng;
+
+  /// Resuelve la comuna actual.
+  ///
+  /// [askPermission] solo se activa cuando la persona toca el indicador: pedir
+  /// el permiso de ubicación nada más abrir, sin que haya hecho nada, es
+  /// intrusivo y se deniega más.
+  Future<void> resolveCurrentLocality({bool askPermission = false}) async {
+    if (_localityStatus == LocalityStatus.locating) return;
+
+    _localityStatus = LocalityStatus.locating;
+    notifyListeners();
+
+    final result = await _localityService.resolve(askPermission: askPermission);
+
+    _localityStatus = result.status;
+    if (result.status == LocalityStatus.ready) {
+      _currentLocality = result.locality;
+      _currentLat = result.latitude;
+      _currentLng = result.longitude;
+
+      // Se guarda para que al volver a abrir la app se vea la comuna al
+      // instante en lugar de un "Ubicando…" de tres segundos.
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('last_locality', result.locality!);
+    }
+
+    notifyListeners();
   }
 
   /// Edad del titular, usada por las alertas preventivas por rango etario

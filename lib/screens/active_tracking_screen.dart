@@ -396,14 +396,12 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                               size: 12,
                             ),
                             SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
+                            Text(
                               'Pago Confirmado',
                               style: AppType.bodySmall.copyWith(
                                 color: Color(0xFF2DD4BF),
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
                             ),
                           ],
                         ),
@@ -505,14 +503,12 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                                   Icon(Icons.badge_outlined,
                                       size: 13, color: p.accent),
                                   const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
+                                  Text(
                                     'Ver ficha profesional',
                                     style: AppType.bodySmall.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: p.accent,
                                     ),
-                                  ),
                                   ),
                                 ],
                               ),
@@ -1026,14 +1022,12 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         size: 11,
                       ),
                       const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
+                      Text(
                         'GPS ACTIVO',
                         style: AppType.bodySmall.copyWith(
                           color: Color(0xFF0369A1),
                           fontWeight: FontWeight.bold,
                         ),
-                      ),
                       ),
                     ],
                   ),

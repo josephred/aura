@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/locality_service.dart';
+import 'package:geolocator/geolocator.dart';
 import '../theme/app_typography.dart';
 import '../models/clinical_service.dart';
 import '../models/service_request.dart';
@@ -203,15 +205,13 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
+                                Text(
                                   'COBERTURA ACTIVA',
                                   style: AppType.label.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: context.palette.textMuted,
                                     letterSpacing: 0.5,
                                   ),
-                                ),
                                 ),
                               ],
                             ),
@@ -221,46 +221,8 @@ class HomeScreen extends StatelessWidget {
                     ),
                     Row(
                       children: [
-                        // Map Pin Location pill
-                        GestureDetector(
-                          onTap: () => state.setTab('profile'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).brightness == Brightness.dark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? const Color(0xFF334155)
-                                    : const Color(0xFFCCFBF1),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.location_on,
-                                  color: Color(0xFF0F766E),
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                  'Providencia',
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // Comuna real del usuario (ver _LocalityPill).
+                        _LocalityPill(state: state),
                         const SizedBox(width: 8),
                         // Notification Bell
                         Stack(
@@ -752,49 +714,50 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              service.shortTitle,
-                              style: AppType.bodySmall.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                      // El título ocupa la línea entera. Compartirla con la
+                      // etiqueta de receta lo dejaba en "Enf…" y "Kin…": con
+                      // el cuerpo en 14 la insignia se comía el nombre del
+                      // servicio, que es el dato por el que se elige.
+                      Text(
+                        service.shortTitle,
+                        style: AppType.bodySmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (service.requiresPrescription) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFF78350F).withValues(alpha: 0.3)
+                                : const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                                  : const Color(0xFFFDE68A),
                             ),
                           ),
-                          if (service.requiresPrescription) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.brightness == Brightness.dark
-                                    ? const Color(0xFF78350F).withValues(alpha: 0.3)
-                                    : const Color(0xFFFFFBEB),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: theme.brightness == Brightness.dark
-                                      ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
-                                      : const Color(0xFFFDE68A),
-                                ),
-                              ),
-                              child: Text(
-                                'REQUIERE ORDEN',
-                                style: AppType.bodySmall.copyWith(
-                                  color: theme.brightness == Brightness.dark
-                                      ? const Color(0xFFFBBF24)
-                                      : const Color(0xFFB45309),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          // `label` y no `bodySmall`: es una insignia de tres
+                          // palabras, no texto que se lea de corrido.
+                          child: Text(
+                            'REQUIERE ORDEN',
+                            style: AppType.label.copyWith(
+                              color: theme.brightness == Brightness.dark
+                                  ? const Color(0xFFFBBF24)
+                                  : const Color(0xFFB45309),
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 3),
                       Text(
                         service.subtitle,
@@ -872,4 +835,147 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+}
+
+/// Indicador de comuna de la cabecera.
+///
+/// Antes decía "Providencia" fijo: a cualquier persona, viviese donde viviese,
+/// se le afirmaba que estaba en una comuna de Santiago. Ahora refleja lo que
+/// realmente se sabe, y cuando no se sabe lo dice y ofrece la salida.
+///
+/// Es `StatefulWidget` porque el primer intento se lanza al montarse, una sola
+/// vez, y sin pedir permiso: se aprovecha el que ya esté concedido. El diálogo
+/// solo aparece si la persona toca el indicador — pedir la ubicación nada más
+/// abrir, sin que haya hecho nada, se deniega mucho más.
+class _LocalityPill extends StatefulWidget {
+  final AppState state;
+
+  const _LocalityPill({required this.state});
+
+  @override
+  State<_LocalityPill> createState() => _LocalityPillState();
+}
+
+class _LocalityPillState extends State<_LocalityPill> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.state.localityStatus == LocalityStatus.idle) {
+        widget.state.resolveCurrentLocality();
+      }
+    });
+  }
+
+  /// Qué se muestra en cada estado. Ninguno inventa una comuna.
+  ({String label, IconData icon, bool busy}) _display() {
+    final state = widget.state;
+    final known = state.currentLocality;
+
+    switch (state.localityStatus) {
+      case LocalityStatus.locating:
+        // Con una comuna cacheada se sigue mostrando mientras se refresca:
+        // parpadear a "Ubicando…" en cada arranque es peor que un dato de
+        // hace un minuto.
+        return known != null
+            ? (label: known, icon: Icons.location_on, busy: true)
+            : (label: 'Ubicando…', icon: Icons.location_searching, busy: true);
+
+      case LocalityStatus.ready:
+        return (label: known ?? 'Sin ubicación', icon: Icons.location_on, busy: false);
+
+      case LocalityStatus.serviceDisabled:
+        return (label: 'GPS apagado', icon: Icons.location_disabled, busy: false);
+
+      case LocalityStatus.denied:
+      case LocalityStatus.deniedForever:
+        return known != null
+            ? (label: known, icon: Icons.location_off, busy: false)
+            : (label: 'Activar ubicación', icon: Icons.location_off, busy: false);
+
+      case LocalityStatus.failed:
+        return known != null
+            ? (label: known, icon: Icons.location_on, busy: false)
+            : (label: 'Reintentar ubicación', icon: Icons.location_searching, busy: false);
+
+      case LocalityStatus.idle:
+        return known != null
+            ? (label: known, icon: Icons.location_on, busy: false)
+            : (label: 'Ubicando…', icon: Icons.location_searching, busy: true);
+    }
+  }
+
+  Future<void> _onTap() async {
+    final state = widget.state;
+
+    if (state.localityStatus == LocalityStatus.deniedForever) {
+      // Ya no se puede volver a preguntar: solo queda mandar a los ajustes.
+      await Geolocator.openAppSettings();
+      return;
+    }
+    if (state.localityStatus == LocalityStatus.serviceDisabled) {
+      await Geolocator.openLocationSettings();
+      return;
+    }
+
+    await state.resolveCurrentLocality(askPermission: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.state,
+      builder: (context, _) {
+        final d = _display();
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return GestureDetector(
+          onTap: _onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? const Color(0xFF1E293B)
+                  : Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFCCFBF1),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (d.busy)
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.6,
+                      color: Color(0xFF0F766E),
+                    ),
+                  )
+                else
+                  Icon(d.icon, color: const Color(0xFF0F766E), size: 12),
+                const SizedBox(width: 4),
+                // Se acota para que una comuna de nombre largo, o el texto al
+                // escalar la letra, no empuje la campana fuera de la cabecera.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    d.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppType.bodySmall.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

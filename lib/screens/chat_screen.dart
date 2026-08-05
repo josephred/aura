@@ -89,15 +89,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         children: [
                           Row(
                             children: [
-                              Flexible(
-                                child: Text(
+                              Text(
                                 'Mesa de Asistencia Aura',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   color: p.textPrimary,
                                 ),
-                              ),
                               ),
                               const SizedBox(width: 6),
                               Container(
@@ -139,15 +137,13 @@ class _ChatScreenState extends State<ChatScreen> {
                           size: 10,
                         ),
                         const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
+                        Text(
                           'Clínica Digital',
                           style: TextStyle(
                             color: p.accentText,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
-                        ),
                         ),
                       ],
                     ),

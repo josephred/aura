@@ -9,6 +9,18 @@ enum RequestStatus {
   completed,
   cancelled;
 
+  /// Texto que ve el paciente. Vive aquí para que ninguna pantalla vuelva a
+  /// escribir "En camino" a mano sin mirar el estado real.
+  String get label => switch (this) {
+        RequestStatus.pending => 'En cola de tu sector',
+        RequestStatus.pendingPayment => 'Pago pendiente',
+        RequestStatus.accepted => 'Profesional asignado',
+        RequestStatus.enCamino => 'En camino',
+        RequestStatus.enAtencion => 'En atención',
+        RequestStatus.completed => 'Completada',
+        RequestStatus.cancelled => 'Cancelada',
+      };
+
   String toJson() {
     switch (this) {
       case RequestStatus.pending:

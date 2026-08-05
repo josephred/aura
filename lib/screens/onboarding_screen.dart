@@ -91,9 +91,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             ),
                             tooltip: 'Ajustar tamaño de letra',
                             onPressed: () {
-                              final nextScale = widget.state.textScaleFactor == 1.0
-                                  ? 1.2
-                                  : (widget.state.textScaleFactor == 1.2 ? 1.4 : 1.0);
+                              final current = widget.state.textScaleFactor;
+                              final double nextScale;
+                              if (current <= 1.0) {
+                                nextScale = 1.15;
+                              } else if (current <= 1.15) {
+                                nextScale = 1.3;
+                              } else if (current <= 1.3) {
+                                nextScale = 1.5;
+                              } else {
+                                nextScale = 1.0;
+                              }
                               widget.state.setTextScaleFactor(nextScale);
                             },
                           ),

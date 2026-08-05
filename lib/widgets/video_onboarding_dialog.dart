@@ -97,14 +97,12 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Flexible(
-                      child: const Text(
+                    const Text(
                       'Primeros pasos en Aura',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
                     ),
                   ],
                 ),

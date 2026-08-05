@@ -546,14 +546,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     child: Row(
                       children: [
                         Icon(Icons.chevron_left, color: p.accent),
-                        Flexible(
-                          child: Text(
+                        Text(
                           'Volver al inicio',
                           style: AppType.bodyMedium.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.accent,
                           ),
-                        ),
                         ),
                       ],
                     ),
@@ -2294,14 +2292,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       size: 14,
                     ),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+                    Text(
                       service.baseEta,
                       style: AppType.bodySmall.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
                     ),
                   ],
                 ),

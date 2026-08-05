@@ -157,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// saved an older value (1.0, 1.2, 1.4) still shows a valid selection
   /// instead of crashing the SegmentedButton.
   double _nearestTextScaleStep(double value) {
-    const steps = [1.15, 1.3, 1.5];
+    const steps = [1.0, 1.15, 1.3, 1.5];
     var closest = steps.first;
     for (final step in steps) {
       if ((step - value).abs() < (closest - value).abs()) closest = step;
@@ -524,14 +524,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 18,
                         ),
                         SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
+                        Text(
                           'Cargas y Familiares',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
-                        ),
                         ),
                       ],
                     ),
@@ -563,14 +561,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: p.accent,
                             ),
                             const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
+                            Text(
                               _showAddDep ? 'Ocultar' : 'Agregar',
                               style: AppType.bodySmall.copyWith(
                                 color: p.accent,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
                             ),
                           ],
                         ),
@@ -838,14 +834,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 18,
                         ),
                         SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
+                        Text(
                           'Direcciones Frecuentes',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
-                        ),
                         ),
                       ],
                     ),
@@ -876,14 +870,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: p.accent,
                             ),
                             const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
+                            Text(
                               _showAddAddr ? 'Ocultar' : 'Agregar',
                               style: AppType.bodySmall.copyWith(
                                 color: p.accent,
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
                             ),
                           ],
                         ),
@@ -1060,14 +1052,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
                         SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
+                        Text(
                           'Medios de Pago Vinculados',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.textPrimary,
                           ),
-                        ),
                         ),
                       ],
                     ),
@@ -1096,14 +1086,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: const Color(0xFF0284C7),
                             ),
                             const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
+                            Text(
                               _showAddPay ? 'Ocultar' : 'Agregar',
                               style: AppType.bodySmall.copyWith(
                                 color: Color(0xFF0284C7),
                                 fontWeight: FontWeight.bold,
                               ),
-                            ),
                             ),
                           ],
                         ),
@@ -1265,14 +1253,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Flexible(
-                                child: Text(
+                              Text(
                                 'PREDETERMINADO',
                                 style: AppType.bodySmall.copyWith(
                                   color: Color(0xFF059669),
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
                               ),
                               const SizedBox(width: 8),
                               IconButton(
@@ -1330,17 +1316,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                      'Apariencia visual',
-                      style: AppType.bodySmall.copyWith( color: p.textMuted,
-                      ),
-                    ),
-                    ),
-                    SegmentedButton<ThemeMode>(
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Apariencia visual',
+                    style: AppType.bodySmall.copyWith(color: p.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<ThemeMode>(
                       segments: [
                         ButtonSegment<ThemeMode>(
                           value: ThemeMode.light,
@@ -1369,7 +1355,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         selectedForegroundColor: p.accent,
                       ),
                     ),
-                  ],
                 ),
               ],
             ),
@@ -1442,21 +1427,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                      'Escalar fuentes',
-                      style: AppType.bodySmall.copyWith( color: p.textMuted,
-                      ),
-                    ),
-                    ),
-                    SegmentedButton<double>(
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Escalar fuentes',
+                    style: AppType.bodySmall.copyWith(color: p.textMuted),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<double>(
                       // 1.15 is the new baseline, so the steps start there.
                       // Older installs may still hold 1.0/1.2/1.4, hence the
                       // snap below instead of passing the raw value.
                       segments: [
+                        ButtonSegment<double>(
+                          value: 1.0,
+                          label: Text('Chico', style: AppType.bodySmall),
+                        ),
                         ButtonSegment<double>(
                           value: 1.15,
                           label: Text('Normal', style: AppType.bodySmall),
@@ -1481,7 +1470,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         selectedForegroundColor: p.accent,
                       ),
                     ),
-                  ],
                 ),
 
                 // Bring the home-screen safety notice back after dismissing it.

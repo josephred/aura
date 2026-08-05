@@ -244,34 +244,36 @@ class HistoryScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        height: 38,
-                        width: 38,
-                        decoration: BoxDecoration(
-                          color: p.accentSurface,
-                          borderRadius: BorderRadius.circular(12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          height: 38,
+                          width: 38,
+                          decoration: BoxDecoration(
+                            color: p.accentSurface,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.medical_services,
+                            color: p.accent,
+                            size: 18,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.medical_services,
-                          color: p.accent,
-                          size: 18,
-                        ),
-                      ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: p.accentSurface,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: p.accentSurface,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             child: Text(
                               'Cita Activa hoy',
                               style: AppType.bodySmall.copyWith(
@@ -297,39 +299,43 @@ class HistoryScreen extends StatelessWidget {
                                 size: 10,
                               ),
                               const SizedBox(width: 3),
-                              Flexible(
-                                child: Text(
-                                'En camino',
+                              // Estado y dirección reales de la solicitud.
+                              // Decían "En camino • Providencia" fijo, sin
+                              // mirar nada: se anunciaba a un profesional en
+                              // ruta aunque la solicitud siguiera en cola.
+                              Text(
+                                activeRequest!.status.label,
                                 style: AppType.bodySmall.copyWith(
                                   color: p.textMuted,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              ),
                               const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
+                              Text(
                                 '•',
                                 style: AppType.bodySmall.copyWith(
                                   color: p.borderStrong,
                                 ),
                               ),
-                              ),
                               const SizedBox(width: 6),
                               Flexible(
                                 child: Text(
-                                'Providencia',
-                                style: AppType.bodySmall.copyWith(
-                                  color: p.textMuted,
-                                  fontWeight: FontWeight.w500,
+                                  activeRequest!.addressText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppType.bodySmall.copyWith(
+                                    color: p.textMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              ),
                               ),
                             ],
                           ),
                         ],
                       ),
+                      ),
                     ],
+                  ),
                   ),
                   TextButton(
                     onPressed: () => state.setTab('appointments'),
@@ -557,14 +563,12 @@ class HistoryScreen extends StatelessWidget {
                       color: p.accent,
                     ),
                     SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+                    Text(
                       'Pedido/Receta',
                       style: AppType.bodySmall.copyWith(
                         color: p.accent,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
                     ),
                   ],
                 ),
@@ -589,13 +593,11 @@ class HistoryScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.refresh, size: 12),
                     SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
+                    Text(
                       'Pedir de nuevo',
                       style: AppType.bodySmall.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
                     ),
                   ],
                 ),
