@@ -304,7 +304,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     decoration: InputDecoration(
                       hintText: 'Ej: dolor de cabeza y fiebre',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: p.card,
                       counterText: '',
                       errorText: _reasonError,
                       helperText: _reasonError == null
@@ -345,10 +345,11 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? p.accent : Colors.white,
+          color: selected ? p.accent : p.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected ? p.accent : p.border,
+            width: selected ? 2 : 1,
           ),
         ),
         child: Column(
@@ -372,7 +373,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               style: TextStyle(
                 fontSize: 12,
                 color:
-                    selected ? p.accentSurface : p.textMuted,
+                    selected ? Colors.white.withValues(alpha: 0.85) : p.textMuted,
               ),
             ),
           ],
@@ -524,7 +525,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               width: 64,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: selected ? p.accent : Colors.white,
+                color: selected ? p.accent : p.card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: selected
