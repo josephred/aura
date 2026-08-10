@@ -831,12 +831,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     decoration: BoxDecoration(
                       color: _patientType == 'self'
                           ? p.accentSurface
-                          : Colors.white,
+                          : p.card,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _patientType == 'self'
                             ? p.accent
                             : p.border,
+                        width: _patientType == 'self' ? 2 : 1,
                       ),
                     ),
                     child: Column(
@@ -844,14 +845,18 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: p.accentSurface,
+                            color: _patientType == 'self'
+                                ? p.accent
+                                : p.surfaceHover,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             'Yo',
                             style: AppType.bodySmall.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: p.accent,
+                              color: _patientType == 'self'
+                                  ? Colors.white
+                                  : p.textMuted,
                             ),
                           ),
                         ),
@@ -860,7 +865,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           'Paciente Principal',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: p.textPrimary,
+                            color: _patientType == 'self'
+                                ? p.accent
+                                : p.textPrimary,
                           ),
                         ),
                       ],
@@ -879,12 +886,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     decoration: BoxDecoration(
                       color: _patientType == 'dependent'
                           ? p.accentSurface
-                          : Colors.white,
+                          : p.card,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _patientType == 'dependent'
                             ? p.accent
                             : p.border,
+                        width: _patientType == 'dependent' ? 2 : 1,
                       ),
                     ),
                     child: Column(
@@ -892,13 +900,17 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: p.accentSurface,
+                            color: _patientType == 'dependent'
+                                ? p.accent
+                                : p.surfaceHover,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.add,
                             size: 13,
-                            color: p.accent,
+                            color: _patientType == 'dependent'
+                                ? Colors.white
+                                : p.textMuted,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -906,7 +918,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           'Familiar / Dependiente',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: p.textPrimary,
+                            color: _patientType == 'dependent'
+                                ? p.accent
+                                : p.textPrimary,
                           ),
                         ),
                       ],
@@ -1935,12 +1949,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     decoration: BoxDecoration(
                       color: _ambulanceType == 'basic'
                           ? p.accentSurface
-                          : Colors.white,
+                          : p.card,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _ambulanceType == 'basic'
                             ? p.accent
                             : p.border,
+                        width: _ambulanceType == 'basic' ? 2 : 1,
                       ),
                     ),
                     child: Column(
@@ -1949,7 +1964,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           'Básica',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: p.textPrimary,
+                            color: _ambulanceType == 'basic' ? p.accent : p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -1974,12 +1989,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                     decoration: BoxDecoration(
                       color: _ambulanceType == 'medicalized'
                           ? p.accentSurface
-                          : Colors.white,
+                          : p.card,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: _ambulanceType == 'medicalized'
                             ? p.accent
                             : p.border,
+                        width: _ambulanceType == 'medicalized' ? 2 : 1,
                       ),
                     ),
                     child: Column(
@@ -1988,7 +2004,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           'Medicalizada',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: p.textPrimary,
+                            color: _ambulanceType == 'medicalized' ? p.accent : p.textPrimary,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -2107,7 +2123,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                         decoration: BoxDecoration(
                           color: isSel
                               ? p.accentSurface.withValues(alpha: 0.4)
-                              : Colors.white,
+                              : p.card,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isSel
