@@ -847,7 +847,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           decoration: BoxDecoration(
                             color: _patientType == 'self'
                                 ? p.accent
-                                : p.surfaceHover,
+                                : p.fill,
                             shape: BoxShape.circle,
                           ),
                           child: Text(
@@ -902,7 +902,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                           decoration: BoxDecoration(
                             color: _patientType == 'dependent'
                                 ? p.accent
-                                : p.surfaceHover,
+                                : p.fill,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
