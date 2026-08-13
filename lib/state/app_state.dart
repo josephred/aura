@@ -160,7 +160,9 @@ class AppState extends ChangeNotifier {
   Future<void> _onPushMessage(Map<String, dynamic> data) async {
     await fetchActiveRequest();
     if (_currentRequest != null && data['type'] == 'chat') {
-      _pendingMessages += 1;
+      // No se suma aquí: `fetchChatMessages` recalcula los no leídos sobre el
+      // hilo completo. Incrementar además duplicaba la cuenta cada vez que un
+      // push llegaba con la app abierta.
       await fetchChatMessages(_currentRequest!.id);
     }
   }
@@ -668,10 +670,31 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// True cuando el cuerpo de `/bookings/active` significa "no hay ninguna".
+  ///
+  /// El servidor **nunca manda `null`**: la `JsonResponse` de Symfony convierte
+  /// un null en `{}`. La comprobación anterior era `body != 'null'`, así que
+  /// cada vez que el paciente no tenía solicitud activa la app intentaba
+  /// parsear `{}`, lanzaba excepción y se iba al `catch` a leer la caché local.
+  /// Es decir, "no tienes nada" se trataba como un fallo de red y la app
+  /// confiaba en datos viejos del teléfono.
+  bool _isEmptyActiveResponse(String body) {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty || trimmed == 'null' || trimmed == '{}' || trimmed == '[]') {
+      return true;
+    }
+    try {
+      final decoded = json.decode(trimmed);
+      return decoded == null || (decoded is Map && decoded['id'] == null);
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> fetchActiveRequest() async {
     try {
       final response = await _apiService.get('/bookings/active');
-      if (response.statusCode == 200 && response.body.isNotEmpty && response.body != 'null') {
+      if (response.statusCode == 200 && !_isEmptyActiveResponse(response.body)) {
         final Map<String, dynamic> data = json.decode(response.body);
         _currentRequest = ServiceRequest.fromJson(data);
         await DbHelper.instance.saveBookings([_currentRequest!]);
@@ -680,6 +703,11 @@ class AppState extends ChangeNotifier {
       } else {
         stopActiveBookingStream();
         _currentRequest = null;
+        // Sin solicitud no hay canal clínico, así que tampoco puede haber
+        // mensajes pendientes. Es justo la contradicción que se veía: el globo
+        // marcaba 1 y la pantalla decía "Canal de Asistencia Inactivo".
+        _chatMessages.clear();
+        _pendingMessages = 0;
         await DbHelper.instance.saveBookings([]);
       }
       notifyListeners();
@@ -706,6 +734,7 @@ class AppState extends ChangeNotifier {
         _chatMessages.clear();
         _chatMessages.addAll(data.map((m) => ChatMessage.fromJson(m)).toList());
         await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
+        await _refreshUnreadCount(requestId);
         notifyListeners();
       }
     } catch (e) {
@@ -714,9 +743,64 @@ class AppState extends ChangeNotifier {
       if (localMsgs.isNotEmpty) {
         _chatMessages.clear();
         _chatMessages.addAll(localMsgs);
+        await _refreshUnreadCount(requestId);
         notifyListeners();
       }
     }
+  }
+
+  // -------------------------------------------------- mensajes sin leer
+  //
+  // El contador era un `_pendingMessages = 1` escrito a mano en tres sitios al
+  // confirmar una solicitud. Siempre decía 1 —daba igual que el servidor
+  // hubiese creado dos mensajes de apertura o que llegaran seis— y se borraba
+  // al abrir la pestaña, hubieras leído o no.
+
+  /// Id del último mensaje que el paciente vio en la solicitud en curso.
+  String? _lastSeenMessageId;
+
+  /// Recalcula los no leídos del hilo: los mensajes posteriores al último visto
+  /// que no escribió el propio paciente.
+  Future<void> _refreshUnreadCount(String requestId) async {
+    final prefs = await SharedPreferences.getInstance();
+    _lastSeenMessageId = prefs.getString('last_seen_msg_$requestId');
+
+    if (_chatMessages.isEmpty) {
+      _pendingMessages = 0;
+      return;
+    }
+
+    // Sin marca previa, todo lo del prestador cuenta como nuevo.
+    final seenIndex = _lastSeenMessageId == null
+        ? -1
+        : _chatMessages.indexWhere((m) => m.id == _lastSeenMessageId);
+
+    _pendingMessages = _chatMessages
+        .sublist(seenIndex + 1)
+        .where((m) => m.sender != 'patient')
+        .length;
+
+    // Si ya está mirando el chat, no tiene sentido marcarle un pendiente.
+    if (_activeTab == 'messages' && _pendingMessages > 0) {
+      await markMessagesRead();
+    }
+  }
+
+  /// Marca el hilo como leído hasta el último mensaje recibido.
+  Future<void> markMessagesRead() async {
+    _pendingMessages = 0;
+
+    final requestId = _currentRequest?.id;
+    if (requestId == null || _chatMessages.isEmpty) {
+      notifyListeners();
+      return;
+    }
+
+    _lastSeenMessageId = _chatMessages.last.id;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_seen_msg_$requestId', _lastSeenMessageId!);
   }
 
   Future<void> fetchHistory() async {
@@ -743,10 +827,14 @@ class AppState extends ChangeNotifier {
   // Setters & Actions
   void setTab(String tab) {
     _activeTab = tab;
-    if (tab == 'messages') {
-      _pendingMessages = 0;
-    }
     notifyListeners();
+
+    // Abrir la pestaña marca el hilo como leído hasta el último mensaje, y lo
+    // persiste. Antes solo se ponía el contador a cero en memoria: al volver a
+    // abrir la app el globo reaparecía o no según el azar.
+    if (tab == 'messages') {
+      markMessagesRead();
+    }
   }
 
   void setOnboarded(bool value) {
@@ -1125,6 +1213,28 @@ class AppState extends ChangeNotifier {
   List<StaffBooking> get staffBookingsOutsideZone =>
       _staffBookings.where((b) => b.outsideZone && b.isOpen).toList();
 
+  /// Visits already carried out, newest first.
+  ///
+  /// `/staff/bookings` returns the closed requests alongside the live queue, so
+  /// this needs no extra round trip. A professional only counts the ones
+  /// assigned to them; an admin has no `professional_id` and sees every closed
+  /// visit, which is the same scoping the rest of the staff area uses.
+  List<StaffBooking> get staffBookingsCompleted {
+    final ownId = _staffProfile?.professionalId;
+    final completed = _staffBookings
+        .where((b) =>
+            b.isCompleted && (ownId == null || b.professionalId == ownId))
+        .toList();
+
+    completed.sort((a, b) {
+      final aDate = a.createdAt;
+      final bDate = b.createdAt;
+      if (aDate == null || bDate == null) return 0;
+      return bDate.compareTo(aDate);
+    });
+    return completed;
+  }
+
   Future<void> refreshStaffArea() async {
     _staffLoading = true;
     _staffError = null;
@@ -1414,7 +1524,11 @@ class AppState extends ChangeNotifier {
           notifyListeners();
         } else {
           _activeTab = 'home';
-          _pendingMessages = 1;
+          // El servidor abre el canal con sus mensajes; el recuento sale de
+          // ellos, no de un 1 escrito a mano.
+          if (_currentRequest != null) {
+            await _refreshUnreadCount(_currentRequest!.id);
+          }
           notifyListeners();
         }
       } else {
@@ -1489,7 +1603,6 @@ class AppState extends ChangeNotifier {
 
         _selectedService = null;
         _activeTab = 'home';
-        _pendingMessages = 1;
 
         final serviceTitle = _services.firstWhere((s) => s.id == _currentRequest?.serviceId).shortTitle;
         _chatMessages.clear();
@@ -1510,6 +1623,10 @@ class AppState extends ChangeNotifier {
 
         await DbHelper.instance.saveBookings([_currentRequest!]);
         await DbHelper.instance.saveChatMessages(_currentRequest!.id, _chatMessages);
+
+        // Los dos mensajes de apertura son nuevos para el paciente: el
+        // contador sale de contarlos, no de darlos por supuestos.
+        await _refreshUnreadCount(_currentRequest!.id);
 
         notifyListeners();
       });
@@ -2013,7 +2130,7 @@ class AppState extends ChangeNotifier {
         _currentRequest = ServiceRequest.fromJson(data);
 
         if (_currentRequest!.status != RequestStatus.pendingPayment) {
-          _pendingMessages = 1;
+          // fetchChatMessages recalcula los no leídos por sí solo.
           await fetchChatMessages(_currentRequest!.id);
         }
         notifyListeners();

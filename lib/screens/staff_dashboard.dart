@@ -33,6 +33,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
   Timer? _pollTimer;
   String? _busyBookingId;
 
+  /// The record can get long, so it starts folded to the most recent visits.
+  bool _showAllCompleted = false;
+  static const _completedPreviewCount = 5;
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +99,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
     final inZone = _filter(state.staffBookingsInZone);
     final outside = _filter(state.staffBookingsOutsideZone);
+    final completed = _filter(state.staffBookingsCompleted);
 
     return RefreshIndicator(
       color: p.accent,
@@ -146,9 +151,171 @@ class _StaffDashboardState extends State<StaffDashboard> {
             const SizedBox(height: 12),
             ...outside.map(_buildBookingCard),
           ],
+
+          const SizedBox(height: 28),
+          _buildCompletedSection(completed),
         ],
       ),
     );
+  }
+
+  /// The professional's own record: visits they already closed.
+  Widget _buildCompletedSection(List<StaffBooking> completed) {
+    final showing = _showAllCompleted
+        ? completed
+        : completed.take(_completedPreviewCount).toList();
+    final hidden = completed.length - showing.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.ambulanceOnly
+                    ? 'Traslados realizados'
+                    : 'Atenciones realizadas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+            if (completed.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.accentSurface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${completed.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: p.accentText,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        if (completed.isEmpty)
+          _buildEmpty(
+            widget.ambulanceOnly
+                ? 'Todavía no has cerrado ningún traslado.'
+                : 'Todavía no has cerrado ninguna atención. Aquí quedará el registro de cada visita que finalices.',
+          )
+        else ...[
+          ...showing.map(_buildCompletedCard),
+          if (hidden > 0)
+            TextButton(
+              onPressed: () => setState(() => _showAllCompleted = true),
+              child: Text('Ver todas ($hidden más)'),
+            )
+          else if (_showAllCompleted && completed.length > _completedPreviewCount)
+            TextButton(
+              onPressed: () => setState(() => _showAllCompleted = false),
+              child: const Text('Mostrar menos'),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCompletedCard(StaffBooking booking) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: p.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: p.accentSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.check_circle_outline_rounded,
+              size: 18,
+              color: p.accentText,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  booking.serviceTitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: p.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  booking.patientName,
+                  style: TextStyle(fontSize: 12, color: p.textSecondary),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  booking.addressText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: p.textFaint),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '\$${booking.finalPrice}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: p.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                _formatVisitDate(booking),
+                style: TextStyle(fontSize: 12, color: p.textMuted),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Written out by hand instead of `DateFormat`: the app never calls
+  /// `initializeDateFormatting`, so a locale-aware pattern would fall back to
+  /// English month names.
+  static const _months = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  ];
+
+  String _formatVisitDate(StaffBooking booking) {
+    final date = booking.createdAt;
+    if (date == null) return booking.startTime;
+
+    final label = '${date.day} ${_months[date.month - 1]}';
+    return date.year == DateTime.now().year ? label : '$label ${date.year}';
   }
 
   Widget _buildErrorState(String message) {

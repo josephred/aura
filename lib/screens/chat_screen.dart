@@ -16,6 +16,17 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    // Ver el hilo es lo que lo marca como leído. Se hace aquí y no solo al
+    // cambiar de pestaña porque a esta pantalla también se llega desde el
+    // seguimiento de la atención.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.state.markMessagesRead();
+    });
+  }
+
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;

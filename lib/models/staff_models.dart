@@ -38,6 +38,10 @@ class StaffBooking {
   final String startTime;
   final String? professionalId;
 
+  /// When the request was created. `startTime` only carries the time of day,
+  /// which is enough for a live queue but not to date a closed visit.
+  final DateTime? createdAt;
+
   const StaffBooking({
     required this.id,
     required this.serviceId,
@@ -59,6 +63,7 @@ class StaffBooking {
     this.prescriptionName,
     this.prescriptionUrl,
     this.professionalId,
+    this.createdAt,
   });
 
   factory StaffBooking.fromJson(Map<String, dynamic> json) {
@@ -99,6 +104,7 @@ class StaffBooking {
       etaMinutes: _asInt(json['eta_minutes']),
       startTime: json['start_time'] as String? ?? '',
       professionalId: json['professional_id'] as String?,
+      createdAt: DateTime.tryParse('${json['created_at'] ?? ''}')?.toLocal(),
     );
   }
 
@@ -107,6 +113,10 @@ class StaffBooking {
 
   bool get isOpen =>
       status != 'completed' && status != 'cancelled';
+
+  /// A visit already carried out — what the professional's own record is made of.
+  /// Cancelled requests are excluded on purpose: nobody attended them.
+  bool get isCompleted => status == 'completed';
 
   /// The status this request moves to when the professional advances it,
   /// or null when there is nothing left to do.
