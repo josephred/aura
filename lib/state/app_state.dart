@@ -85,10 +85,9 @@ class AppState extends ChangeNotifier {
   ServiceRequest? _currentRequest;
   bool _isSearchingDoctor = false;
 
-  // Chat Simulation
+  // Canal clinico
   int _pendingMessages = 0;
   String _currentRole = 'patient'; // 'patient' | 'dependent_tutor' | 'doctor_provider' | 'operator_admin' | 'ambulance_driver'
-  bool _isChatTyping = false;
   final List<ChatMessage> _chatMessages = [];
 
   // Simulator Parameters
@@ -190,6 +189,7 @@ class AppState extends ChangeNotifier {
   void _handleUnauthorized() {
     if (_authToken == null) return; // Prevent infinite loop
     stopActiveBookingStream();
+    stopChatPolling();
     _authToken = null;
     _apiService.authToken = null;
     _userName = '';
@@ -297,8 +297,10 @@ class AppState extends ChangeNotifier {
         startActiveBookingStream(_currentRequest!.id);
         _chatMessages.clear();
         _chatMessages.addAll(await DbHelper.instance.getChatMessages(_currentRequest!.id));
+        _restartChatPolling();
       } else {
         _currentRequest = null;
+        stopChatPolling();
       }
     } catch (e) {
       debugPrint('Error loading local SQLite cache: $e');
@@ -501,6 +503,7 @@ class AppState extends ChangeNotifier {
       debugPrint('Backend logout failed (token cleared locally). Error: $e');
     }
     stopActiveBookingStream();
+    stopChatPolling();
     _authToken = null;
     _apiService.authToken = null;
     _userName = '';
@@ -553,7 +556,6 @@ class AppState extends ChangeNotifier {
 
   int get pendingMessages => _pendingMessages;
   String get currentRole => _currentRole;
-  bool get isChatTyping => _isChatTyping;
   List<ChatMessage> get chatMessages => _chatMessages;
 
   double get simulationSpeed => _simulationSpeed;
@@ -700,8 +702,10 @@ class AppState extends ChangeNotifier {
         await DbHelper.instance.saveBookings([_currentRequest!]);
         startActiveBookingStream(_currentRequest!.id);
         await fetchChatMessages(_currentRequest!.id);
+        _restartChatPolling();
       } else {
         stopActiveBookingStream();
+        stopChatPolling();
         _currentRequest = null;
         // Sin solicitud no hay canal clínico, así que tampoco puede haber
         // mensajes pendientes. Es justo la contradicción que se veía: el globo
@@ -719,11 +723,26 @@ class AppState extends ChangeNotifier {
         _currentRequest = active.first;
         startActiveBookingStream(_currentRequest!.id);
         await fetchChatMessages(_currentRequest!.id);
+        _restartChatPolling();
       } else {
         _currentRequest = null;
+        stopChatPolling();
       }
       notifyListeners();
     }
+  }
+
+  /// True cuando dos hilos son el mismo mensaje a mensaje.
+  ///
+  /// Con el chat abierto esto se consulta cada pocos segundos y `notifyListeners`
+  /// repinta el árbol entero: sin esta comparación, la app se reconstruiría en
+  /// bucle aunque no hubiera llegado nada.
+  bool _sameThread(List<ChatMessage> a, List<ChatMessage> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id || a[i].text != b[i].text) return false;
+    }
+    return true;
   }
 
   Future<void> fetchChatMessages(String requestId) async {
@@ -731,8 +750,13 @@ class AppState extends ChangeNotifier {
       final response = await _apiService.get('/bookings/$requestId/chat');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        _chatMessages.clear();
-        _chatMessages.addAll(data.map((m) => ChatMessage.fromJson(m)).toList());
+        final incoming =
+            data.map((m) => ChatMessage.fromJson(m)).toList();
+        if (_sameThread(_chatMessages, incoming)) return;
+
+        _chatMessages
+          ..clear()
+          ..addAll(incoming);
         await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
         await _refreshUnreadCount(requestId);
         notifyListeners();
@@ -801,6 +825,73 @@ class AppState extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('last_seen_msg_$requestId', _lastSeenMessageId!);
+  }
+
+  // -------------------------------------------------- refresco del hilo
+  //
+  // El unico camino en vivo para un mensaje del profesional era el stream SSE
+  // de la reserva. Cuando ese stream no llegaba —un proxy que almacena en
+  // bufer, el max_execution_time de PHP cortando el bucle de 50 s, la app
+  // volviendo de segundo plano con el socket muerto— el paciente no volvia a
+  // pedir el hilo nunca: abrir la pestana de mensajes no hacia ninguna
+  // llamada. Eso es exactamente lo que se veia desde el portal: el
+  // profesional escribe y al paciente no le llega nada.
+  //
+  // El portal resuelve lo mismo consultando cada 2 s. Aqui se hace igual, con
+  // dos ritmos para no gastar bateria cuando el chat no esta a la vista.
+
+  Timer? _chatPollTimer;
+  bool _chatScreenVisible = false;
+
+  static const _chatPollVisible = Duration(seconds: 4);
+  static const _chatPollHidden = Duration(seconds: 20);
+
+  /// La pantalla de chat avisa cuando se monta y cuando se va.
+  void setChatScreenVisible(bool visible) {
+    if (_chatScreenVisible == visible) return;
+    _chatScreenVisible = visible;
+    _restartChatPolling();
+    if (visible) refreshChatNow();
+  }
+
+  /// Pide el hilo al servidor ahora mismo: al abrir el chat y al volver la app
+  /// a primer plano. Si falla, `fetchChatMessages` cae a la copia local y el
+  /// timer lo reintenta.
+  Future<void> refreshChatNow() async {
+    final requestId = _currentRequest?.id;
+    if (requestId == null || _authToken == null) return;
+    await fetchChatMessages(requestId);
+  }
+
+  void _restartChatPolling() {
+    _chatPollTimer?.cancel();
+    _chatPollTimer = null;
+
+    final request = _currentRequest;
+    // Sin sesion o sin atencion en curso no hay canal que consultar; cerrada o
+    // anulada la atencion, tampoco.
+    if (request == null || _authToken == null) return;
+    if (request.status == RequestStatus.completed ||
+        request.status == RequestStatus.cancelled) {
+      return;
+    }
+
+    final every = _chatScreenVisible ? _chatPollVisible : _chatPollHidden;
+    _chatPollTimer =
+        Timer.periodic(every, (_) => fetchChatMessages(request.id));
+  }
+
+  void stopChatPolling() {
+    _chatPollTimer?.cancel();
+    _chatPollTimer = null;
+  }
+
+  /// La app vuelve del segundo plano: el stream SSE ya murio y pueden haber
+  /// entrado mensajes mientras tanto. `fetchActiveRequest` reabre el stream,
+  /// trae el hilo y reanuda el polling.
+  Future<void> handleAppResumed() async {
+    if (_authToken == null) return;
+    await fetchActiveRequest();
   }
 
   Future<void> fetchHistory() async {
@@ -1052,6 +1143,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> clearLocalCache() async {
     stopActiveBookingStream();
+    stopChatPolling();
     _authToken = null;
     _apiService.authToken = null;
     _userName = '';
@@ -1170,8 +1262,20 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Deja el canal clinico en blanco.
+  ///
+  /// Antes sembraba dos mensajes escritos a mano —uno firmado como "el
+  /// personal de enfermeria asignado"— en el arranque de la app, al cerrar
+  /// sesion y al terminar una atencion. En una cuenta real eso ponia en el
+  /// chat palabras que ningun profesional dijo y hacia que el canal pareciera
+  /// vivo justo cuando no habia nadie del otro lado. Los mensajes reales
+  /// llegan del servidor; aqui no se inventa ninguno.
   void _initializeChat() {
     _chatMessages.clear();
+    if (!_isDemoMode) return;
+
+    // El recorrido guiado si necesita un hilo de ejemplo: no tiene backend
+    // detras y sin el la pantalla de mensajes queda muda.
     final nowStr = DateFormat('HH:mm').format(DateTime.now());
     _chatMessages.addAll([
       ChatMessage(
@@ -2169,6 +2273,7 @@ class AppState extends ChangeNotifier {
     if (_currentRequest != null) {
       DbHelper.instance.saveBookings([]);
     }
+    stopChatPolling();
     _currentRequest = null;
     _pendingMessages = 0;
     _assignedProfessionalName = null;
@@ -2178,44 +2283,65 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Send message in chat and simulate reply
+  /// Ultimo fallo de envio, para que la pantalla lo cuente una sola vez.
+  String? _chatSendError;
+  String? get chatSendError => _chatSendError;
+
+  void clearChatSendError() {
+    _chatSendError = null;
+  }
+
+  /// Envia un mensaje del paciente al canal clinico.
+  ///
+  /// El globo propio aparece de inmediato. Antes, mientras el mensaje viajaba,
+  /// se mostraba en su lugar un indicador de "el profesional esta
+  /// escribiendo" que no correspondia a nadie: nadie estaba escribiendo, era
+  /// el propio envio en curso.
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty || _currentRequest == null) return;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || _currentRequest == null) return;
     final requestId = _currentRequest!.id;
 
-    _isChatTyping = true;
+    final localId = 'local_${DateTime.now().microsecondsSinceEpoch}';
+    _chatMessages.add(ChatMessage(
+      id: localId,
+      sender: 'patient',
+      text: trimmed,
+      timestamp: DateFormat('HH:mm').format(DateTime.now()),
+    ));
+    _chatSendError = null;
     notifyListeners();
+
+    // El recorrido guiado no tiene cuenta ni servidor detrás: el mensaje se
+    // queda donde está en vez de salir a la API y volver con un 401.
+    if (_isDemoMode) return;
 
     try {
       final response = await _apiService.post(
         '/bookings/$requestId/chat',
-        body: {'text': text},
+        body: {'text': trimmed},
       );
 
-      _isChatTyping = false;
-
       if (response.statusCode == 201) {
+        // Manda el hilo del servidor: reemplaza el eco local por el mensaje
+        // guardado, con su id y su hora reales.
         await fetchChatMessages(requestId);
       } else {
+        // El servidor lo rechazo. No puede quedarse en pantalla como si
+        // hubiera salido.
+        _chatMessages.removeWhere((m) => m.id == localId);
+        _chatSendError =
+            'No se pudo enviar tu mensaje. Intentalo nuevamente en unos segundos.';
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Backend sendMessage failed, queuing for retry when online. Error: $e');
-      _isChatTyping = false;
 
-      // Optimistically show the message locally, then queue it in the offline
-      // outbox so it is re-sent to /chat once connectivity returns. No fake
-      // auto-reply is generated: the real provider answers when the message
-      // reaches the backend.
-      final timeStr = DateFormat('HH:mm').format(DateTime.now());
-      _chatMessages.add(ChatMessage(
-        id: 'm_patient_${DateTime.now().millisecondsSinceEpoch}',
-        sender: 'patient',
-        text: text,
-        timestamp: timeStr,
-      ));
+      // Sin conexion: el globo se queda y la peticion va a la bandeja de
+      // salida, que la reenvia a /chat al recuperar red. No se genera ninguna
+      // respuesta automatica: contesta el profesional cuando le llega.
       await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
-      await _queueOffline('POST', '/bookings/$requestId/chat', {'text': text});
+      await _queueOffline('POST', '/bookings/$requestId/chat', {'text': trimmed});
 
       notifyListeners();
     }
@@ -2246,9 +2372,22 @@ class AppState extends ChangeNotifier {
     _sseClient!.send(request).then((response) {
       if (response.statusCode != 200) {
         debugPrint('Failed to connect to SSE stream: ${response.statusCode}');
+
+        // Un 401/403/404 no se arregla reintentando: la reserva no es de este
+        // usuario, o la sesión ya no vale. Se reintentaba cada 3 s para
+        // siempre, una petición por segundo y medio contra un servidor que
+        // seguía contestando lo mismo. El hilo llega igual por el polling.
+        if (const [401, 403, 404, 204].contains(response.statusCode)) {
+          debugPrint('SSE stream unavailable for this booking; relying on polling.');
+          return;
+        }
+
         _reconnectActiveBookingStream(requestId);
         return;
       }
+
+      // Conexión buena: la espera vuelve al mínimo.
+      _sseBackoffSeconds = _sseBackoffMinSeconds;
 
       _activeBookingSubscription = response.stream
           .transform(utf8.decoder)
@@ -2285,6 +2424,12 @@ class AppState extends ChangeNotifier {
                   await fetchHistory();
                 }
 
+                // Cerrada o anulada la atencion el canal deja de existir, y
+                // reabierta vuelve a hacer falta: el timer se ajusta aqui.
+                if (previousStatus != newRequest.status) {
+                  _restartChatPolling();
+                }
+
                 if (data.containsKey('messages')) {
                   final List<dynamic> msgsList = data['messages'] as List<dynamic>;
                   final newMessages = msgsList.map((m) => ChatMessage.fromJson(m as Map<String, dynamic>)).toList();
@@ -2294,6 +2439,11 @@ class AppState extends ChangeNotifier {
                     _chatMessages.clear();
                     _chatMessages.addAll(newMessages);
                     await DbHelper.instance.saveChatMessages(newRequest.id, _chatMessages);
+                    // Este es el camino por el que llega un mensaje del
+                    // profesional con la app abierta. Sin recalcular aquí, el
+                    // texto aparecía en el chat pero el globo de la barra se
+                    // quedaba como estaba.
+                    await _refreshUnreadCount(newRequest.id);
                     updated = true;
                   }
                 }
@@ -2323,6 +2473,13 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  // Espera antes de reabrir el stream. Era fija en 3 s: detrás de un proxy que
+  // nunca deja pasar el evento —lo normal en un PaaS— eso son veinte intentos
+  // por minuto, indefinidamente y en el teléfono del paciente. Ahora cede.
+  static const int _sseBackoffMinSeconds = 3;
+  static const int _sseBackoffMaxSeconds = 60;
+  int _sseBackoffSeconds = _sseBackoffMinSeconds;
+
   void _reconnectActiveBookingStream(String requestId) {
     if (_currentRequest == null ||
         _currentRequest!.id != requestId ||
@@ -2330,8 +2487,12 @@ class AppState extends ChangeNotifier {
         _currentRequest!.status == RequestStatus.cancelled) {
       return;
     }
-    // Reconnect after 3 seconds
-    Timer(const Duration(seconds: 3), () {
+
+    final wait = _sseBackoffSeconds;
+    _sseBackoffSeconds =
+        (_sseBackoffSeconds * 2).clamp(_sseBackoffMinSeconds, _sseBackoffMaxSeconds);
+
+    Timer(Duration(seconds: wait), () {
       if (_currentRequest != null && _currentRequest!.id == requestId) {
         startActiveBookingStream(requestId);
       }
@@ -2353,6 +2514,7 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     stopActiveBookingStream();
+    stopChatPolling();
     super.dispose();
   }
 }

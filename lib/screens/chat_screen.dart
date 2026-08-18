@@ -19,11 +19,37 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    widget.state.addListener(_onStateChanged);
     // Ver el hilo es lo que lo marca como leído. Se hace aquí y no solo al
     // cambiar de pestaña porque a esta pantalla también se llega desde el
     // seguimiento de la atención.
+    //
+    // Abrir el chat además pide el hilo al servidor y deja el canal en
+    // refresco rápido mientras la pantalla esté a la vista: hasta ahora esta
+    // pantalla no hacía ninguna llamada, así que un mensaje escrito desde el
+    // portal del profesional solo aparecía si el stream SSE seguía vivo.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.state.setChatScreenVisible(true);
       widget.state.markMessagesRead();
+    });
+  }
+
+  /// Un envío rechazado por el servidor se avisa; en silencio, el paciente
+  /// creía haber escrito al profesional.
+  void _onStateChanged() {
+    final error = widget.state.chatSendError;
+    if (error == null) return;
+    widget.state.clearChatSendError();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
     });
   }
 
@@ -36,6 +62,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    widget.state.removeListener(_onStateChanged);
+    widget.state.setChatScreenVisible(false);
     _controller.dispose();
     super.dispose();
   }
@@ -166,17 +194,14 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: ListView.builder(
+                child: messages.isEmpty
+                    ? _buildEmptyThread()
+                    : ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  itemCount: messages.length + (state.isChatTyping ? 1 : 0),
+                  itemCount: messages.length,
                   itemBuilder: (context, idx) {
-                    if (state.isChatTyping && idx == 0) {
-                      return _buildTypingBubble();
-                    }
-
-                    final messageIndex = state.isChatTyping ? idx - 1 : idx;
-                    final msg = messages[messageIndex];
+                    final msg = messages[idx];
 
                     if (msg.sender == 'system') {
                       return _buildSystemBubble(msg);
@@ -349,31 +374,35 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildTypingBubble() {
+  /// Hilo abierto pero todavía sin mensajes. Antes nunca se veía: la app
+  /// sembraba dos mensajes de ejemplo firmados como si los hubiera escrito el
+  /// profesional asignado.
+  Widget _buildEmptyThread() {
     final p = context.palette;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: p.card,
-          border: Border.all(color: p.border),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.zero,
-            bottomRight: Radius.circular(16),
-          ),
-        ),
-        child: Row(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _TypingDot(delay: 0),
-            const SizedBox(width: 4),
-            _TypingDot(delay: 150),
-            const SizedBox(width: 4),
-            _TypingDot(delay: 300),
+            Icon(Icons.forum_outlined, size: 32, color: p.textFaint),
+            const SizedBox(height: 12),
+            Text(
+              'Aún no hay mensajes en este canal.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: p.textMuted,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Escribe tu consulta: el profesional asignado la ve en su portal '
+              'y te responde por aquí mismo.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.5),
+            ),
           ],
         ),
       ),
@@ -544,67 +573,6 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         Icon(Icons.chevron_right, color: p.borderStrong, size: 16),
       ],
-    );
-  }
-}
-
-class _TypingDot extends StatefulWidget {
-  final int delay;
-
-  const _TypingDot({required this.delay});
-
-  @override
-  State<_TypingDot> createState() => _TypingDotState();
-}
-
-class _TypingDotState extends State<_TypingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _animation = Tween<double>(
-      begin: 0.0,
-      end: -6.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-    Future.delayed(Duration(milliseconds: widget.delay), () {
-      if (mounted) {
-        _controller.repeat(reverse: true);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _animation.value),
-          child: Container(
-            height: 6,
-            width: 6,
-            decoration: BoxDecoration(
-              color: context.palette.accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-        );
-      },
     );
   }
 }

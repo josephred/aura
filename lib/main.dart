@@ -107,7 +107,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   late final AppState _appState;
 
   @override
@@ -115,12 +115,26 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     _appState = widget.appState;
     _appState.addListener(_onStateChange);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _appState.removeListener(_onStateChange);
     super.dispose();
+  }
+
+  /// Volver del segundo plano tiene que traer lo que pasó mientras tanto.
+  ///
+  /// El stream SSE de la reserva no sobrevive a que el sistema congele la app,
+  /// y nada lo reabría hasta el siguiente arranque en frío: un mensaje escrito
+  /// por el profesional con el teléfono bloqueado se quedaba en el servidor.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _appState.handleAppResumed();
+    }
   }
 
   void _onStateChange() {
