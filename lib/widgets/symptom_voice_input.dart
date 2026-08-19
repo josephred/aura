@@ -26,10 +26,18 @@ class SymptomVoiceInput extends StatefulWidget {
   /// Called with the recorded file path, or null when the note is discarded.
   final ValueChanged<String?> onAudioChanged;
 
+  /// Called when audio recording starts or stops.
+  final ValueChanged<bool>? onRecordingChanged;
+
+  /// Called when speech recognition produces new text.
+  final ValueChanged<String>? onTextChanged;
+
   const SymptomVoiceInput({
     super.key,
     required this.controller,
     required this.onAudioChanged,
+    this.onRecordingChanged,
+    this.onTextChanged,
   });
 
   @override
@@ -125,12 +133,14 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
         final dictated = result.recognizedWords.trim();
         if (dictated.isEmpty) return;
 
-        widget.controller.text = _textBeforeDictation.isEmpty
+        final newText = _textBeforeDictation.isEmpty
             ? dictated
             : '$_textBeforeDictation $dictated';
+        widget.controller.text = newText;
         widget.controller.selection = TextSelection.fromPosition(
           TextPosition(offset: widget.controller.text.length),
         );
+        widget.onTextChanged?.call(newText);
       },
     );
   }
@@ -146,6 +156,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
         _recording = false;
         _audioPath = path;
       });
+      widget.onRecordingChanged?.call(false);
       widget.onAudioChanged(path);
       return;
     }
@@ -181,11 +192,13 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
           _recording = true;
           _notice = null;
         });
+        widget.onRecordingChanged?.call(true);
       }
     } catch (e) {
       debugPrint('Audio recording failed: $e');
       if (mounted) {
         setState(() => _notice = 'No se pudo iniciar la grabación.');
+        widget.onRecordingChanged?.call(false);
       }
     }
   }

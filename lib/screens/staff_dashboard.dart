@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/staff_models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_typography.dart';
 
 /// Work area for professionals and ambulance drivers.
 ///
@@ -257,8 +257,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               children: [
                 Text(
                   booking.serviceTitle,
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -266,14 +265,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 const SizedBox(height: 3),
                 Text(
                   booking.patientName,
-                  style: TextStyle(fontSize: 12, color: p.textSecondary),
+                  style: AppType.bodySmall.copyWith(color: p.textSecondary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   booking.addressText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: p.textFaint),
+                  style: AppType.label.copyWith(color: p.textFaint),
                 ),
               ],
             ),
@@ -284,8 +283,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             children: [
               Text(
                 '\$${booking.finalPrice}',
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppType.bodyMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
@@ -293,7 +291,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               const SizedBox(height: 3),
               Text(
                 _formatVisitDate(booking),
-                style: TextStyle(fontSize: 12, color: p.textMuted),
+                style: AppType.label.copyWith(color: p.textMuted),
               ),
             ],
           ),
@@ -330,7 +328,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: p.textMuted, height: 1.4),
+              style: AppType.bodySmall.copyWith(color: p.textMuted, height: 1.4),
             ),
             const SizedBox(height: 16),
             OutlinedButton(
@@ -345,6 +343,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   Widget _buildHeader(StaffProfile? profile) {
     final initial = (profile?.name ?? 'A').trim();
+    final photo = profile?.photoUrl;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -362,6 +362,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
           CircleAvatar(
             radius: 28,
             backgroundColor: const Color(0xFF2DD4BF),
+            foregroundImage: (photo != null && photo.isNotEmpty)
+                ? NetworkImage(photo)
+                : null,
             child: widget.ambulanceOnly
                 ? const Icon(Icons.local_shipping, color: Color(0xFF0F172A))
                 : Text(
@@ -380,29 +383,189 @@ class _StaffDashboardState extends State<StaffDashboard> {
               children: [
                 Text(
                   profile?.name ?? 'Equipo Aura',
-                  style: const TextStyle(
+                  style: AppType.titleMedium.copyWith(
                     color: Colors.white,
-                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   profile?.specialty ?? 'Prestador clínico',
-                  style: const TextStyle(color: Color(0xFFCCFBF1), fontSize: 12),
+                  style: AppType.label.copyWith(color: const Color(0xFFCCFBF1)),
                 ),
                 if (profile != null && profile.coverageZones.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Cubre: ${profile.coverageZones.join(', ')}',
-                    style: const TextStyle(color: Color(0xFF99F6E4), fontSize: 12),
+                    style: AppType.label.copyWith(color: const Color(0xFF99F6E4)),
                   ),
                 ],
               ],
             ),
           ),
+          if (profile != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: Colors.white70),
+              tooltip: 'Editar perfil y currículum',
+              onPressed: () => _showEditProfileModal(profile),
+            ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showEditProfileModal(StaffProfile profile) async {
+    final bioCtrl = TextEditingController(text: profile.bio ?? '');
+    final regCtrl = TextEditingController(text: profile.registrationNumber ?? '');
+    final expCtrl = TextEditingController(
+      text: profile.yearsOfExperience != null ? '${profile.yearsOfExperience}' : '',
+    );
+    final phoneCtrl = TextEditingController(text: profile.phone ?? '');
+    final zonesCtrl = TextEditingController(text: profile.coverageZones.join(', '));
+    final photoCtrl = TextEditingController(text: profile.photoUrl ?? '');
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Mi Perfil y Hoja de Vida',
+                  style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Esta información es visible para los pacientes antes de la atención.',
+                  style: AppType.bodySmall.copyWith(color: p.textMuted),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: bioCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Biografía / Reseña profesional',
+                    hintText: 'Ej. Médico internista con 10 años de experiencia...',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: regCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nº Registro Superintendencia de Salud',
+                    hintText: 'Ej. SIS-123456',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: expCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Años de experiencia clínica',
+                    hintText: 'Ej. 8',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Teléfono de contacto durante atención',
+                    hintText: 'Ej. +56 9 1234 5678',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: zonesCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Zonas de cobertura (separadas por coma)',
+                    hintText: 'Ej. Providencia, Las Condes, Ñuñoa',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: photoCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'URL de fotografía de perfil',
+                    hintText: 'https://...',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      Navigator.pop(context);
+                      final error = await widget.state.updateStaffProfile(
+                        bio: bioCtrl.text.trim(),
+                        registrationNumber: regCtrl.text.trim(),
+                        yearsOfExperience: int.tryParse(expCtrl.text.trim()),
+                        phone: phoneCtrl.text.trim(),
+                        coverageZones: zonesCtrl.text
+                            .split(',')
+                            .map((z) => z.trim())
+                            .where((z) => z.isNotEmpty)
+                            .toList(),
+                        photoUrl: photoCtrl.text.trim(),
+                      );
+                      if (mounted) {
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(error ?? 'Perfil actualizado correctamente.'),
+                            backgroundColor: error == null
+                                ? const Color(0xFF0F766E)
+                                : const Color(0xFFDC2626),
+                          ),
+                        );
+                      }
+                    },
+                    child: Text(
+                      'Guardar cambios',
+                      style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -438,9 +601,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                       : onDuty
                           ? 'En turno'
                           : 'Fuera de turno',
-                  style: const TextStyle(
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -472,13 +634,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 20,
+          style: AppType.titleLarge.copyWith(
             fontWeight: FontWeight.bold,
             color: p.textPrimary,
           ),
         ),
-        Text(label, style: TextStyle(fontSize: 12, color: p.textMuted)),
+        Text(label, style: AppType.label.copyWith(color: p.textMuted)),
       ],
     );
   }
@@ -495,7 +656,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: p.textMuted),
+        style: AppType.bodySmall.copyWith(color: p.textMuted),
       ),
     );
   }
@@ -523,19 +684,17 @@ class _StaffDashboardState extends State<StaffDashboard> {
               Expanded(
                 child: Text(
                   booking.serviceTitle,
-                  style: const TextStyle(
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Color(0xFF0F766E),
+                    color: const Color(0xFF0F766E),
                   ),
                 ),
               ),
               Flexible(
                 child: Text(
                 '\$${booking.finalPrice}',
-                style: TextStyle(
+                style: AppType.bodyMedium.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
                   color: p.textPrimary,
                 ),
               ),
@@ -585,8 +744,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
                 child: Text(
                   booking.statusLabel.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textMuted,
                     letterSpacing: 0.4,
@@ -597,7 +755,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               if (booking.startTime.isNotEmpty)
                 Text(
                   'Solicitada ${booking.startTime}',
-                  style: TextStyle(fontSize: 12, color: p.textFaint),
+                  style: AppType.label.copyWith(color: p.textFaint),
                 ),
             ],
           ),
@@ -625,7 +783,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           color: Colors.white,
                         ),
                       )
-                    : Text(canAccept ? 'Tomar y salir' : booking.nextActionLabel),
+                    : Text(
+                        canAccept ? 'Tomar y salir' : booking.nextActionLabel,
+                        style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
           ],
@@ -645,7 +806,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: p.textSecondary, fontSize: 12),
+              style: AppType.bodySmall.copyWith(color: p.textSecondary),
             ),
           ),
         ],
@@ -656,16 +817,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
   Widget _attachmentChip(IconData icon, String label, String url) {
     return ActionChip(
       avatar: Icon(icon, size: 14, color: p.accent),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      label: Text(label, style: AppType.label),
       backgroundColor: p.accentSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       onPressed: () async {
-        try {
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        } catch (_) {
-          if (!mounted) return;
+        final opened = await widget.state.openMediaAttachment(url);
+        if (!opened && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se pudo abrir el archivo.')),
+            const SnackBar(content: Text('No se pudo abrir el archivo clínico.')),
           );
         }
       },

@@ -83,7 +83,7 @@ class _MainAppState extends State<MainApp> {
         // dejan de soportar más crecimiento sin desbordarse.
         final systemScale = mediaQueryData.textScaler.scale(1.0);
         final combinedScale =
-            (systemScale * _appState.textScaleFactor).clamp(0.85, 2.2);
+            (systemScale * _appState.textScaleFactor).clamp(0.85, 2.0);
 
         return MediaQuery(
           data: mediaQueryData.copyWith(
@@ -243,6 +243,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               String? ambulanceType,
               double? patientLat,
               double? patientLng,
+              double? destinationLat,
+              double? destinationLng,
               String? symptomsDescription,
               String? symptomAudioPath,
               String? prescriptionName,
@@ -250,7 +252,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
               required int finalPrice,
               required int etaMinutes,
             }) {
-              _appState.confirmRequest(
+              return _appState.confirmRequest(
                 patientType: patientType,
                 dependentId: dependentId,
                 addressText: addressText,
@@ -259,6 +261,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
                 ambulanceType: ambulanceType,
                 patientLat: patientLat,
                 patientLng: patientLng,
+                destinationLat: destinationLat,
+                destinationLng: destinationLng,
                 symptomsDescription: symptomsDescription,
                 symptomAudioPath: symptomAudioPath,
                 prescriptionName: prescriptionName,

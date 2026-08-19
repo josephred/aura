@@ -34,6 +34,11 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
   int _secondsLeft = 53;
   int _minutesLeft = 15;
 
+  int _selectedRating = 5;
+  final TextEditingController _ratingFeedbackCtrl = TextEditingController();
+  bool _ratingSubmitted = false;
+  bool _submittingRating = false;
+
   @override
   void initState() {
     super.initState();
@@ -926,7 +931,9 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                 ),
               ),
             )
-          else
+          else ...[
+            _buildRatingSection(context, widget.request),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 48,
@@ -942,13 +949,173 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   ),
                 ),
                 child: Text(
-                  'Volver a Inicio',
-                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold,
-                  ),
+                  'Volver al inicio',
+                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
+          ],
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingSection(BuildContext context, ServiceRequest request) {
+    final prof = _getAssignedProfessional();
+    final profName = prof?['name'] ?? 'el profesional';
+
+    if (_ratingSubmitted) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0FDF4),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFBBF7D0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '¡Gracias por tu evaluación!',
+                    style: AppType.bodySmall.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF166534),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < _selectedRating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Califica la atención de $profName',
+            style: AppType.titleSmall.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Tu opinión ayuda a mantener la calidad y excelencia de Aura.',
+            style: AppType.bodySmall.copyWith(color: p.textMuted),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              final starNumber = index + 1;
+              return IconButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedRating = starNumber;
+                  });
+                },
+                icon: Icon(
+                  starNumber <= _selectedRating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 32,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _ratingFeedbackCtrl,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'Comentario u observaciones (opcional)...',
+              filled: true,
+              fillColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF1E293B)
+                  : const Color(0xFFF8FAFC),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: p.border),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submittingRating
+                  ? null
+                  : () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      setState(() {
+                        _submittingRating = true;
+                      });
+                      final error = await widget.state.submitRating(
+                        bookingId: request.id,
+                        rating: _selectedRating,
+                        feedback: _ratingFeedbackCtrl.text.trim(),
+                      );
+                      if (mounted) {
+                        setState(() {
+                          _submittingRating = false;
+                          if (error == null) {
+                            _ratingSubmitted = true;
+                          }
+                        });
+                        if (error != null) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(error),
+                              backgroundColor: const Color(0xFFDC2626),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: _submittingRating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Enviar calificación',
+                      style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+                    ),
+            ),
+          ),
         ],
       ),
     );

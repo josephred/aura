@@ -3,6 +3,7 @@ import 'package:aura/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
+import '../theme/app_typography.dart';
 
 class PaymentPendingScreen extends StatefulWidget {
   final AppState state;
@@ -56,15 +57,14 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
             width: 110,
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: p.textMuted),
+              style: AppType.bodySmall.copyWith(color: p.textMuted),
             ),
           ),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.bodySmall.copyWith(
                 fontWeight: FontWeight.w600,
                 color: p.textPrimary,
               ),
@@ -88,26 +88,26 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Confirmar el monto',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Se te cobrarán ${priceFormat.format(widget.request.finalPrice)} '
           'por $_serviceTitle. Te llevaremos a Mercado Pago para completar el pago.',
-          style: const TextStyle(fontSize: 13),
+          style: AppType.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Volver'),
+            child: Text('Volver', style: AppType.button),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF009EE3),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Aceptar y pagar'),
+            child: Text('Aceptar y pagar', style: AppType.button),
           ),
         ],
       ),
@@ -123,23 +123,23 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           '¿Cancelar solicitud?',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
         ),
-        content: const Text(
+        content: Text(
           'Se descartará el pedido antes de pagar y no se te cobrará nada. Si ya pagaste, usa "Verificar pago" en su lugar.',
-          style: TextStyle(fontSize: 13),
+          style: AppType.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Volver'),
+            child: Text('Volver', style: AppType.button),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Sí, cancelar'),
+            child: Text('Sí, cancelar', style: AppType.button),
           ),
         ],
       ),
@@ -186,8 +186,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           Text(
             'Confirma tu solicitud',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
+            style: AppType.titleLarge.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
               letterSpacing: -0.4,
@@ -198,7 +197,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
             'Revisa el detalle y el monto. Nada se cobra hasta que aceptes: '
             'solo al tocar "Aceptar y pagar" se abrirá Mercado Pago.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: p.textMuted, height: 1.5),
+            style: AppType.bodyMedium.copyWith(color: p.textMuted, height: 1.5),
           ),
           const SizedBox(height: 28),
 
@@ -227,8 +226,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                     Flexible(
                       child: Text(
                       'Total a pagar',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: AppType.bodyMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.textSecondary,
                       ),
@@ -237,8 +235,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                     Flexible(
                       child: Text(
                       priceFormat.format(widget.request.finalPrice),
-                      style: TextStyle(
-                        fontSize: 22,
+                      style: AppType.titleLarge.copyWith(
                         fontWeight: FontWeight.bold,
                         color: p.accentText,
                       ),
@@ -259,14 +256,14 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFFDE68A)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.hourglass_top_rounded, color: Color(0xFFD97706), size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Aún no se registra el pago. Si acabas de pagar, espera unos segundos y verifica de nuevo.',
-                      style: TextStyle(color: Color(0xFF92400E), fontSize: 12),
+                      style: AppType.bodySmall.copyWith(color: const Color(0xFF92400E)),
                     ),
                   ),
                 ],
@@ -286,7 +283,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
               label: Text(
                 'Aceptar y pagar ${priceFormat.format(widget.request.finalPrice)}',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                style: AppType.button.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -311,8 +308,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                   : Icon(Icons.verified_rounded, size: 18, color: p.accent),
               label: Text(
                 _isVerifying ? 'Verificando...' : 'Ya pagué — Verificar pago',
-                style: TextStyle(
-                  fontSize: 14,
+                style: AppType.button.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.accent,
                 ),
@@ -322,11 +318,10 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
           const SizedBox(height: 12),
           TextButton(
             onPressed: _cancel,
-            child: const Text(
+            child: Text(
               'Cancelar pedido',
-              style: TextStyle(
-                color: Color(0xFFDC2626),
-                fontSize: 13,
+              style: AppType.button.copyWith(
+                color: const Color(0xFFDC2626),
                 fontWeight: FontWeight.w600,
               ),
             ),

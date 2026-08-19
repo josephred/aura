@@ -36,6 +36,8 @@ class ServiceFormScreen extends StatefulWidget {
     String? ambulanceType,
     double? patientLat,
     double? patientLng,
+    double? destinationLat,
+    double? destinationLng,
     String? symptomsDescription,
     String? symptomAudioPath,
     String? prescriptionName,
@@ -75,6 +77,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   /// Local path of the optional voice note describing the symptoms.
   String? _symptomAudioPath;
+  bool _isRecordingVoice = false;
 
   /// Inline message when the consultation reason does not name two symptoms.
   String? _symptomsError;
@@ -85,6 +88,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   // Real map coordinates picked by the user (replaces the old mock canvas)
   LatLng? _locationLatLng; // standard services: the attention location
   LatLng? _originLatLng; // ambulance pickup
+  LatLng? _destinationLatLng; // ambulance destination (REQ-11)
+  double? _quotedDistanceKm;
+  int? _quotedTransportFee;
+  int? _quotedFinalPrice;
+  bool _isQuotingTransport = false;
 
   // Ambulance specific
   late TextEditingController _originAddressController;
@@ -272,6 +280,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   int _calculatePrice() {
     if (widget.service.id == 'ambulancia') {
+      if (_quotedFinalPrice != null) {
+        return _quotedFinalPrice!;
+      }
       final base = _ambulanceType == 'medicalized'
           ? _ambulanceMedicalizedPrice
           : _ambulanceBasicPrice;
@@ -280,7 +291,39 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     return (widget.service.basePrice * (1.0 + widget.commissionRate)).round();
   }
 
-  void _submitForm() {
+  Future<void> _updateTransportQuote() async {
+    if (widget.service.id != 'ambulancia') return;
+    final origin = _originLatLng;
+    final dest = _destinationLatLng;
+    if (origin == null || dest == null) return;
+
+    setState(() {
+      _isQuotingTransport = true;
+    });
+
+    final quote = await widget.state.quoteTransport(
+      originLat: origin.latitude,
+      originLng: origin.longitude,
+      destinationLat: dest.latitude,
+      destinationLng: dest.longitude,
+      ambulanceType: _ambulanceType,
+    );
+
+    if (mounted && quote != null) {
+      setState(() {
+        _isQuotingTransport = false;
+        _quotedDistanceKm = (quote['distance_km'] as num?)?.toDouble();
+        _quotedTransportFee = (quote['transport_fee'] as num?)?.toInt();
+        _quotedFinalPrice = (quote['final_price'] as num?)?.toInt();
+      });
+    } else if (mounted) {
+      setState(() {
+        _isQuotingTransport = false;
+      });
+    }
+  }
+
+  Future<void> _submitForm() async {
     if (widget.service.requiresPrescription && _uploadedFileName == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -303,6 +346,11 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           backgroundColor: Colors.amber,
         ),
       );
+      return;
+    }
+
+    if (_isRecordingVoice) {
+      _warn('Detén la grabación de la nota de voz antes de confirmar la solicitud.');
       return;
     }
 
@@ -360,7 +408,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     final LatLng? patientPoint =
         widget.service.id == 'ambulancia' ? _originLatLng : _locationLatLng;
 
-    widget.onConfirmRequest(
+    final error = await widget.onConfirmRequest(
       patientType: _patientType,
       dependentId: _patientType == 'dependent' ? _selectedDependentId : null,
       addressText: finalAddress,
@@ -373,6 +421,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       ambulanceType: widget.service.id == 'ambulancia' ? _ambulanceType : null,
       patientLat: patientPoint?.latitude,
       patientLng: patientPoint?.longitude,
+      destinationLat: widget.service.id == 'ambulancia' ? _destinationLatLng?.latitude : null,
+      destinationLng: widget.service.id == 'ambulancia' ? _destinationLatLng?.longitude : null,
       symptomsDescription: symptomsOrExam,
       symptomAudioPath: _symptomAudioPath,
       prescriptionName: _uploadedFileName,
@@ -380,6 +430,15 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       finalPrice: price,
       etaMinutes: baseEtaMinutes,
     );
+
+    if (error != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+    }
   }
 
   /// E.1 — agenda la toma de muestras en el cupo elegido.
@@ -1282,9 +1341,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               // Re-validate while typing so the error clears as soon as the
               // second symptom appears, instead of waiting for another submit.
               onChanged: (value) {
-                final stillInvalid = !hasTwoSymptoms(value);
-                if ((_symptomsError != null) != stillInvalid) return;
-                if (_symptomsError != null && !stillInvalid) {
+                if (_symptomsError != null && hasTwoSymptoms(value)) {
                   setState(() => _symptomsError = null);
                 }
               },
@@ -1332,6 +1389,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           SymptomVoiceInput(
             controller: _symptomsController,
             onAudioChanged: (path) => setState(() => _symptomAudioPath = path),
+            onRecordingChanged: (recording) => setState(() => _isRecordingVoice = recording),
+            onTextChanged: (text) {
+              if (_symptomsError != null && hasTwoSymptoms(text)) {
+                setState(() => _symptomsError = null);
+              }
+            },
           ),
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -1780,6 +1843,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                       _originAddressController.text = address;
                     }
                   });
+                  _updateTransportQuote();
                 },
               ),
               const SizedBox(height: 12),
@@ -1878,13 +1942,61 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
                 height: 150,
                 accentColor: Colors.blue,
                 onLocationChanged: (point, address) {
-                  if (address != null && address.isNotEmpty) {
-                    setState(() {
+                  setState(() {
+                    _destinationLatLng = point;
+                    if (address != null && address.isNotEmpty) {
                       _destinationAddressController.text = address;
-                    });
-                  }
+                    }
+                  });
+                  _updateTransportQuote();
                 },
               ),
+              if (_isQuotingTransport || _quotedDistanceKm != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_isQuotingTransport)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+                        )
+                      else
+                        const Icon(Icons.route, color: Color(0xFF2563EB), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _isQuotingTransport
+                                  ? 'Calculando distancia y tarifa...'
+                                  : 'Distancia estimada: ${_quotedDistanceKm!.toStringAsFixed(1)} km',
+                              style: AppType.bodySmall.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF1E40AF),
+                              ),
+                            ),
+                            Text(
+                              _quotedTransportFee != null
+                                  ? 'Tarifa base + kilometraje: ${Money.format(_quotedTransportFee!)}'
+                                  : 'Tarifa calculada dinámicamente según trayecto',
+                              style: AppType.label.copyWith(color: const Color(0xFF3B82F6)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
@@ -1943,7 +2055,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _ambulanceType = 'basic'),
+                  onTap: () {
+                    setState(() => _ambulanceType = 'basic');
+                    _updateTransportQuote();
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -1983,7 +2098,10 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _ambulanceType = 'medicalized'),
+                  onTap: () {
+                    setState(() => _ambulanceType = 'medicalized');
+                    _updateTransportQuote();
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(

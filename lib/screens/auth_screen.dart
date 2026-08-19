@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_typography.dart';
 
 /// Seeded QA accounts, one per role (see `TestUsersSeeder` in the backend).
 const String _testAccountPassword = 'aura1234';
@@ -157,8 +158,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 Text(
                   _isRegistering ? 'Crea tu cuenta' : 'Bienvenido de vuelta',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
+                  style: AppType.titleLarge.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                     letterSpacing: -0.5,
@@ -170,7 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ? 'Regístrate para solicitar atención clínica a domicilio.'
                       : 'Inicia sesión para continuar con tu atención de salud.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: p.textMuted),
+                  style: AppType.bodyMedium.copyWith(color: p.textMuted),
                 ),
                 const SizedBox(height: 32),
                 Form(
@@ -257,9 +257,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFFB91C1C),
-                              fontSize: 12,
+                            style: AppType.bodySmall.copyWith(
+                              color: const Color(0xFFB91C1C),
                             ),
                           ),
                         ),
@@ -289,8 +288,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           )
                         : Text(
                             _isRegistering ? 'Crear cuenta' : 'Iniciar sesión',
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: AppType.button.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -309,15 +307,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       text: _isRegistering
                           ? '¿Ya tienes cuenta? '
                           : '¿No tienes cuenta? ',
-                      style: TextStyle(
+                      style: AppType.bodyMedium.copyWith(
                         color: p.textMuted,
-                        fontSize: 13,
                       ),
                       children: [
                         TextSpan(
                           text: _isRegistering ? 'Inicia sesión' : 'Regístrate',
-                          style: const TextStyle(
-                            color: Color(0xFF0F766E),
+                          style: AppType.bodyMedium.copyWith(
+                            color: const Color(0xFF0F766E),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -333,9 +330,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'o',
-                        style: TextStyle(
+                        style: AppType.label.copyWith(
                           color: Colors.grey.shade500,
-                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -364,9 +360,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     label: Text(
                       'Continuar con Google',
-                      style: TextStyle(
+                      style: AppType.button.copyWith(
                         color: p.textPrimary,
-                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -392,11 +387,10 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontSize: 22,
                       ),
                     ),
-                    label: const Text(
+                    label: Text(
                       'Continuar con Facebook',
-                      style: TextStyle(
+                      style: AppType.button.copyWith(
                         color: Colors.white,
-                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -412,9 +406,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   label: Text(
                     'Explorar en modo demo (sin cuenta)',
-                    style: TextStyle(
+                    style: AppType.button.copyWith(
                       color: p.textMuted,
-                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -451,8 +444,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Flexible(
                 child: Text(
                 'CUENTAS DE PRUEBA',
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppType.label.copyWith(
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.8,
                   color: p.textMuted,
@@ -464,7 +456,7 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 4),
           Text(
             'Contraseña común: $_testAccountPassword',
-            style: TextStyle(fontSize: 12, color: p.textFaint),
+            style: AppType.label.copyWith(color: p.textFaint),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -475,8 +467,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   (entry) => ActionChip(
                     label: Text(
                       entry.key,
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: AppType.label.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -524,10 +515,10 @@ class _AuthScreenState extends State<AuthScreen> {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: TextStyle(fontSize: 14, color: p.textPrimary),
+      style: AppType.bodyMedium.copyWith(color: p.textPrimary),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(fontSize: 13, color: p.textFaint),
+        labelStyle: AppType.bodySmall.copyWith(color: p.textFaint),
         prefixIcon: Icon(icon, color: p.textFaint, size: 20),
         suffixIcon: suffix,
         filled: true,

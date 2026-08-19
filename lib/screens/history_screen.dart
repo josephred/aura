@@ -573,6 +573,22 @@ class HistoryScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              TextButton.icon(
+                onPressed: () => _showRatingDialog(context, past),
+                icon: const Icon(Icons.star_outline, size: 14, color: Colors.amber),
+                label: Text(
+                  'Calificar',
+                  style: AppType.bodySmall.copyWith(
+                    color: Colors.amber[800],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
               ElevatedButton(
                 onPressed: () => onRepeatService(past.serviceId),
                 style: ElevatedButton.styleFrom(
@@ -605,6 +621,94 @@ class HistoryScreen extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRatingDialog(BuildContext context, PastService past) {
+    int selectedStars = 5;
+    final feedbackCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Calificar atención',
+            style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Atención por ${past.professional} el ${past.date}',
+                style: AppType.bodySmall.copyWith(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final star = index + 1;
+                  return IconButton(
+                    onPressed: () {
+                      setDialogState(() {
+                        selectedStars = star;
+                      });
+                    },
+                    icon: Icon(
+                      star <= selectedStars ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 30,
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: feedbackCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Comentario opcional...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(ctx);
+                final error = await state.submitRating(
+                  bookingId: past.id,
+                  rating: selectedStars,
+                  feedback: feedbackCtrl.text.trim(),
+                );
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(error ?? '¡Gracias por calificar la atención!'),
+                    backgroundColor: error == null
+                        ? const Color(0xFF0F766E)
+                        : const Color(0xFFDC2626),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Enviar'),
+            ),
+          ],
+        ),
       ),
     );
   }

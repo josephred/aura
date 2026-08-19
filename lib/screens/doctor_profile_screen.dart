@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/professional.dart';
+import '../theme/app_typography.dart';
 
 /// B.3 — ficha del profesional que va a atender: currículum, experiencia,
 /// registro de la Superintendencia de Salud y evaluación.
@@ -82,8 +83,7 @@ class DoctorProfileScreen extends StatelessWidget {
                     children: [
                       Text(
                         professional.name,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: AppType.titleMedium.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -91,8 +91,7 @@ class DoctorProfileScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           professional.specialty,
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: AppType.bodySmall.copyWith(
                             color: _accent,
                             fontWeight: FontWeight.w600,
                           ),
@@ -141,8 +140,7 @@ class DoctorProfileScreen extends StatelessWidget {
               professional.bio?.trim().isNotEmpty == true
                   ? professional.bio!
                   : 'Este profesional todavía no ha publicado su reseña.',
-              style: TextStyle(
-                fontSize: 13,
+              style: AppType.bodyMedium.copyWith(
                 height: 1.5,
                 fontStyle: professional.bio?.trim().isNotEmpty == true
                     ? FontStyle.normal
@@ -163,9 +161,9 @@ class DoctorProfileScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'Cerrar perfil',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: AppType.button.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -194,7 +192,7 @@ class DoctorProfileScreen extends StatelessWidget {
     if (!professional.hasRating) {
       return Text(
         'Sin evaluaciones aún',
-        style: TextStyle(fontSize: 12, color: muted, fontStyle: FontStyle.italic),
+        style: AppType.label.copyWith(color: muted, fontStyle: FontStyle.italic),
       );
     }
 
@@ -209,8 +207,7 @@ class DoctorProfileScreen extends StatelessWidget {
           child: Text(
           '${average.toStringAsFixed(1)} '
           '($count ${count == 1 ? 'evaluación' : 'evaluaciones'})',
-          style: TextStyle(
-            fontSize: 12,
+          style: AppType.label.copyWith(
             color: muted,
             fontWeight: FontWeight.bold,
           ),
@@ -223,8 +220,7 @@ class DoctorProfileScreen extends StatelessWidget {
   Widget _buildSectionTitle(String text) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 12,
+      style: AppType.label.copyWith(
         fontWeight: FontWeight.bold,
         letterSpacing: 0.8,
         color: _accent,
@@ -249,15 +245,13 @@ class DoctorProfileScreen extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppType.label.copyWith(
                   color: isDark ? Colors.grey[400] : Colors.grey[600],
                 ),
               ),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 12,
+                style: AppType.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),

@@ -66,4 +66,34 @@ class Professional {
   }
 
   bool get hasRating => ratingCount > 0 && ratingAvg != null;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'specialty': specialty,
+      'bio': bio,
+      'consultation_price': consultationPrice,
+      'consultation_duration_minutes': consultationDurationMinutes,
+      'registration_number': registrationNumber,
+      'years_of_experience': yearsOfExperience,
+      'photo_url': photoUrl,
+      'rating_avg': ratingAvg,
+      'rating_count': ratingCount,
+    };
+  }
+
+  Map<String, dynamic> toAssignmentJson() {
+    return {
+      'id': id,
+      'name': name,
+      'specialty': specialty,
+      'bio': bio,
+      'registration_number': registrationNumber,
+      'years_of_experience': yearsOfExperience,
+      'photo_url': photoUrl,
+      'rating_avg': ratingAvg,
+      'rating_count': ratingCount,
+    };
+  }
 }

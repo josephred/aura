@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/dependent.dart';
 import '../state/app_state.dart';
+import '../theme/app_typography.dart';
 
 /// D.2 — salud preventiva:
 /// - Calendario de vacunación pediátrica según la edad real del niño.
@@ -65,12 +66,12 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
 
   static const _accent = Color(0xFF0F766E);
 
-  /// Calendario Nacional de Inmunización (Minsal), hitos hasta los 18 meses.
+  /// Calendario Nacional de Inmunización (Minsal Chile).
   static const List<_VaccineMilestone> _calendar = [
     _VaccineMilestone(0, 'Recién nacido', ['BCG (tuberculosis)', 'Hepatitis B']),
     _VaccineMilestone(2, '2 meses', [
-      'Hexavalente (DTPa + Hib + HepB + Polio)',
-      'Neumocócica conjugada',
+      'Hexavalente (1ª dosis: DTPa + Hib + HepB + Polio)',
+      'Neumocócica conjugada (1ª dosis)',
     ]),
     _VaccineMilestone(4, '4 meses', [
       'Hexavalente (2ª dosis)',
@@ -78,13 +79,26 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     ]),
     _VaccineMilestone(6, '6 meses', ['Hexavalente (3ª dosis)']),
     _VaccineMilestone(12, '12 meses', [
-      'Tres vírica (sarampión, rubéola, paperas)',
+      'Tres vírica (1ª dosis: sarampión, rubéola, paperas)',
       'Neumocócica conjugada (refuerzo)',
       'Meningocócica conjugada',
     ]),
     _VaccineMilestone(18, '18 meses', [
-      'Hexavalente (refuerzo)',
+      'Hexavalente (1er refuerzo)',
       'Hepatitis A',
+      'Fiebre Amarilla (Isla de Pascua)',
+    ]),
+    _VaccineMilestone(36, '3 años', [
+      'Tres vírica (2ª dosis)',
+    ]),
+    _VaccineMilestone(60, '5 años (1º básico)', [
+      'DTP acelular (dTpa)',
+    ]),
+    _VaccineMilestone(108, '9 años (4º básico)', [
+      'VPH (1ª dosis: Virus Papiloma Humano)',
+    ]),
+    _VaccineMilestone(156, '13 años (8º básico)', [
+      'dTpa (refuerzo tétanos, difteria, tos convulsiva)',
     ]),
   ];
 
@@ -101,19 +115,19 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     _AdultCheckup(
       fromAge: 40,
       toAge: 49,
-      title: 'Control cardiovascular y metabólico',
+      title: 'Salud cardiovascular y metabólica',
       description:
-          'Electrocardiograma de reposo, control de presión arterial y '
-          'perfiles hepático y renal.',
+          'Electrocardiograma de reposo, control de presión arterial, fondo '
+          'de ojo para diabéticos y exámenes de función renal.',
       serviceId: 'electrocardiograma',
     ),
     _AdultCheckup(
       fromAge: 50,
-      title: 'Chequeo oncológico y digestivo',
+      title: 'Control integral senior',
       description:
-          'Según indicación médica: antígeno prostático, mamografía y '
-          'Papanicolau, y test de sangre oculta en deposiciones.',
-      serviceId: 'laboratorio',
+          'Evaluación geriátrica preventiva, tamizaje de riesgo de caídas, '
+          'densitometría ósea y revisión periódica de polifarmacia.',
+      serviceId: 'medico',
     ),
   ];
 
@@ -121,11 +135,6 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    final children = _children;
-    if (children.isNotEmpty) {
-      _selectedDependentId = children.first.id;
-    }
   }
 
   @override
@@ -136,15 +145,15 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
 
   /// Dependientes en edad pediátrica registrados en la cuenta.
   List<Dependent> get _children =>
-      widget.state.dependents.where((d) => d.age < 18).toList();
+      widget.state.dependents.where((d) => d.age <= 18).toList();
 
   Dependent? get _selectedChild {
-    final children = _children;
-    if (children.isEmpty) return null;
-
-    return children.firstWhere(
+    final list = _children;
+    if (list.isEmpty) return null;
+    if (_selectedDependentId == null) return list.first;
+    return list.firstWhere(
       (d) => d.id == _selectedDependentId,
-      orElse: () => children.first,
+      orElse: () => list.first,
     );
   }
 
@@ -154,48 +163,47 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Salud preventiva',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        title: Text(
+          'Salud Preventiva',
+          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
         ),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: _accent,
           labelColor: _accent,
+          labelStyle: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
           unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
           tabs: const [
             Tab(text: 'Vacunación infantil'),
-            Tab(text: 'Chequeos por edad'),
+            Tab(text: 'Chequeos adultos'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildPediatricTab(isDark),
+          _buildChildrenTab(isDark),
           _buildAdultTab(isDark),
         ],
       ),
     );
   }
 
-  // ------------------------------------------------------------- pediatría
+  // --------------------------------------------------------------- infantil
 
-  Widget _buildPediatricTab(bool isDark) {
+  Widget _buildChildrenTab(bool isDark) {
     final child = _selectedChild;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _buildHeaderCard(
-          icon: Icons.child_care_rounded,
-          title: 'Calendario Nacional de Inmunización',
-          subtitle: child == null
-              ? 'Agrega a tus hijos como dependientes para ver qué les corresponde.'
-              : 'Según la edad de ${child.name}: ${_ageLabel(child.age)}.',
+          icon: Icons.shield_rounded,
+          title: 'Calendario de vacunación infantil',
+          subtitle: 'Guía oficial Minsal según la edad de tus hijos.',
         ),
         const SizedBox(height: 12),
-        if (_children.length > 1) ...[
+        if (_children.isNotEmpty) ...[
           _buildChildSelector(isDark),
           const SizedBox(height: 12),
         ],
@@ -230,8 +238,8 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               .map((d) => DropdownMenuItem(
                     value: d.id,
                     child: Text(
-                      '${d.name} · ${_ageLabel(d.age)}',
-                      style: const TextStyle(fontSize: 13),
+                      '${d.name} · ${_dependentAgeLabel(d)}',
+                      style: AppType.bodyMedium,
                     ),
                   ))
               .toList(),
@@ -265,8 +273,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               'calendario oficial según su edad, no un comprobante de lo que '
               'ya recibió. Confirma las dosis puestas con su carné o su centro '
               'de salud.',
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.bodySmall.copyWith(
                 height: 1.4,
                 color: isDark
                     ? const Color(0xFFFBBF24)
@@ -284,15 +291,15 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     Dependent child,
     bool isDark,
   ) {
-    // `Dependent` guarda la edad en años, así que la resolución de este
-    // calendario es anual: para un lactante todos los hitos del primer año
-    // caen juntos. Registrar la fecha de nacimiento afinaría esto.
-    final ageMonths = child.age * 12;
+    // Calculamos la edad precisa en meses desde birth_date o age_months
+    final ageMonths = child.calculatedAgeMonths;
+    final current = _currentMilestone(ageMonths);
 
-    // "Corresponde ahora" es el último hito cuya edad ya se cumplió.
-    final isDue = milestone.months == _currentMilestone(ageMonths).months;
-    final isPast = milestone.months <= ageMonths && !isDue;
-    final isUpcoming = milestone.months > ageMonths;
+    final isDue = current != null && milestone.months == current.months;
+    final isPast = current == null
+        ? milestone.months <= ageMonths
+        : milestone.months < current.months;
+    final isUpcoming = !isDue && !isPast;
 
     final (label, color) = isDue
         ? ('Corresponde ahora', _accent)
@@ -320,7 +327,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               Flexible(
                 child: Text(
                 milestone.label,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
               ),
               ),
               Container(
@@ -331,8 +338,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
                 ),
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -358,8 +364,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
                   Expanded(
                     child: Text(
                       v,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppType.bodySmall.copyWith(
                         color: isDark ? Colors.grey[300] : Colors.grey[800],
                       ),
                     ),
@@ -373,8 +378,16 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     );
   }
 
-  /// Último hito ya cumplido por edad: el que hay que tener al día hoy.
-  _VaccineMilestone _currentMilestone(int ageMonths) {
+  /// Hito activo que corresponde actualmente según la edad precisa.
+  /// Si el dependiente superó la edad del último hito por más de 12 meses, se considera que
+  /// completó el calendario de hitos infantiles y retorna null.
+  _VaccineMilestone? _currentMilestone(int ageMonths) {
+    if (ageMonths > _calendar.last.months + 12) {
+      return null;
+    }
+    if (ageMonths < _calendar.first.months) {
+      return _calendar.first;
+    }
     return _calendar.lastWhere(
       (m) => m.months <= ageMonths,
       orElse: () => _calendar.first,
@@ -404,8 +417,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
         Text(
           'Estas son recomendaciones generales por rango etario. Tu médico '
           'puede indicarte otros exámenes según tus antecedentes.',
-          style: TextStyle(
-            fontSize: 12,
+          style: AppType.bodySmall.copyWith(
             height: 1.5,
             color: isDark ? Colors.grey[500] : Colors.grey[600],
           ),
@@ -426,23 +438,23 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
         children: [
           const Icon(Icons.cake_outlined, size: 18, color: _accent),
           const SizedBox(width: 10),
-          const Expanded(
-            child: Text('Mi edad', style: TextStyle(fontSize: 13)),
+          Expanded(
+            child: Text('Mi edad', style: AppType.bodyMedium),
           ),
           DropdownButtonHideUnderline(
             child: DropdownButton<int?>(
               value: age,
-              hint: const Text('Elegir', style: TextStyle(fontSize: 13)),
+              hint: Text('Elegir', style: AppType.bodyMedium),
               items: [
-                const DropdownMenuItem<int?>(
+                DropdownMenuItem<int?>(
                   value: null,
-                  child: Text('Sin indicar', style: TextStyle(fontSize: 13)),
+                  child: Text('Sin indicar', style: AppType.bodyMedium),
                 ),
                 ...List.generate(
                   85,
                   (i) => DropdownMenuItem<int?>(
                     value: i + 18,
-                    child: Text('${i + 18}', style: const TextStyle(fontSize: 13)),
+                    child: Text('${i + 18}', style: AppType.bodyMedium),
                   ),
                 ),
               ],
@@ -481,7 +493,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               Flexible(
                 child: Text(
                 checkup.bracket,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold),
               ),
               ),
               if (applies)
@@ -491,10 +503,9 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
                     color: _accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Te corresponde',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       fontWeight: FontWeight.bold,
                       color: _accent,
                     ),
@@ -503,20 +514,19 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               else if (overdue)
                 Text(
                   'Rango ya cumplido',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: AppType.label.copyWith(color: Colors.grey[600]),
                 ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             checkup.title,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
             checkup.description,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppType.bodySmall.copyWith(
               height: 1.4,
               color: isDark ? Colors.grey[400] : Colors.grey[700],
             ),
@@ -535,8 +545,7 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
+                  textStyle: AppType.button.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -590,12 +599,12 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
+                  style: AppType.bodySmall.copyWith(color: Colors.grey, height: 1.3),
                 ),
               ],
             ),
@@ -620,14 +629,13 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
           const SizedBox(height: 10),
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppType.bodySmall.copyWith(
               height: 1.4,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
@@ -637,8 +645,15 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     );
   }
 
-  String _ageLabel(int years) {
-    if (years <= 0) return 'menos de 1 año';
-    return years == 1 ? '1 año' : '$years años';
+  String _dependentAgeLabel(Dependent child) {
+    final months = child.calculatedAgeMonths;
+    if (months < 1) return 'Recién nacido';
+    if (months < 12) return '$months meses';
+    final years = months ~/ 12;
+    final remMonths = months % 12;
+    if (years == 1) {
+      return remMonths > 0 ? '1 año $remMonths m' : '1 año';
+    }
+    return remMonths > 0 ? '$years años $remMonths m' : '$years años';
   }
 }

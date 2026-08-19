@@ -158,6 +158,15 @@ class StaffProfile {
   final int completedToday;
   final int openNow;
 
+  /// Hoja de vida y perfil público verificable (REQ-08)
+  final String? bio;
+  final String? registrationNumber;
+  final int? yearsOfExperience;
+  final String? phone;
+  final String? photoUrl;
+  final double? ratingAvg;
+  final int ratingCount;
+
   const StaffProfile({
     required this.name,
     required this.role,
@@ -168,6 +177,13 @@ class StaffProfile {
     required this.openNow,
     this.specialty,
     this.professionalId,
+    this.bio,
+    this.registrationNumber,
+    this.yearsOfExperience,
+    this.phone,
+    this.photoUrl,
+    this.ratingAvg,
+    this.ratingCount = 0,
   });
 
   factory StaffProfile.fromJson(Map<String, dynamic> json) {
@@ -184,10 +200,18 @@ class StaffProfile {
           const [],
       completedToday: _asInt(json['completed_today']),
       openNow: _asInt(json['open_now']),
+      bio: json['bio'] as String?,
+      registrationNumber: json['registration_number'] as String?,
+      yearsOfExperience: (json['years_of_experience'] as num?)?.toInt(),
+      phone: json['phone'] as String?,
+      photoUrl: json['photo_url'] as String?,
+      ratingAvg: (json['rating_avg'] as num?)?.toDouble(),
+      ratingCount: _asInt(json['rating_count']),
     );
   }
 
   bool get isOnDuty => dutyStatus != 'desconectado';
+  bool get hasRating => ratingCount > 0 && ratingAvg != null;
 }
 
 /// Headline numbers for the operations panel.

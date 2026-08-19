@@ -286,6 +286,14 @@ class ServiceRequest {
       'professional_name': professionalName,
       'professional_specialty': professionalSpecialty,
       'professional_phone': professionalPhone,
+      'assigned_professional': professionalProfile?.toAssignmentJson() ?? (
+        professionalId != null ? {
+          'id': professionalId,
+          'name': professionalName,
+          'specialty': professionalSpecialty,
+          'phone': professionalPhone,
+        } : null
+      ),
       'symptoms_description': symptomsDescription,
       'prescription_name': prescriptionName,
       'prescription_preview': prescriptionPreview,

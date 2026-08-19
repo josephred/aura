@@ -3,6 +3,7 @@ import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
+import '../theme/app_typography.dart';
 import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
@@ -66,19 +67,30 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 
   Future<void> _loadProfessionals() async {
+    setState(() => _loadingProfessionals = true);
     await widget.state.fetchProfessionals();
     if (!mounted) return;
-    setState(() => _loadingProfessionals = false);
 
-    // With a single matching professional there is nothing to choose: jump
-    // straight to the calendar.
-    final list = _visibleProfessionals;
-    if (list.length == 1) _selectProfessional(list.first);
+    final available = _visibleProfessionals;
+
+    // Si solo hay un profesional en la disciplina filtrada, seleccionarlo de
+    // inmediato para ahorrarle un toque al paciente.
+    Professional? autoSelect;
+    if (available.length == 1) {
+      autoSelect = available.first;
+    }
+
+    setState(() {
+      _loadingProfessionals = false;
+      if (autoSelect != null) _professional = autoSelect;
+    });
+
+    if (autoSelect != null) {
+      await _loadSlots(autoSelect, _date);
+    }
   }
 
-  /// Professionals matching [BookAppointmentScreen.specialtyFilter], accent-
-  /// and case-insensitively. Falls back to the full list when the filter
-  /// matches nobody so the user is never left with an empty screen.
+  /// Professionals visible given the specialty filter.
   List<Professional> get _visibleProfessionals {
     final filter = widget.specialtyFilter;
     if (filter == null || filter.isEmpty) return widget.state.professionals;
@@ -89,17 +101,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       return filter.any(
         (term) => haystack.contains(normalizeForSearch(term)),
       );
-    }).toList();
+    });
 
-    return matches.isEmpty ? widget.state.professionals : matches;
+    return matches.isEmpty ? widget.state.professionals : matches.toList();
   }
 
-  Future<void> _selectProfessional(Professional professional) async {
+  Future<void> _selectProfessional(Professional prof) async {
     setState(() {
-      _professional = professional;
+      _professional = prof;
       _slot = null;
     });
-    await _loadSlots();
+    await _loadSlots(prof, _date);
   }
 
   Future<void> _selectDate(DateTime date) async {
@@ -107,27 +119,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       _date = date;
       _slot = null;
     });
-    await _loadSlots();
+    if (_professional != null) {
+      await _loadSlots(_professional!, date);
+    }
   }
 
-  Future<void> _loadSlots() async {
-    if (_professional == null) return;
+  Future<void> _loadSlots(Professional prof, DateTime date) async {
     setState(() => _loadingSlots = true);
-    final slots = await widget.state.fetchSlots(_professional!.id, _date);
-    if (mounted) {
-      setState(() {
-        _slots = slots;
-        _loadingSlots = false;
-      });
-    }
+    final slots = await widget.state.fetchSlots(prof.id, date);
+    if (!mounted) return;
+    setState(() {
+      _slots = slots;
+      _loadingSlots = false;
+    });
   }
 
   Future<void> _confirm() async {
     if (_professional == null || _slot == null || _submitting) return;
 
-    // The consultation reason opens the clinical history, so it is required
-    // and must name at least two symptoms. Mirrors the server rule.
-    final reasonError = validateSymptoms(_reasonController.text.trim());
+    final reason = _reasonController.text.trim();
+    final reasonError = validateSymptoms(reason);
     if (reasonError != null) {
       setState(() => _reasonError = reasonError);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -138,27 +149,28 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       );
       return;
     }
+    setState(() => _reasonError = null);
 
-    setState(() {
-      _reasonError = null;
-      _submitting = true;
-    });
-
+    setState(() => _submitting = true);
     final (appointment, error) = await widget.state.createAppointment(
       professionalId: _professional!.id,
       scheduledAt: _slot!,
-      reason: _reasonController.text.trim(),
+      reason: reason,
       type: _type,
     );
-
     if (!mounted) return;
     setState(() => _submitting = false);
 
     if (appointment == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'No se pudo agendar la cita.')),
+        SnackBar(
+          content: Text(error ?? 'No se pudo agendar la cita.'),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
       );
-      if (error != null && error.contains('horario')) _loadSlots();
+      if (error != null && error.contains('horario') && _professional != null) {
+        _loadSlots(_professional!, _date);
+      }
       return;
     }
 
@@ -167,13 +179,17 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Confirma el monto'),
+          title: Text(
+            'Confirma el monto',
+            style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
+          ),
           content: Text(
             'Tu hora del ${formatAppointmentDate(appointment.scheduledAt)} con '
             '${_professional!.name} quedó reservada por '
             '${formatClp(_professional!.consultationPrice)}.\n\n'
             'Al aceptar te llevaremos a Mercado Pago. Si prefieres, puedes '
             'cancelar la reserva ahora sin costo.',
+            style: AppType.bodyMedium,
           ),
           actions: [
             TextButton(
@@ -181,9 +197,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 Navigator.pop(context);
                 await widget.state.cancelAppointment(appointment.id);
               },
-              child: const Text(
+              child: Text(
                 'Cancelar reserva',
-                style: TextStyle(color: Color(0xFFDC2626)),
+                style: AppType.button.copyWith(color: const Color(0xFFDC2626)),
               ),
             ),
             FilledButton(
@@ -193,7 +209,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 Navigator.pop(context);
                 widget.state.openCheckoutUrl(appointment.paymentUrl!);
               },
-              child: const Text('Aceptar y pagar'),
+              child: Text('Aceptar y pagar', style: AppType.button),
             ),
           ],
         ),
@@ -218,7 +234,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         foregroundColor: p.textPrimary,
         title: Text(
           widget.headerTitle ?? 'Agendar cita',
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.w800),
         ),
       ),
       bottomNavigationBar: SafeArea(
@@ -241,8 +257,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                       : _slot == null
                           ? 'Elige un horario'
                           : 'Confirmar cita · ${formatClp(_professional!.consultationPrice)}',
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w700),
+              style: AppType.button.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -328,8 +343,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
         child: Text(
           text.toUpperCase(),
-          style: TextStyle(
-            fontSize: 12,
+          style: AppType.label.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
             color: p.textMuted,
@@ -361,17 +375,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: TextStyle(
+              style: AppType.bodySmall.copyWith(
                 fontWeight: FontWeight.w800,
-                fontSize: 13,
                 color: selected ? Colors.white : p.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.label.copyWith(
                 color:
                     selected ? Colors.white.withValues(alpha: 0.85) : p.textMuted,
               ),
@@ -408,7 +420,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                         .replaceAll(RegExp(r'^(Dr[a]?|Klg[oa]|Enf)\.\s*'), '')
                         .substring(0, 1)
                     : '?',
-                style: TextStyle(
+                style: AppType.titleMedium.copyWith(
                   color: p.accent,
                   fontWeight: FontWeight.w800,
                 ),
@@ -421,17 +433,15 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 children: [
                   Text(
                     professional.name,
-                    style: TextStyle(
+                    style: AppType.bodyMedium.copyWith(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
                       color: p.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     professional.specialty,
-                    style: TextStyle(
-                        fontSize: 12, color: p.textMuted),
+                    style: AppType.bodySmall.copyWith(color: p.textMuted),
                   ),
                   const SizedBox(height: 4),
                   // B.3 — conocer al profesional antes de agendar con él.
@@ -450,8 +460,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                         Flexible(
                           child: Text(
                           'Ver ficha',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: AppType.label.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.accent,
                           ),
@@ -464,8 +473,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                           const SizedBox(width: 2),
                           Text(
                             professional.ratingAvg!.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppType.label.copyWith(
                               fontWeight: FontWeight.bold,
                               color: p.textMuted,
                             ),
@@ -482,16 +490,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
               children: [
                 Text(
                   formatClp(professional.consultationPrice),
-                  style: TextStyle(
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 14,
                     color: p.textPrimary,
                   ),
                 ),
                 Text(
                   '${professional.consultationDurationMinutes} min',
-                  style: TextStyle(
-                      fontSize: 12, color: p.textMuted),
+                  style: AppType.label.copyWith(color: p.textMuted),
                 ),
               ],
             ),
@@ -538,8 +544,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                 children: [
                   Text(
                     _daysEs[date.weekday - 1],
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       fontWeight: FontWeight.w700,
                       color: selected ? Colors.white70 : p.textMuted,
                     ),
@@ -547,16 +552,14 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '${date.day}',
-                    style: TextStyle(
-                      fontSize: 17,
+                    style: AppType.bodyLarge.copyWith(
                       fontWeight: FontWeight.w800,
                       color: selected ? Colors.white : p.textPrimary,
                     ),
                   ),
                   Text(
                     _monthsEs[date.month - 1],
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       color: selected ? Colors.white70 : p.textFaint,
                     ),
                   ),
@@ -588,7 +591,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         padding: EdgeInsets.symmetric(vertical: 16),
         child: Text(
           'No hay horarios disponibles para este día. Prueba otra fecha.',
-          style: TextStyle(color: p.textMuted, fontSize: 13),
+          style: AppType.bodySmall.copyWith(color: p.textMuted),
         ),
       );
     }
@@ -605,9 +608,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
           onSelected: (_) => setState(() => _slot = slot),
           selectedColor: p.accent,
           backgroundColor: p.card,
-          labelStyle: TextStyle(
+          labelStyle: AppType.bodySmall.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 13,
             color: selected ? Colors.white : p.textSecondary,
           ),
           shape: RoundedRectangleBorder(

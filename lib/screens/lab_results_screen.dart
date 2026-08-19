@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/lab_models.dart';
 import '../state/app_state.dart';
+import '../theme/app_typography.dart';
 
 /// E.4 — "Mis Exámenes": tomas de muestra agendadas e informes descargables.
 ///
@@ -146,7 +147,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
     return Scaffold(
       backgroundColor: p.background,
       appBar: AppBar(
-        title: const Text('Mis Exámenes'),
+        title: Text('Mis Exámenes', style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).cardColor,
         foregroundColor: p.textPrimary,
         elevation: 0,
@@ -162,7 +163,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                   const SizedBox(height: 10),
                   if (upcoming.isEmpty)
                     _emptyCard(
-                      'No tienes tomas de muestra agendadas',
+                       'No tienes tomas de muestra agendadas',
                       'Solicita "Toma de Muestras y Laboratorio" desde el catálogo para elegir un horario.',
                     )
                   else
@@ -183,7 +184,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                   Text(
                     'Los informes son documentos clínicos: no reemplazan la interpretación de un '
                     'profesional. Si tienes dudas sobre lo que indican, agenda una consulta para revisarlos.',
-                    style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.5),
+                    style: AppType.bodySmall.copyWith(color: p.textFaint, height: 1.5),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -200,8 +201,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
         Flexible(
           child: Text(
           text,
-          style: TextStyle(
-            fontSize: 12,
+          style: AppType.label.copyWith(
             fontWeight: FontWeight.bold,
             color: p.textFaint,
             letterSpacing: 0.5,
@@ -227,8 +227,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
           const SizedBox(height: 10),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
+            style: AppType.bodyMedium.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textSecondary,
             ),
@@ -237,7 +236,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.3),
+            style: AppType.bodySmall.copyWith(color: p.textFaint, height: 1.3),
           ),
         ],
       ),
@@ -261,8 +260,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               Expanded(
                 child: Text(
                   request.scheduledLabel ?? 'Fecha por confirmar',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -278,8 +276,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                 ),
                 child: Text(
                   request.statusLabel,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: request.awaitsPayment
                         ? const Color(0xFF92400E)
@@ -292,17 +289,17 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
           const SizedBox(height: 6),
           Text(
             '📍 ${request.addressText}',
-            style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
+            style: AppType.bodySmall.copyWith(color: p.textMuted, height: 1.4),
           ),
           if (request.professionalName != null)
             Text(
               '🧪 ${request.professionalName}',
-              style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
+              style: AppType.bodySmall.copyWith(color: p.textMuted, height: 1.4),
             ),
           if (request.examRequired != null)
             Text(
               'Exámenes: ${request.examRequired}',
-              style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
+              style: AppType.bodySmall.copyWith(color: p.textMuted, height: 1.4),
             ),
           if (request.clinicalNotes != null && request.clinicalNotes!.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -315,9 +312,8 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               ),
               child: Text(
                 request.clinicalNotes!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF92400E),
+                style: AppType.bodySmall.copyWith(
+                  color: const Color(0xFF92400E),
                   height: 1.4,
                 ),
               ),
@@ -345,19 +341,19 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                   ),
                   child: Text(
                     'Pagar \$${request.finalPrice}',
-                    style: const TextStyle(fontSize: 12),
+                    style: AppType.button,
                   ),
                 ),
               if (request.awaitsPayment)
                 TextButton(
                   onPressed: () => _verifyPayment(request),
-                  child: const Text('Ya pagué', style: TextStyle(fontSize: 12)),
+                  child: Text('Ya pagué', style: AppType.button.copyWith(color: p.accent)),
                 ),
               TextButton(
                 onPressed: () => _cancel(request),
-                child: const Text(
+                child: Text(
                   'Cancelar',
-                  style: TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                  style: AppType.button.copyWith(color: const Color(0xFFDC2626)),
                 ),
               ),
             ],
@@ -397,8 +393,7 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
               children: [
                 Text(
                   result.title,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -412,14 +407,14 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
                     ?size,
                     if (result.emailedAt != null) 'enviado por correo',
                   ].join(' · '),
-                  style: TextStyle(fontSize: 12, color: p.textFaint),
+                  style: AppType.label.copyWith(color: p.textFaint),
                 ),
                 if (result.notes != null && result.notes!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       result.notes!,
-                      style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.4),
+                      style: AppType.bodySmall.copyWith(color: p.textMuted, height: 1.4),
                     ),
                   ),
               ],

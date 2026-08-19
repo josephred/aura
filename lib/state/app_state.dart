@@ -1421,6 +1421,73 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Actualiza la hoja de vida y datos del profesional autenticado (REQ-08).
+  Future<String?> updateStaffProfile({
+    String? bio,
+    String? registrationNumber,
+    int? yearsOfExperience,
+    String? phone,
+    List<String>? coverageZones,
+    String? photoUrl,
+  }) async {
+    try {
+      final payload = <String, dynamic>{};
+      if (bio != null) payload['bio'] = bio;
+      if (registrationNumber != null) payload['registration_number'] = registrationNumber;
+      if (yearsOfExperience != null) payload['years_of_experience'] = yearsOfExperience;
+      if (phone != null) payload['phone'] = phone;
+      if (coverageZones != null) payload['coverage_zones'] = coverageZones;
+      if (photoUrl != null) payload['photo_url'] = photoUrl;
+
+      final response = await _apiService.post(
+        '/staff/profile',
+        body: payload,
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshStaffArea();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo actualizar el perfil.';
+    } catch (e) {
+      debugPrint('updateStaffProfile failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
+  /// Envía la calificación de estrellas y reseña de una atención finalizada (REQ-09).
+  Future<String?> submitRating({
+    required String bookingId,
+    required int rating,
+    String? feedback,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/bookings/$bookingId/rating',
+        body: {
+          'rating': rating,
+          if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
+        },
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo enviar la calificación.';
+    } catch (e) {
+      debugPrint('submitRating failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
   // ==================== Operations panel (operator/admin role) ====================
 
   OperationsMetrics? _opsMetrics;
@@ -1521,8 +1588,34 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  /// Cotiza la tarifa de un traslado georreferenciado (REQ-11).
+  Future<Map<String, dynamic>?> quoteTransport({
+    required double originLat,
+    required double originLng,
+    required double destinationLat,
+    required double destinationLng,
+    String ambulanceType = 'basic',
+  }) async {
+    try {
+      final response = await _apiService.get(
+        '/transport/quote?origin_lat=$originLat&origin_lng=$originLng&destination_lat=$destinationLat&destination_lng=$destinationLng&ambulance_type=$ambulanceType',
+        timeout: const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('quoteTransport failed: $e');
+      return null;
+    }
+  }
+
   // Submit request and start match simulation
-  Future<void> confirmRequest({
+  Future<String?> confirmRequest({
     required String patientType,
     String? dependentId,
     required String addressText,
@@ -1531,6 +1624,8 @@ class AppState extends ChangeNotifier {
     String? ambulanceType,
     double? patientLat,
     double? patientLng,
+    double? destinationLat,
+    double? destinationLng,
     String? symptomsDescription,
     String? symptomAudioPath,
     String? prescriptionName,
@@ -1573,23 +1668,27 @@ class AppState extends ChangeNotifier {
             ),
         ];
 
+        final fields = <String, String>{
+          'service_id': _selectedService!.id,
+          'patient_type': patientType,
+          'address_text': addressText,
+          'final_price': finalPrice.toString(),
+          'eta_minutes': etaMinutes.toString(),
+        };
+        if (dependentId != null) fields['dependent_id'] = dependentId;
+        if (originAddress != null) fields['origin_address'] = originAddress;
+        if (destinationAddress != null) fields['destination_address'] = destinationAddress;
+        if (ambulanceType != null) fields['ambulance_type'] = ambulanceType;
+        if (patientLat != null) fields['patient_lat'] = patientLat.toString();
+        if (patientLng != null) fields['patient_lng'] = patientLng.toString();
+        if (destinationLat != null) fields['destination_lat'] = destinationLat.toString();
+        if (destinationLng != null) fields['destination_lng'] = destinationLng.toString();
+        if (symptomsDescription != null) fields['symptoms_description'] = symptomsDescription;
+        if (prescriptionName != null) fields['prescription_name'] = prescriptionName;
+
         response = await _apiService.postMultipart(
           '/bookings',
-          fields: {
-            'service_id': _selectedService!.id,
-            'patient_type': patientType,
-            'dependent_id': ?dependentId,
-            'address_text': addressText,
-            'origin_address': ?originAddress,
-            'destination_address': ?destinationAddress,
-            'ambulance_type': ?ambulanceType,
-            'patient_lat': ?patientLat?.toString(),
-            'patient_lng': ?patientLng?.toString(),
-            'symptoms_description': ?symptomsDescription,
-            'prescription_name': ?prescriptionName,
-            'final_price': finalPrice.toString(),
-            'eta_minutes': etaMinutes.toString(),
-          },
+          fields: fields,
           files: files,
         );
       } else {
@@ -1605,6 +1704,8 @@ class AppState extends ChangeNotifier {
             'ambulance_type': ambulanceType,
             'patient_lat': patientLat,
             'patient_lng': patientLng,
+            'destination_lat': destinationLat,
+            'destination_lng': destinationLng,
             'symptoms_description': symptomsDescription,
             'prescription_name': prescriptionName,
             'prescription_preview': prescriptionPreview,
@@ -1635,8 +1736,27 @@ class AppState extends ChangeNotifier {
           }
           notifyListeners();
         }
+        return null;
       } else {
+        String? errorMessage;
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map) {
+            if (data['message'] != null) {
+              errorMessage = data['message'].toString();
+            } else if (data['error'] != null) {
+              errorMessage = data['error'].toString();
+            } else if (data['errors'] != null && data['errors'] is Map && (data['errors'] as Map).isNotEmpty) {
+              final firstVal = (data['errors'] as Map).values.first;
+              if (firstVal is List && firstVal.isNotEmpty) {
+                errorMessage = firstVal.first.toString();
+              }
+            }
+          }
+        } catch (_) {}
+        errorMessage ??= 'Error al procesar la solicitud (código ${response.statusCode})';
         notifyListeners();
+        return errorMessage;
       }
     } catch (e) {
       debugPrint('Backend confirmRequest failed, falling back to local simulation. Error: $e');
@@ -1734,6 +1854,7 @@ class AppState extends ChangeNotifier {
 
         notifyListeners();
       });
+      return null;
     }
   }
 
@@ -2121,6 +2242,55 @@ class AppState extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('openLabResult failed. Error: $e');
+      return false;
+    }
+  }
+
+  /// Opens a clinical attachment (voice note or prescription) by obtaining
+  /// a short-lived signed link from the server to prevent 403 authorization errors.
+  Future<bool> openMediaAttachment(String mediaUrl) async {
+    try {
+      String? bookingId;
+      String? kind;
+
+      if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
+        final uri = Uri.parse(mediaUrl);
+        final segments = uri.pathSegments;
+        if (segments.length >= 4 && segments[0] == 'media' && segments[1] == 'bookings') {
+          bookingId = segments[2];
+          kind = segments[3];
+        }
+      } else {
+        final segments = mediaUrl.split('/').where((s) => s.isNotEmpty).toList();
+        if (segments.length >= 4 && segments[0] == 'media' && segments[1] == 'bookings') {
+          bookingId = segments[2];
+          kind = segments[3];
+        }
+      }
+
+      if (bookingId != null && kind != null) {
+        final response = await _apiService.get(
+          '/media/bookings/$bookingId/$kind/link',
+          timeout: const Duration(seconds: 8),
+        );
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          final signedUrl = data['url'] as String?;
+          if (signedUrl != null && signedUrl.isNotEmpty) {
+            return await launchUrl(
+              Uri.parse(signedUrl),
+              mode: LaunchMode.externalApplication,
+            );
+          }
+        }
+      }
+
+      return await launchUrl(
+        Uri.parse(mediaUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      debugPrint('openMediaAttachment failed. Error: $e');
       return false;
     }
   }

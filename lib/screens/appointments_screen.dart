@@ -3,6 +3,7 @@ import '../utils/money.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../state/app_state.dart';
+import '../theme/app_typography.dart';
 import 'book_appointment_screen.dart';
 import 'video_call_screen.dart';
 
@@ -180,7 +181,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             'Aún no tienes citas agendadas.',
-                            style: TextStyle(color: p.textMuted),
+                            style: AppType.bodyMedium.copyWith(color: p.textMuted),
                           ),
                         ],
                       ),
@@ -203,8 +204,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
         child: Text(
           text.toUpperCase(),
-          style: TextStyle(
-            fontSize: 12,
+          style: AppType.label.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: 1.1,
             color: p.textMuted,
@@ -242,9 +242,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               Expanded(
                 child: Text(
                   appointment.professionalName ?? 'Profesional Aura',
-                  style: TextStyle(
+                  style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
                     color: p.textPrimary,
                   ),
                 ),
@@ -257,8 +256,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ),
                 child: Text(
                   chipText,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.w700,
                     color: chipColor,
                   ),
@@ -272,24 +270,22 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               if (appointment.isVideo) ...[
                 const Icon(Icons.videocam, size: 14, color: Color(0xFF7C3AED)),
                 const SizedBox(width: 4),
-                const Text(
+                Text(
                   'Videoconsulta',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF7C3AED),
+                    color: const Color(0xFF7C3AED),
                   ),
                 ),
                 Text(
                   ' · ',
-                  style: TextStyle(fontSize: 12, color: p.textMuted),
+                  style: AppType.label.copyWith(color: p.textMuted),
                 ),
               ],
               Expanded(
                 child: Text(
                   appointment.specialty ?? '',
-                  style:
-                      TextStyle(fontSize: 13, color: p.textMuted),
+                  style: AppType.bodySmall.copyWith(color: p.textMuted),
                 ),
               ),
             ],
@@ -302,8 +298,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               Flexible(
                 child: Text(
                 formatAppointmentDate(appointment.scheduledAt),
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppType.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
                   color: p.textSecondary,
                 ),
@@ -313,8 +308,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               Flexible(
                 child: Text(
                 formatClp(appointment.price),
-                style: TextStyle(
-                  fontSize: 13,
+                style: AppType.bodyMedium.copyWith(
                   fontWeight: FontWeight.w700,
                   color: p.textPrimary,
                 ),

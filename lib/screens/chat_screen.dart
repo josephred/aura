@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_typography.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppState state;
@@ -130,8 +131,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             children: [
                               Text(
                                 'Mesa de Asistencia Aura',
-                                style: TextStyle(
-                                  fontSize: 12,
+                                style: AppType.bodyMedium.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: p.textPrimary,
                                 ),
@@ -150,8 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           const SizedBox(height: 1),
                           Text(
                             'Canal de Chat Seguro Encriptado',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: AppType.label.copyWith(
                               color: p.textMuted,
                             ),
                           ),
@@ -178,9 +177,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         const SizedBox(width: 4),
                         Text(
                           'Clínica Digital',
-                          style: TextStyle(
+                          style: AppType.label.copyWith(
                             color: p.accentText,
-                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -228,8 +226,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: TextField(
                         controller: _controller,
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppType.bodyMedium.copyWith(
                           color: p.textPrimary,
                           fontWeight: FontWeight.w500,
                         ),
@@ -237,9 +234,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         onSubmitted: (_) => _send(),
                         decoration: InputDecoration(
                           hintText: 'Escriba su consulta al profesional...',
-                          hintStyle: TextStyle(
+                          hintStyle: AppType.bodyMedium.copyWith(
                             color: p.textFaint,
-                            fontSize: 12,
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
@@ -289,9 +285,8 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Text(
           msg.text,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: AppType.bodySmall.copyWith(
             color: p.textPrimary,
-            fontSize: 12,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.2,
           ),
@@ -338,9 +333,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (!isMe && msg.senderName != null) ...[
                   Text(
                     msg.senderName!,
-                    style: TextStyle(
+                    style: AppType.label.copyWith(
                       color: p.accentText,
-                      fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -348,9 +342,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
                 Text(
                   msg.text,
-                  style: TextStyle(
+                  style: AppType.bodyMedium.copyWith(
                     color: isMe ? Colors.white : p.textSecondary,
-                    fontSize: 12,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
                   ),
@@ -358,11 +351,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(height: 4),
                 Text(
                   msg.timestamp,
-                  style: TextStyle(
+                  style: AppType.label.copyWith(
                     color: isMe
                         ? const Color(0xFF99F6E4)
                         : p.textFaint,
-                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -390,8 +382,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               'Aún no hay mensajes en este canal.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.bodyLarge.copyWith(
                 fontWeight: FontWeight.bold,
                 color: p.textMuted,
               ),
@@ -401,7 +392,7 @@ class _ChatScreenState extends State<ChatScreen> {
               'Escribe tu consulta: el profesional asignado la ve en su portal '
               'y te responde por aquí mismo.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: p.textFaint, height: 1.5),
+              style: AppType.bodyMedium.copyWith(color: p.textFaint, height: 1.5),
             ),
           ],
         ),
@@ -445,8 +436,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Title
                 Text(
                   'Canal de Asistencia Inactivo',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: AppType.titleMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -456,8 +446,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Subtitle
                 Text(
                   'El canal de chat directo con los profesionales clínicos se activará automáticamente al confirmar una solicitud de atención domiciliaria.',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodyMedium.copyWith(
                     color: p.textMuted,
                     height: 1.5,
                   ),
@@ -477,8 +466,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     children: [
                       Text(
                         'ESPECIALIDADES DISPONIBLES',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: AppType.label.copyWith(
                           fontWeight: FontWeight.bold,
                           color: p.accentText,
                           letterSpacing: 0.8,
@@ -520,11 +508,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'SOLICITAR NUEVA ATENCIÓN',
-                      style: TextStyle(
+                      style: AppType.button.copyWith(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -557,8 +544,7 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 12,
+                style: AppType.bodyMedium.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
@@ -566,7 +552,7 @@ class _ChatScreenState extends State<ChatScreen> {
               const SizedBox(height: 1),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: p.textFaint),
+                style: AppType.bodySmall.copyWith(color: p.textFaint),
               ),
             ],
           ),
