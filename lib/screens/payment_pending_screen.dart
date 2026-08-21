@@ -3,7 +3,6 @@ import 'package:aura/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
-import '../theme/app_typography.dart';
 
 class PaymentPendingScreen extends StatefulWidget {
   final AppState state;

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import '../theme/app_typography.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/dependent.dart';
 import '../models/saved_address.dart';
@@ -8,6 +7,7 @@ import '../models/saved_payment_method.dart';
 import '../state/app_state.dart';
 import '../widgets/video_onboarding_dialog.dart';
 import 'preventive_health_screen.dart';
+import 'subscription_plans_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AppState state;
@@ -1372,6 +1372,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
+                _buildProfileLink(
+                  icon: Icons.workspace_premium_rounded,
+                  title: 'Planes de Suscripción Aura',
+                  subtitle: state.hasActiveSubscription
+                      ? 'Plan ${state.subscriptionInfo?.plan?.name ?? "Activo"} · ${state.subscriptionInfo?.remainingConsultations} consultas restantes'
+                      : 'Consultas médicas incluidas y descuentos exclusivos',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SubscriptionPlansScreen(state: state),
+                    ),
+                  ),
+                ),
+                Divider(height: 20, color: Theme.of(context).dividerColor.withValues(alpha: 0.15)),
                 _buildProfileLink(
                   icon: Icons.vaccines_outlined,
                   title: 'Salud preventiva',

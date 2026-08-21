@@ -22,6 +22,7 @@ import '../models/service_request.dart';
 import '../models/chat_message.dart';
 import '../models/past_service.dart';
 import '../models/staff_models.dart';
+import '../models/subscription_models.dart';
 import '../models/zone_eta_estimate.dart';
 import '../services/api_service.dart';
 import '../services/locality_service.dart';
@@ -79,6 +80,9 @@ class AppState extends ChangeNotifier {
   final List<SavedAddress> _addresses = [];
   final List<SavedPaymentMethod> _paymentMethods = [];
   final List<PastService> _pastServices = [];
+  List<SubscriptionPlan> _subscriptionPlans = [];
+  UserSubscriptionInfo? _subscriptionInfo;
+  bool _isLoadingSubscription = false;
 
   // Form selection and active requests
   ClinicalService? _selectedService;
@@ -195,7 +199,6 @@ class AppState extends ChangeNotifier {
     _userName = '';
     _userEmail = '';
     _isDemoMode = false;
-    _isOnboarded = false;
     _currentRequest = null;
     _pendingMessages = 0;
     _activeTab = 'home';
@@ -225,6 +228,7 @@ class AppState extends ChangeNotifier {
       // Última comuna conocida: se pinta de inmediato y se refresca por detrás.
       _currentLocality = prefs.getString('last_locality');
       _safetyNoticeDismissed = prefs.getBool('safety_notice_dismissed') ?? false;
+      _isOnboarded = prefs.getBool('is_onboarded') ?? false;
       final token = await _secureStorage.read(key: 'auth_token');
       if (token != null) {
         _authToken = token;
@@ -531,6 +535,8 @@ class AppState extends ChangeNotifier {
     await fetchPaymentMethods();
     await fetchActiveRequest();
     await fetchHistory();
+    await fetchSubscriptionPlans();
+    await fetchCurrentSubscription();
   }
 
   // Getters
@@ -543,6 +549,11 @@ class AppState extends ChangeNotifier {
   bool get isOnboarded => _isOnboarded;
   String get searchQuery => _searchQuery;
   String get selectedFilterCategory => _selectedFilterCategory;
+
+  List<SubscriptionPlan> get subscriptionPlans => _subscriptionPlans;
+  UserSubscriptionInfo? get subscriptionInfo => _subscriptionInfo;
+  bool get hasActiveSubscription => _subscriptionInfo?.hasSubscription ?? false;
+  bool get isLoadingSubscription => _isLoadingSubscription;
 
   List<ClinicalService> get services => _services;
   List<Dependent> get dependents => _dependents;
@@ -931,6 +942,9 @@ class AppState extends ChangeNotifier {
   void setOnboarded(bool value) {
     _isOnboarded = value;
     notifyListeners();
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('is_onboarded', value);
+    }).catchError((_) {});
   }
 
   void setSearchQuery(String value) {
@@ -1365,6 +1379,10 @@ class AppState extends ChangeNotifier {
             .map((b) => StaffBooking.fromJson(b as Map<String, dynamic>))
             .toList();
       }
+
+      if (_staffProfile?.providesLab == true) {
+        await fetchStaffLabCollections();
+      }
     } catch (e) {
       debugPrint('refreshStaffArea failed. Error: $e');
       _staffError = 'No pudimos conectar con el servidor.';
@@ -1484,6 +1502,54 @@ class AppState extends ChangeNotifier {
           'No se pudo enviar la calificación.';
     } catch (e) {
       debugPrint('submitRating failed. Error: $e');
+      return 'Sin conexión con el servidor.';
+    }
+  }
+
+  // ==================== Tomas de Muestra / Laboratorio Staff (REQ-15) ====================
+
+  List<StaffLabCollection> _staffLabCollections = [];
+  List<StaffLabCollection> get staffLabCollections => _staffLabCollections;
+
+  Future<void> fetchStaffLabCollections() async {
+    try {
+      final response = await _apiService.get('/staff/lab/collections', timeout: const Duration(seconds: 8));
+      if (response.statusCode == 200) {
+        final List data = json.decode(response.body);
+        _staffLabCollections = data
+            .map((b) => StaffLabCollection.fromJson(b as Map<String, dynamic>))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('fetchStaffLabCollections failed. Error: $e');
+    }
+  }
+
+  Future<String?> uploadStaffLabResult({
+    required String collectionId,
+    required String title,
+    required File file,
+  }) async {
+    try {
+      final response = await _apiService.postMultipart(
+        '/staff/lab/collections/$collectionId/results',
+        fields: {'title': title},
+        files: [
+          await http.MultipartFile.fromPath('file', file.path),
+        ],
+        timeout: const Duration(seconds: 30),
+      );
+
+      if (response.statusCode == 201) {
+        await fetchStaffLabCollections();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ?? 'No se pudo subir el informe.';
+    } catch (e) {
+      debugPrint('uploadStaffLabResult failed. Error: $e');
       return 'Sin conexión con el servidor.';
     }
   }
@@ -2679,6 +2745,70 @@ class AppState extends ChangeNotifier {
       _sseClient = null;
     }
     debugPrint('SSE Stream stopped cleanly.');
+  }
+
+  // =========================================================================
+  // GESTIÓN DE SUSCRIPCIONES Y PLANES RECURRENTES (REQ-13)
+  // =========================================================================
+
+  Future<void> fetchSubscriptionPlans() async {
+    try {
+      final res = await _apiService.get('/subscriptions/plans');
+      if (res.statusCode == 200) {
+        final List data = json.decode(res.body);
+        _subscriptionPlans = data.map((e) => SubscriptionPlan.fromJson(e)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching subscription plans: $e');
+    }
+  }
+
+  Future<void> fetchCurrentSubscription() async {
+    if (!isAuthenticated) return;
+    try {
+      _isLoadingSubscription = true;
+      notifyListeners();
+      final res = await _apiService.get('/subscriptions/current');
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        _subscriptionInfo = UserSubscriptionInfo.fromJson(data);
+      }
+    } catch (e) {
+      debugPrint('Error fetching current subscription: $e');
+    } finally {
+      _isLoadingSubscription = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> subscribeToPlan(String planId) async {
+    try {
+      final res = await _apiService.post('/subscriptions/subscribe', body: {
+        'plan_id': planId,
+      });
+      if (res.statusCode == 201 || res.statusCode == 200) {
+        final data = json.decode(res.body);
+        await fetchCurrentSubscription();
+        return data;
+      }
+    } catch (e) {
+      debugPrint('Error subscribing to plan: $e');
+    }
+    return null;
+  }
+
+  Future<bool> cancelSubscription() async {
+    try {
+      final res = await _apiService.post('/subscriptions/cancel');
+      if (res.statusCode == 200) {
+        await fetchCurrentSubscription();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error cancelling subscription: $e');
+    }
+    return false;
   }
 
   @override

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
-import '../theme/app_typography.dart';
 
 class ChatScreen extends StatefulWidget {
   final AppState state;

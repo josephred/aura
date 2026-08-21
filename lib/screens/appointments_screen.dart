@@ -3,7 +3,6 @@ import '../utils/money.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../state/app_state.dart';
-import '../theme/app_typography.dart';
 import 'book_appointment_screen.dart';
 import 'video_call_screen.dart';
 

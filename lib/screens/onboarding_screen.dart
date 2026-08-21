@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_typography.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final AppState state;
@@ -172,10 +173,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         child: Text(
                           'Solicita atenciones de enfermería, kinesiología, radiología y médicos generalistas directamente a la puerta de tu hogar, con un nivel visual impecable, seguimiento en vivo y pagos protegidos.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
+                          // Este párrafo es lo primero que lee alguien que abre
+                          // Aura por primera vez, y una parte importante de los
+                          // pacientes son adultos mayores. Estaba a 13, por
+                          // debajo del piso de cuerpo de la escala.
+                          style: AppType.bodyMedium.copyWith(
                             color: p.textMuted,
-                            height: 1.5,
                           ),
                         ),
                       ),
@@ -238,21 +241,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               0xFF0F766E,
                             ).withValues(alpha: 0.4),
                           ),
-                          child: const Row(
+                          // El `const` de este Row se quitó a propósito:
+                          // `AppType.button.copyWith(...)` no es una expresión
+                          // constante, y era el único motivo por el que la
+                          // etiqueta seguía con un tamaño escrito a mano.
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Flexible(
                                 child: Text(
-                                'INGRESAR A LA PLATAFORMA',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
+                                  'INGRESAR A LA PLATAFORMA',
+                                  style: AppType.button.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.0,
+                                  ),
                                 ),
                               ),
-                              ),
-                              SizedBox(width: 8),
-                              Icon(Icons.chevron_right, size: 18),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.chevron_right, size: 18),
                             ],
                           ),
                         ),
@@ -277,11 +283,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         Expanded(
           child: Text(
             text,
-            style: TextStyle(
-              fontSize: 13,
+            style: AppType.bodySmall.copyWith(
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).textTheme.bodyMedium?.color, // slate-700
-              height: 1.3,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
         ),

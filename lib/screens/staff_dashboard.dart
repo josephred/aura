@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../models/staff_models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
-import '../theme/app_typography.dart';
 
 /// Work area for professionals and ambulance drivers.
 ///
@@ -150,6 +149,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
             ),
             const SizedBox(height: 12),
             ...outside.map(_buildBookingCard),
+          ],
+
+          if (profile?.providesLab == true) ...[
+            const SizedBox(height: 28),
+            _buildLabCollectionsSection(state.staffLabCollections),
           ],
 
           const SizedBox(height: 28),
@@ -828,6 +832,144 @@ class _StaffDashboardState extends State<StaffDashboard> {
           );
         }
       },
+    );
+  }
+
+  Widget _buildLabCollectionsSection(List<StaffLabCollection> collections) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Tomas de Muestra Asignadas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: p.textPrimary,
+                ),
+              ),
+            ),
+            if (collections.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: p.accentSurface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${collections.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: p.accentText,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (collections.isEmpty)
+          _buildEmpty('No tienes tomas de muestra asignadas para hoy.')
+        else
+          ...collections.map(_buildLabCollectionCard),
+      ],
+    );
+  }
+
+  Widget _buildLabCollectionCard(StaffLabCollection col) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  col.patientName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: col.hasResult ? const Color(0xFF0F766E).withValues(alpha: 0.15) : p.accentSurface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  col.hasResult ? 'Informe emitido' : 'Pendiente',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: col.hasResult ? const Color(0xFF0F766E) : p.accentText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.biotech_outlined, size: 14, color: p.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  col.examRequired,
+                  style: TextStyle(fontSize: 13, color: p.textSecondary),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.place_outlined, size: 14, color: p.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  col.addressText,
+                  style: TextStyle(fontSize: 12, color: p.textMuted),
+                ),
+              ),
+            ],
+          ),
+          if (col.clinicalNotes != null && col.clinicalNotes!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Notas: ${col.clinicalNotes}',
+                      style: const TextStyle(fontSize: 11, color: Colors.brown),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

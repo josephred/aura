@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_typography.dart';
+export 'app_typography.dart';
 
 /// Semantic color tokens for Aura's custom UI. The app is styled with a fixed
 /// slate + teal palette; instead of hardcoding those literals (which never

@@ -234,7 +234,7 @@ class _TrackingMapState extends State<TrackingMap> {
                   alignment: Alignment.center,
                   child: Text(
                     'Ubicando al profesional…',
-                    style: TextStyle(fontSize: 12, color: context.palette.textMuted),
+                    style: AppType.label.copyWith(color: context.palette.textMuted),
                   ),
                 ),
 
@@ -244,9 +244,9 @@ class _TrackingMapState extends State<TrackingMap> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                   color: Colors.white70,
-                  child: const Text(
+                  child: Text(
                     '© OpenStreetMap',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                    style: AppType.label.copyWith(color: const Color(0xFF475569)),
                   ),
                 ),
               ),
@@ -264,28 +264,26 @@ class _TrackingMapState extends State<TrackingMap> {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                  '${_distanceKm!.toStringAsFixed(1)} km restantes',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: context.palette.textPrimary,
+                    '${_distanceKm!.toStringAsFixed(1)} km restantes',
+                    style: AppType.label.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.palette.textPrimary,
+                    ),
                   ),
-                ),
                 ),
                 const Spacer(),
                 Icon(Icons.access_time, color: p.accent, size: 14),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                  _pro == null
-                      ? 'Esperando GPS'
-                      : '≈ ${_etaMin ?? '--'} min',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: context.palette.textPrimary,
+                    _pro == null
+                        ? 'Esperando GPS'
+                        : '≈ ${_etaMin ?? '--'} min',
+                    style: AppType.label.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.palette.textPrimary,
+                    ),
                   ),
-                ),
                 ),
               ],
             ),

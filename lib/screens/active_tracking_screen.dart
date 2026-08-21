@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:aura/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../utils/money.dart';
-import '../theme/app_typography.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/dependent.dart';
 import '../models/service_request.dart';

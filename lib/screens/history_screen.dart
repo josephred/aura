@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_typography.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/past_service.dart';
 import '../models/service_request.dart';

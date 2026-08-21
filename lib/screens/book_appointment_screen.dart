@@ -3,7 +3,6 @@ import 'package:aura/theme/app_theme.dart';
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
-import '../theme/app_typography.dart';
 import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;

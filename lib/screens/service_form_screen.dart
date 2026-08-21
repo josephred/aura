@@ -3,7 +3,6 @@ import 'package:aura/theme/app_theme.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../utils/money.dart';
-import '../theme/app_typography.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../models/clinical_service.dart';

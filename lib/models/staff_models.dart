@@ -167,6 +167,8 @@ class StaffProfile {
   final double? ratingAvg;
   final int ratingCount;
 
+  final bool providesLab;
+
   const StaffProfile({
     required this.name,
     required this.role,
@@ -175,6 +177,7 @@ class StaffProfile {
     required this.coverageZones,
     required this.completedToday,
     required this.openNow,
+    this.providesLab = false,
     this.specialty,
     this.professionalId,
     this.bio,
@@ -192,6 +195,7 @@ class StaffProfile {
       specialty: json['specialty'] as String?,
       role: json['role'] as String? ?? 'doctor_provider',
       isOperator: json['is_operator'] == true,
+      providesLab: json['provides_lab'] == true || json['role'] == 'laboratorista',
       professionalId: json['professional_id'] as String?,
       dutyStatus: json['duty_status'] as String? ?? 'desconectado',
       coverageZones: (json['coverage_zones'] as List?)
@@ -291,6 +295,51 @@ class ManagedProfessional {
       dutyStatus: json['duty_status'] as String? ?? 'disponible',
       coverageZones: json['coverage_zones'] as String?,
       active: json['active'] == true,
+    );
+  }
+}
+
+/// Una toma de muestras asignada o en curso vista por el laboratorista (REQ-15).
+class StaffLabCollection {
+  final String id;
+  final String patientName;
+  final String addressText;
+  final String examRequired;
+  final String status;
+  final DateTime? startsAt;
+  final String? clinicalNotes;
+  final bool hasResult;
+
+  const StaffLabCollection({
+    required this.id,
+    required this.patientName,
+    required this.addressText,
+    required this.examRequired,
+    required this.status,
+    this.startsAt,
+    this.clinicalNotes,
+    this.hasResult = false,
+  });
+
+  factory StaffLabCollection.fromJson(Map<String, dynamic> json) {
+    final user = json['user'];
+    final dependent = json['dependent'];
+    String patient = 'Paciente';
+    if (json['patient_type'] == 'dependent' && dependent is Map) {
+      patient = '${dependent['name']} (${dependent['relationship'] ?? "Familiar"})';
+    } else if (user is Map && user['name'] != null) {
+      patient = '${user['name']}';
+    }
+
+    return StaffLabCollection(
+      id: json['id'] as String,
+      patientName: patient,
+      addressText: json['address_text'] as String? ?? 'Sin dirección',
+      examRequired: json['symptoms_description'] ?? json['exam_required'] ?? 'Examen de laboratorio',
+      status: json['status'] as String? ?? 'scheduled',
+      startsAt: json['scheduled_at'] != null ? DateTime.tryParse(json['scheduled_at'].toString()) : null,
+      clinicalNotes: json['clinical_notes'] as String?,
+      hasResult: json['has_result'] == true || json['result_delivered_at'] != null,
     );
   }
 }

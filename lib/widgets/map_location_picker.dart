@@ -201,9 +201,9 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 color: Colors.white70,
-                child: const Text(
+                child: Text(
                   '© OpenStreetMap',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                  style: AppType.label.copyWith(color: const Color(0xFF475569)),
                 ),
               ),
             ),

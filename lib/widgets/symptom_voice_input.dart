@@ -253,8 +253,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
+                  textStyle: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -282,8 +281,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
+                  textStyle: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -303,7 +301,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
                   _partialTranscript.isEmpty
                       ? 'Escuchando… habla con normalidad.'
                       : _partialTranscript,
-                  style: TextStyle(fontSize: 12, color: p.accent),
+                  style: AppType.label.copyWith(color: p.accent),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -328,8 +326,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
                 Expanded(
                   child: Text(
                     'Nota de voz adjunta (${_formatDuration(_recordedFor)})',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       fontWeight: FontWeight.bold,
                       color: p.accent,
                     ),
@@ -352,7 +349,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
           const SizedBox(height: 8),
           Text(
             _notice!,
-            style: const TextStyle(fontSize: 12, color: Color(0xFFB45309)),
+            style: AppType.label.copyWith(color: const Color(0xFFB45309)),
           ),
         ],
       ],

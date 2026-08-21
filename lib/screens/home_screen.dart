@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/locality_service.dart';
 import 'package:geolocator/geolocator.dart';
-import '../theme/app_typography.dart';
 import '../models/clinical_service.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';

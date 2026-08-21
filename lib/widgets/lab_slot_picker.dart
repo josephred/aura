@@ -136,15 +136,14 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                   children: [
                     Text(
                       'Agenda tu toma de muestras',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                      style: AppType.titleSmall.copyWith(
                         color: p.textPrimary,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
                       'Elige el día y el bloque horario que te acomode',
-                      style: TextStyle(fontSize: 12, color: p.textFaint),
+                      style: AppType.label.copyWith(color: p.textFaint),
                     ),
                   ],
                 ),
@@ -164,7 +163,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
             else if (_slots.isEmpty)
               Text(
                 'No quedan bloques libres ese día. Prueba con otra fecha.',
-                style: TextStyle(fontSize: 12, color: p.textMuted, height: 1.5),
+                style: AppType.label.copyWith(color: p.textMuted, height: 1.5),
               )
             else
               _buildSlotGrid(),
@@ -184,7 +183,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
         ),
         const SizedBox(width: 10),
         Flexible(
-          child: Text(message, style: TextStyle(fontSize: 12, color: p.textMuted)),
+          child: Text(message, style: AppType.label.copyWith(color: p.textMuted)),
         ),
       ],
     );
@@ -203,11 +202,11 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
         children: [
           const Icon(Icons.info_outline, color: Colors.amber, size: 18),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
               'Por ahora no hay horarios publicados para toma de muestras. '
               'Vuelve a intentarlo más tarde o comunícate con nosotros para coordinar.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.4),
+              style: AppType.label.copyWith(color: const Color(0xFF92400E), height: 1.4),
             ),
           ),
           TextButton(
@@ -217,7 +216,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Reintentar', style: TextStyle(fontSize: 12)),
+            child: Text('Reintentar', style: AppType.label),
           ),
         ],
       ),
@@ -255,8 +254,7 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                 children: [
                   Text(
                     _dayLabel(date),
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       fontWeight: FontWeight.w600,
                       color: selected ? Colors.white : p.textMuted,
                     ),
@@ -264,16 +262,14 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
                   const SizedBox(height: 2),
                   Text(
                     '${date.day}',
-                    style: TextStyle(
-                      fontSize: 18,
+                    style: AppType.titleMedium.copyWith(
                       fontWeight: FontWeight.bold,
                       color: selected ? Colors.white : p.textPrimary,
                     ),
                   ),
                   Text(
                     _months[date.month - 1],
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppType.label.copyWith(
                       color: selected ? Colors.white70 : p.textFaint,
                     ),
                   ),
@@ -308,16 +304,14 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
               children: [
                 Text(
                   slot.label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: selected ? Colors.white : p.textPrimary,
                   ),
                 ),
                 Text(
                   slot.professionalName,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     color: selected ? Colors.white70 : p.textFaint,
                   ),
                 ),

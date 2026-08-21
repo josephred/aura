@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
-import '../theme/app_typography.dart';
 
 /// Seeded QA accounts, one per role (see `TestUsersSeeder` in the backend).
 const String _testAccountPassword = 'aura1234';

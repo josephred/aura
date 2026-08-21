@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/lab_models.dart';
 import '../state/app_state.dart';
-import '../theme/app_typography.dart';
 
 /// E.4 — "Mis Exámenes": tomas de muestra agendadas e informes descargables.
 ///

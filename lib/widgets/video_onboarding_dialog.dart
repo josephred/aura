@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/app_theme.dart';
 
 /// A.3 — guía de ayuda paso a paso para el primer ingreso.
 ///
@@ -97,10 +98,9 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
+                    Text(
                       'Primeros pasos en Aura',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: AppType.titleMedium.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -146,16 +146,14 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
             const SizedBox(height: 16),
             Text(
               tutorial['title']!,
-              style: const TextStyle(
-                fontSize: 15,
+              style: AppType.titleSmall.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               tutorial['description']!,
-              style: TextStyle(
-                fontSize: 12,
+              style: AppType.bodySmall.copyWith(
                 color: isDark ? Colors.grey[300] : Colors.grey[700],
                 height: 1.4,
               ),
@@ -166,9 +164,9 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
               children: [
                 Flexible(
                   child: Text(
-                  'Paso ${_currentStep + 1} de ${_tutorials.length}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+                    'Paso ${_currentStep + 1} de ${_tutorials.length}',
+                    style: AppType.label.copyWith(color: Colors.grey),
+                  ),
                 ),
                 Row(
                   children: [
@@ -235,15 +233,14 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-            hasVideo
-                ? 'Ver video'
-                : 'Paso ${_currentStep + 1} de ${_tutorials.length}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+              hasVideo
+                  ? 'Ver video'
+                  : 'Paso ${_currentStep + 1} de ${_tutorials.length}',
+              style: AppType.label.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
           ),
         ],
       ),
