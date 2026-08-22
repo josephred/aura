@@ -590,7 +590,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _editingDependent != null ? 'Editar Familiar Paciente' : 'Registrar Nuevo Familiar Paciente',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F766E),
+                            color: p.accent,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -794,7 +794,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 18,
                                 ),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  backgroundColor: const Color(0xFFF43F5E).withValues(alpha: 0.12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -899,7 +899,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _editingAddress != null ? 'Editar Dirección Frecuente' : 'Registrar Nueva Dirección',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F766E),
+                            color: p.accent,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -1016,7 +1016,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 18,
                                 ),
                                 style: IconButton.styleFrom(
-                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  backgroundColor: const Color(0xFFF43F5E).withValues(alpha: 0.12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -1050,7 +1050,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 18),
+                        Icon(Icons.credit_card, color: p.accent, size: 18),
                         SizedBox(width: 8),
                         Text(
                           'Medios de Pago Vinculados',
@@ -1074,7 +1074,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
+                          color: p.accentSurface,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -1083,13 +1083,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icon(
                               _showAddPay ? Icons.close : Icons.add,
                               size: 12,
-                              color: const Color(0xFF0284C7),
+                              color: p.accent,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               _showAddPay ? 'Ocultar' : 'Agregar',
                               style: AppType.bodySmall.copyWith(
-                                color: Color(0xFF0284C7),
+                                color: p.accent,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1104,9 +1104,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE0F2FE).withValues(alpha: 0.2),
+                      color: p.accentSurface.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                      border: Border.all(color: p.accentSurface),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1115,7 +1115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'Vincular Nuevo Medio de Pago',
                           style: AppType.bodySmall.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0369A1),
+                            color: p.accent,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -1164,7 +1164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: ElevatedButton(
                             onPressed: _createPaymentMethod,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0284C7),
+                              backgroundColor: p.accent,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -1256,7 +1256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 'PREDETERMINADO',
                                 style: AppType.bodySmall.copyWith(
-                                  color: Color(0xFF059669),
+                                  color: context.isDark ? const Color(0xFF34D399) : const Color(0xFF059669),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1273,7 +1273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   padding: EdgeInsets.zero,
                                   minimumSize: const Size(28, 28),
                                   fixedSize: const Size(28, 28),
-                                  backgroundColor: const Color(0xFFFFF1F2),
+                                  backgroundColor: const Color(0xFFF43F5E).withValues(alpha: 0.12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(6),
                                   ),
@@ -1535,7 +1535,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                side: const BorderSide(color: Color(0xFFFECACA)),
+                side: BorderSide(
+                  color: context.isDark
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.3)
+                      : const Color(0xFFFECACA),
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

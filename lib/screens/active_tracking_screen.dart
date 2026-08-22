@@ -915,12 +915,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFF1F2),
+                  backgroundColor: const Color(0xFFF43F5E).withValues(alpha: 0.12),
                   foregroundColor: const Color(0xFFE11D48),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: Color(0xFFFFE4E6)),
+                    side: BorderSide(
+                      color: const Color(0xFFF43F5E).withValues(alpha: 0.25),
+                    ),
                   ),
                 ),
                 child: Text(
@@ -1175,7 +1177,7 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
+                    color: p.accentSurface,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -1184,14 +1186,14 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                         serviceId == 'ambulancia'
                             ? Icons.local_shipping
                             : Icons.directions_run,
-                        color: const Color(0xFF0369A1),
+                        color: p.accentText,
                         size: 11,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'GPS ACTIVO',
                         style: AppType.bodySmall.copyWith(
-                          color: Color(0xFF0369A1),
+                          color: p.accentText,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
