@@ -32,6 +32,7 @@ dependencies:
   speech_to_text: ^7.3.0
   record: ^6.1.1
   path_provider: ^2.1.5
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

@@ -13,6 +13,7 @@ import '../state/app_state.dart';
 import '../utils/service_specialties.dart';
 import '../utils/symptom_validation.dart';
 import '../models/lab_models.dart';
+import '../widgets/booking_voucher_dialog.dart';
 import '../widgets/lab_slot_picker.dart';
 import '../widgets/map_location_picker.dart';
 import '../widgets/symptom_voice_input.dart';
@@ -437,6 +438,92 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           backgroundColor: const Color(0xFFDC2626),
         ),
       );
+      return;
+    }
+
+    if (!mounted) return;
+
+    // Obtener nombre del paciente para el voucher
+    String patientName = widget.state.userName.isNotEmpty
+        ? widget.state.userName
+        : 'Paciente';
+    String? rel;
+    if (_patientType == 'dependent' && _selectedDependentId != null) {
+      final dep = widget.dependents.firstWhere(
+        (d) => d.id == _selectedDependentId,
+        orElse: () => Dependent(
+          id: '',
+          name: 'Familiar',
+          relationship: '',
+          age: 0,
+          healthInsurance: '',
+          medicalConditions: '',
+        ),
+      );
+      patientName = dep.name;
+      rel = dep.relationship;
+    }
+
+    final activeReq = widget.state.currentRequest;
+    final folio = activeReq?.id.toUpperCase().replaceAll('REQ_', '').replaceAll('-', '') ??
+        DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+
+    final voucherData = BookingVoucherData(
+      folio: folio,
+      serviceTitle: widget.service.title,
+      serviceIcon: _getServiceIcon(widget.service),
+      patientName: patientName,
+      patientType: _patientType,
+      relationship: rel,
+      address: finalAddress,
+      originAddress: widget.service.id == 'ambulancia'
+          ? _originAddressController.text
+          : null,
+      destinationAddress: widget.service.id == 'ambulancia'
+          ? _destinationAddressController.text
+          : null,
+      ambulanceType: widget.service.id == 'ambulancia' ? _ambulanceType : null,
+      symptomsOrReason: symptomsOrExam,
+      finalPrice: price,
+      etaMinutes: baseEtaMinutes,
+      createdAt: DateTime.now(),
+    );
+
+    await showBookingVoucherDialog(
+      context: context,
+      voucher: voucherData,
+      onTrack: () {
+        widget.state.selectService(null);
+        widget.state.setTab('appointments');
+      },
+    );
+
+    widget.state.selectService(null);
+    widget.state.setTab('appointments');
+  }
+
+  IconData _getServiceIcon(ClinicalService service) {
+    switch (service.iconName) {
+      case 'Activity':
+        return Icons.local_hospital_rounded;
+      case 'UserRoundPlus':
+        return Icons.medical_services_rounded;
+      case 'Footprints':
+        return Icons.directions_walk_rounded;
+      case 'Lungs':
+        return Icons.air_rounded;
+      case 'HeartHandshake':
+        return Icons.favorite_rounded;
+      case 'Truck':
+        return Icons.emergency_rounded;
+      case 'ScanFace':
+        return Icons.medical_information_rounded;
+      case 'FlaskConical':
+        return Icons.biotech_rounded;
+      case 'Heart':
+        return Icons.monitor_heart_rounded;
+      default:
+        return Icons.health_and_safety_rounded;
     }
   }
 
@@ -493,6 +580,54 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         ),
         backgroundColor: const Color(0xFF0F766E),
       ),
+    );
+
+    // Obtener nombre del paciente para el voucher de laboratorio
+    String patientName = widget.state.userName.isNotEmpty
+        ? widget.state.userName
+        : 'Paciente';
+    String? rel;
+    if (_patientType == 'dependent' && _selectedDependentId != null) {
+      final dep = widget.dependents.firstWhere(
+        (d) => d.id == _selectedDependentId,
+        orElse: () => Dependent(
+          id: '',
+          name: 'Familiar',
+          relationship: '',
+          age: 0,
+          healthInsurance: '',
+          medicalConditions: '',
+        ),
+      );
+      patientName = dep.name;
+      rel = dep.relationship;
+    }
+
+    final folio = request.id.toUpperCase().replaceAll('REQ_', '').replaceAll('-', '');
+
+    final voucherData = BookingVoucherData(
+      folio: folio,
+      serviceTitle: 'Toma de Muestras a Domicilio',
+      serviceIcon: Icons.biotech_rounded,
+      patientName: patientName,
+      patientType: _patientType,
+      relationship: rel,
+      address: address,
+      symptomsOrReason: _labNotesController.text.trim().isNotEmpty
+          ? 'Exámenes: $exam • Indicaciones: ${_labNotesController.text.trim()}'
+          : 'Exámenes: $exam',
+      finalPrice: _calculatePrice(),
+      etaMinutes: 0,
+      createdAt: DateTime.now(),
+    );
+
+    await showBookingVoucherDialog(
+      context: context,
+      voucher: voucherData,
+      onTrack: () {
+        widget.state.setTab('appointments');
+        widget.onBack();
+      },
     );
 
     widget.state.setTab('appointments');

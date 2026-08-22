@@ -5,6 +5,7 @@ import '../models/professional.dart';
 import '../state/app_state.dart';
 import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
+import '../widgets/booking_voucher_dialog.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
 import 'doctor_profile_screen.dart';
 
@@ -214,8 +215,28 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Cita confirmada!')),
+      final voucherData = BookingVoucherData(
+        folio: appointment.id.toUpperCase().replaceAll('-', ''),
+        serviceTitle: 'Consulta ${_professional?.specialty ?? "Clínica"} (${_type == "presencial" ? "Presencial" : "Telemedicina"})',
+        serviceIcon: _type == 'presencial' ? Icons.home_filled : Icons.video_camera_front_rounded,
+        patientName: widget.state.userName.isNotEmpty
+            ? widget.state.userName
+            : 'Paciente',
+        address: _type == 'presencial'
+            ? 'Atención a Domicilio / Consulta'
+            : 'Videoconsulta Médica en Vivo',
+        symptomsOrReason: reason,
+        finalPrice: _professional?.consultationPrice ?? 0,
+        etaMinutes: 0,
+        createdAt: appointment.scheduledAt,
+      );
+
+      await showBookingVoucherDialog(
+        context: context,
+        voucher: voucherData,
+        onTrack: () {
+          widget.state.setTab('appointments');
+        },
       );
     }
 

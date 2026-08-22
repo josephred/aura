@@ -1877,7 +1877,6 @@ class AppState extends ChangeNotifier {
       _isSearchingDoctor = false;
 
       if (response.statusCode == 201) {
-        _selectedService = null;
         await fetchActiveRequest();
 
         if (_currentRequest?.status == RequestStatus.pendingPayment) {
@@ -1885,16 +1884,15 @@ class AppState extends ChangeNotifier {
           // amount. We deliberately do NOT open Mercado Pago here — the user
           // must accept the total (or cancel the request) first.
           _activeTab = 'appointments';
-          notifyListeners();
         } else {
-          _activeTab = 'home';
+          _activeTab = 'appointments';
           // El servidor abre el canal con sus mensajes; el recuento sale de
           // ellos, no de un 1 escrito a mano.
           if (_currentRequest != null) {
             await _refreshUnreadCount(_currentRequest!.id);
           }
-          notifyListeners();
         }
+        notifyListeners();
         return null;
       } else {
         String? errorMessage;
@@ -1984,8 +1982,7 @@ class AppState extends ChangeNotifier {
           currentStep: 1,
         );
 
-        _selectedService = null;
-        _activeTab = 'home';
+        _activeTab = 'appointments';
 
         final serviceTitle = _services.firstWhere((s) => s.id == _currentRequest?.serviceId).shortTitle;
         _chatMessages.clear();
