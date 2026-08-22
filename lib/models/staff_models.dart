@@ -195,7 +195,7 @@ class StaffProfile {
       specialty: json['specialty'] as String?,
       role: json['role'] as String? ?? 'doctor_provider',
       isOperator: json['is_operator'] == true,
-      providesLab: json['provides_lab'] == true || json['role'] == 'laboratorista',
+      providesLab: json['provides_lab'] == true,
       professionalId: json['professional_id'] as String?,
       dutyStatus: json['duty_status'] as String? ?? 'desconectado',
       coverageZones: (json['coverage_zones'] as List?)

@@ -1526,34 +1526,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<String?> uploadStaffLabResult({
-    required String collectionId,
-    required String title,
-    required File file,
-  }) async {
-    try {
-      final response = await _apiService.postMultipart(
-        '/staff/lab/collections/$collectionId/results',
-        fields: {'title': title},
-        files: [
-          await http.MultipartFile.fromPath('file', file.path),
-        ],
-        timeout: const Duration(seconds: 30),
-      );
-
-      if (response.statusCode == 201) {
-        await fetchStaffLabCollections();
-        return null;
-      }
-
-      final body = json.decode(response.body);
-      return (body is Map ? body['error'] as String? : null) ?? 'No se pudo subir el informe.';
-    } catch (e) {
-      debugPrint('uploadStaffLabResult failed. Error: $e');
-      return 'Sin conexión con el servidor.';
-    }
-  }
-
   // ==================== Operations panel (operator/admin role) ====================
 
   OperationsMetrics? _opsMetrics;

@@ -115,8 +115,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             widget.ambulanceOnly
                 ? 'Traslados en tu zona'
                 : 'Solicitudes en tu zona',
-            style: TextStyle(
-              fontSize: 16,
+            style: AppType.titleSmall.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
             ),
@@ -136,8 +135,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             const SizedBox(height: 24),
             Text(
               'Fuera de tu zona (${outside.length})',
-              style: TextStyle(
-                fontSize: 14,
+              style: AppType.bodySmall.copyWith(
                 fontWeight: FontWeight.bold,
                 color: p.textMuted,
               ),
@@ -145,7 +143,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             const SizedBox(height: 4),
             Text(
               'Puedes tomarlas si nadie del sector responde.',
-              style: TextStyle(fontSize: 12, color: p.textFaint),
+              style: AppType.label.copyWith(color: p.textFaint),
             ),
             const SizedBox(height: 12),
             ...outside.map(_buildBookingCard),
@@ -180,8 +178,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 widget.ambulanceOnly
                     ? 'Traslados realizados'
                     : 'Atenciones realizadas',
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppType.titleSmall.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
@@ -196,8 +193,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
                 child: Text(
                   '${completed.length}',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.accentText,
                   ),
@@ -844,8 +840,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
             Expanded(
               child: Text(
                 'Tomas de Muestra Asignadas',
-                style: TextStyle(
-                  fontSize: 16,
+                style: AppType.titleSmall.copyWith(
                   fontWeight: FontWeight.bold,
                   color: p.textPrimary,
                 ),
@@ -860,8 +855,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
                 child: Text(
                   '${collections.length}',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.accentText,
                   ),
@@ -896,8 +890,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               Expanded(
                 child: Text(
                   col.patientName,
-                  style: TextStyle(
-                    fontSize: 15,
+                  style: AppType.bodyLarge.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textPrimary,
                   ),
@@ -911,8 +904,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
                 child: Text(
                   col.hasResult ? 'Informe emitido' : 'Pendiente',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: col.hasResult ? const Color(0xFF0F766E) : p.accentText,
                   ),
@@ -928,7 +920,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               Expanded(
                 child: Text(
                   col.examRequired,
-                  style: TextStyle(fontSize: 13, color: p.textSecondary),
+                  style: AppType.bodyMedium.copyWith(color: p.textSecondary),
                 ),
               ),
             ],
@@ -941,7 +933,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               Expanded(
                 child: Text(
                   col.addressText,
-                  style: TextStyle(fontSize: 12, color: p.textMuted),
+                  style: AppType.bodySmall.copyWith(color: p.textMuted),
                 ),
               ),
             ],
@@ -961,12 +953,84 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   Expanded(
                     child: Text(
                       'Notas: ${col.clinicalNotes}',
-                      style: const TextStyle(fontSize: 11, color: Colors.brown),
+                      style: AppType.label.copyWith(color: Colors.brown),
                     ),
                   ),
                 ],
               ),
             ),
+          ],
+          if (!col.hasResult) ...[
+            const SizedBox(height: 12),
+            if (col.status == 'scheduled')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await widget.state.updateStaffBookingStatus(col.id, 'en_camino');
+                    await widget.state.fetchStaffLabCollections();
+                  },
+                  icon: const Icon(Icons.directions_car, size: 16),
+                  label: Text('En camino', style: AppType.button.copyWith(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: p.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              )
+            else if (col.status == 'en_camino')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await widget.state.updateStaffBookingStatus(col.id, 'en_atencion');
+                    await widget.state.fetchStaffLabCollections();
+                  },
+                  icon: const Icon(Icons.local_hospital, size: 16),
+                  label: Text('En atención', style: AppType.button.copyWith(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              )
+            else if (col.status == 'en_atencion')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await widget.state.updateStaffBookingStatus(col.id, 'completed');
+                    await widget.state.fetchStaffLabCollections();
+                  },
+                  icon: const Icon(Icons.check_circle_outline, size: 16),
+                  label: Text('Toma completada', style: AppType.button.copyWith(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              )
+            else if (col.status == 'completed')
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: p.accentSurface.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_upload_outlined, size: 14, color: p.accentText),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Muestra recolectada. La emisión del informe se realiza desde el portal web (/doctor/laboratorio).',
+                        style: AppType.label.copyWith(color: p.textMuted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ],
       ),

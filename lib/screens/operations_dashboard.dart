@@ -78,16 +78,15 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                     children: [
                       Text(
                         state.staffProfile?.name ?? 'Panel de Operaciones',
-                        style: const TextStyle(
+                        style: AppType.titleMedium.copyWith(
                           color: Colors.white,
-                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Coordinación · sin área clínica',
-                        style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
+                        style: AppType.label.copyWith(color: const Color(0xFFCBD5E1)),
                       ),
                     ],
                   ),
@@ -102,8 +101,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
 
           Text(
             'Demanda por zona',
-            style: TextStyle(
-              fontSize: 16,
+            style: AppType.titleSmall.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
             ),
@@ -114,8 +112,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
 
           Text(
             'Prestadores y turnos',
-            style: TextStyle(
-              fontSize: 16,
+            style: AppType.titleSmall.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
             ),
@@ -183,8 +180,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     color: p.textMuted,
                     fontWeight: FontWeight.bold,
                   ),
@@ -195,8 +191,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
           const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(
-              fontSize: 18,
+            style: AppType.titleMedium.copyWith(
               fontWeight: FontWeight.bold,
               color: p.textPrimary,
             ),
@@ -242,15 +237,14 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                     children: [
                       Text(
                         zone.zone,
-                        style: TextStyle(
+                        style: AppType.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
                           color: p.textPrimary,
                         ),
                       ),
                       Text(
                         '${zone.openRequests} abiertas · ${zone.professionalsOnDuty} en turno',
-                        style: TextStyle(fontSize: 12, color: p.textMuted),
+                        style: AppType.bodySmall.copyWith(color: p.textMuted),
                       ),
                     ],
                   ),
@@ -258,8 +252,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                 Flexible(
                   child: Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
@@ -311,9 +304,8 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                     children: [
                       Text(
                         provider.name,
-                        style: TextStyle(
+                        style: AppType.bodyMedium.copyWith(
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
                           color: p.textPrimary,
                         ),
                       ),
@@ -321,7 +313,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                         provider.coverageZones?.isNotEmpty == true
                             ? '${provider.specialty} · ${provider.coverageZones}'
                             : provider.specialty,
-                        style: TextStyle(fontSize: 12, color: p.textMuted),
+                        style: AppType.bodySmall.copyWith(color: p.textMuted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -331,8 +323,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                 DropdownButton<String>(
                   value: provider.dutyStatus,
                   underline: const SizedBox(),
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: AppType.bodySmall.copyWith(
                     fontWeight: FontWeight.bold,
                     color: statusColor,
                   ),
@@ -383,7 +374,7 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
       child: Text(
         message,
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: p.textMuted),
+        style: AppType.bodyMedium.copyWith(color: p.textMuted),
       ),
     );
   }
