@@ -38,6 +38,11 @@ class StaffBooking {
   final String startTime;
   final String? professionalId;
 
+  /// 0 = en la cola de su sector. 1 = nadie del sector la tomó y se ofrece
+  /// fuera. 2 = lleva demasiado y operaciones ya está avisada. Los cortes los
+  /// fija el servidor con la tabla de parámetros, no un umbral de este cliente.
+  final int escalationLevel;
+
   /// When the request was created. `startTime` only carries the time of day,
   /// which is enough for a live queue but not to date a closed visit.
   final DateTime? createdAt;
@@ -64,6 +69,7 @@ class StaffBooking {
     this.prescriptionUrl,
     this.professionalId,
     this.createdAt,
+    this.escalationLevel = 0,
   });
 
   factory StaffBooking.fromJson(Map<String, dynamic> json) {
@@ -105,6 +111,7 @@ class StaffBooking {
       startTime: json['start_time'] as String? ?? '',
       professionalId: json['professional_id'] as String?,
       createdAt: DateTime.tryParse('${json['created_at'] ?? ''}')?.toLocal(),
+      escalationLevel: _asInt(json['escalada_nivel']),
     );
   }
 
@@ -133,6 +140,14 @@ class StaffBooking {
         'en_camino' => 'Llegué al domicilio',
         'en_atencion' => 'Finalizar atención',
         _ => 'Sin acciones',
+      };
+
+  /// Lo que dice la etiqueta de una solicitud que sigue sin dueño.
+  /// 'Confirmada' era falso: no había nadie confirmado.
+  String get queueLabel => switch (escalationLevel) {
+        >= 2 => 'Sin tomar',
+        1 => 'Escalada',
+        _ => 'En cola',
       };
 
   String get statusLabel => switch (status) {

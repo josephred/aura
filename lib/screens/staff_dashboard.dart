@@ -868,8 +868,11 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
                 child: Text(
                   // 'accepted' sin profesional decia "CONFIRMADA", y no habia
-                  // nadie confirmado: seguia en la cola.
-                  (enCola ? 'En cola' : booking.statusLabel).toUpperCase(),
+                  // nadie confirmado: seguia en la cola. El nivel de escalado
+                  // lo decide el servidor con los cortes de la tabla de
+                  // parametros; aqui solo se pinta.
+                  (enCola ? booking.queueLabel : booking.statusLabel)
+                      .toUpperCase(),
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textMuted,
@@ -885,7 +888,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   'Esperando $esperando min',
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: esperando >= 15
+                    color: booking.escalationLevel > 0
                         ? const Color(0xFFDC2626)
                         : const Color(0xFF0F766E),
                   ),
@@ -897,6 +900,28 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
             ],
           ),
+
+          // Nivel 2: ya no es "todavia nadie la toma", es un paciente pagado
+          // que lleva media hora esperando y una persona de operaciones
+          // mirandolo. Quien abra la app tiene que verlo sin hacer cuentas.
+          if (enCola && booking.escalationLevel >= 2) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDC2626).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Lleva demasiado sin que nadie vaya. Operaciones ya esta avisada.',
+                style: AppType.label.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFDC2626),
+                ),
+              ),
+            ),
+          ],
 
           if (enCola && soyProfesional) ...[
             const SizedBox(height: 12),
