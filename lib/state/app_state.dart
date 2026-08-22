@@ -159,8 +159,27 @@ class AppState extends ChangeNotifier {
     _restoreSession();
   }
 
+  /// Roles que tienen bandeja de staff que refrescar.
+  bool get _esCuentaClinica => const [
+        'doctor_provider',
+        'operator_admin',
+        'ambulance_driver',
+      ].contains(_serverAssignedRole);
+
   // A push arrived with the app in foreground: refresh the affected data
   Future<void> _onPushMessage(Map<String, dynamic> data) async {
+    // Un aviso de cola va dirigido a un profesional, no al paciente: lo que
+    // hay que refrescar es la bandeja de staff, no la solicitud activa del
+    // usuario. Sin esto el push llegaba y la pantalla seguia igual hasta el
+    // sondeo de los quince segundos, que es justo la inmediatez que el aviso
+    // venia a dar.
+    if (data['type'] == 'cola') {
+      if (_esCuentaClinica) {
+        await refreshStaffArea();
+      }
+      return;
+    }
+
     await fetchActiveRequest();
     if (_currentRequest != null && data['type'] == 'chat') {
       // No se suma aquí: `fetchChatMessages` recalcula los no leídos sobre el
