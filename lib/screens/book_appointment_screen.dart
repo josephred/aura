@@ -310,6 +310,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                     controller: _reasonController,
                     maxLength: 500,
                     maxLines: 2,
+                    keyboardType: TextInputType.multiline,
+                    textCapitalization: TextCapitalization.sentences,
+                    enableSuggestions: true,
+                    autocorrect: true,
                     onChanged: (value) {
                       if (_reasonError != null && hasTwoSymptoms(value)) {
                         setState(() => _reasonError = null);

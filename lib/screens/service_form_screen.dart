@@ -1335,7 +1335,12 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             child: TextField(
               controller: _symptomsController,
               maxLines: 3,
-              style: AppType.bodySmall.copyWith( color: p.textSecondary,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              enableSuggestions: true,
+              autocorrect: true,
+              style: AppType.bodySmall.copyWith(
+                color: p.textSecondary,
               ),
               // Re-validate while typing so the error clears as soon as the
               // second symptom appears, instead of waiting for another submit.
