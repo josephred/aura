@@ -73,6 +73,66 @@ class _StaffDashboardState extends State<StaffDashboard> {
     );
   }
 
+  /// Tomar un paciente de la cola. Es un acto explicito: avanzar el estado
+  /// dejo de asignar por su cuenta.
+  Future<void> _claim(StaffBooking booking) async {
+    setState(() => _busyBookingId = booking.id);
+    final error = await widget.state.claimStaffBooking(booking.id);
+    if (!mounted) return;
+    setState(() => _busyBookingId = null);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Paciente tomado. Ya puedes escribirle.'),
+        backgroundColor:
+            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
+      ),
+    );
+  }
+
+  /// Devolver un paciente a la cola.
+  ///
+  /// Se pregunta antes porque el paciente lo ve: le llega un mensaje diciendo
+  /// que sigue esperando a que alguien lo tome.
+  Future<void> _release(StaffBooking booking) async {
+    final confirmado = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Devolver a la cola'),
+            content: Text(
+              '${booking.patientName} volvera a quedar disponible para otro '
+              'profesional y se le avisara que sigue esperando.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Devolver'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmado || !mounted) return;
+
+    setState(() => _busyBookingId = booking.id);
+    final error = await widget.state.releaseStaffBooking(booking.id);
+    if (!mounted) return;
+    setState(() => _busyBookingId = null);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Solicitud devuelta a la cola.'),
+        backgroundColor:
+            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
+      ),
+    );
+  }
+
   Future<void> _toggleDuty(bool goOnDuty) async {
     final error = await widget.state
         .setStaffDutyStatus(goOnDuty ? 'disponible' : 'desconectado');
@@ -96,9 +156,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
       return Center(child: CircularProgressIndicator(color: p.accent));
     }
 
-    final inZone = _filter(state.staffBookingsInZone);
-    final outside = _filter(state.staffBookingsOutsideZone);
+    // La bandeja se parte en dos: lo que ya tome y lo que sigue en la cola.
+    // Mezclarlas era lo que hacia que "Tomar y salir" y "Iniciar traslado"
+    // fueran el mismo boton.
+    final mias = _filter(state.staffMyBookings);
+    final inZone = _filter(state.staffQueueInZone);
+    final outside = _filter(state.staffQueueOutsideZone);
     final completed = _filter(state.staffBookingsCompleted);
+    final soyProfesional = profile?.professionalId != null;
 
     return RefreshIndicator(
       color: p.accent,
@@ -111,22 +176,36 @@ class _StaffDashboardState extends State<StaffDashboard> {
           if (profile != null) _buildDutyCard(profile),
           const SizedBox(height: 24),
 
-          Text(
-            widget.ambulanceOnly
-                ? 'Traslados en tu zona'
-                : 'Solicitudes en tu zona',
-            style: AppType.titleSmall.copyWith(
-              fontWeight: FontWeight.bold,
-              color: p.textPrimary,
-            ),
+          _sectionTitle(
+            widget.ambulanceOnly ? 'Mis traslados' : 'Mis atenciones',
+            trailing: soyProfesional
+                ? '${state.staffOpenCases} de ${state.staffQueueCap}'
+                : null,
           ),
           const SizedBox(height: 12),
 
-          if (inZone.isEmpty)
+          if (mias.isEmpty)
+            _buildEmpty(
+              soyProfesional
+                  ? 'No tienes atenciones tomadas. Toma una de la cola para empezar.'
+                  : 'Ninguna solicitud tiene profesional asignado todavía.',
+            )
+          else
+            ...mias.map(_buildBookingCard),
+
+          const SizedBox(height: 24),
+          _sectionTitle(
+            widget.ambulanceOnly ? 'Traslados esperando' : 'Pacientes esperando',
+          ),
+          const SizedBox(height: 12),
+
+          if (state.staffQueueNotice != null)
+            _buildEmpty(state.staffQueueNotice!)
+          else if (inZone.isEmpty)
             _buildEmpty(
               profile != null && !profile.isOnDuty
                   ? 'Estás fuera de turno. Actívalo para recibir solicitudes.'
-                  : 'No hay solicitudes pendientes en tu zona por ahora.',
+                  : 'No hay pacientes esperando en tu zona por ahora.',
             )
           else
             ...inZone.map(_buildBookingCard),
@@ -620,7 +699,10 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 child: _miniStat('Atendidas hoy', '${profile.completedToday}'),
               ),
               Expanded(
-                child: _miniStat('En curso', '${profile.openNow}'),
+                child: _miniStat(
+                  'En curso',
+                  '${profile.openNow} / ${widget.state.staffQueueCap}',
+                ),
               ),
             ],
           ),
@@ -644,6 +726,37 @@ class _StaffDashboardState extends State<StaffDashboard> {
     );
   }
 
+  Widget _sectionTitle(String text, {String? trailing}) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            style: AppType.titleSmall.copyWith(
+              fontWeight: FontWeight.bold,
+              color: p.textPrimary,
+            ),
+          ),
+        ),
+        if (trailing != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: p.fill,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              trailing,
+              style: AppType.label.copyWith(
+                fontWeight: FontWeight.bold,
+                color: p.textMuted,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildEmpty(String message) {
     return Container(
       width: double.infinity,
@@ -663,7 +776,18 @@ class _StaffDashboardState extends State<StaffDashboard> {
 
   Widget _buildBookingCard(StaffBooking booking) {
     final isBusy = _busyBookingId == booking.id;
-    final canAccept = booking.isUnassigned && booking.status == 'accepted';
+    // Tomar dejo de ser un efecto colateral de avanzar el estado: sobre una
+    // solicitud sin duenno el servidor responde 409, asi que el boton tiene que
+    // ofrecer tomarla y no avanzarla.
+    final enCola = booking.isUnassigned;
+    final soyProfesional = widget.state.staffProfile?.professionalId != null;
+    final puedeTomar = enCola && soyProfesional && !widget.state.staffAtCap;
+    final puedeSoltar = !enCola &&
+        soyProfesional &&
+        (booking.status == 'accepted' || booking.status == 'en_camino');
+    final esperando = booking.createdAt == null
+        ? null
+        : DateTime.now().difference(booking.createdAt!).inMinutes;
     final next = booking.nextStatus;
 
     return Container(
@@ -743,7 +867,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  booking.statusLabel.toUpperCase(),
+                  // 'accepted' sin profesional decia "CONFIRMADA", y no habia
+                  // nadie confirmado: seguia en la cola.
+                  (enCola ? 'En cola' : booking.statusLabel).toUpperCase(),
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: p.textMuted,
@@ -752,7 +878,19 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 ),
               ),
               const Spacer(),
-              if (booking.startTime.isNotEmpty)
+              // El rato que lleva esperando es lo que decide si la tomas, asi
+              // que va en la tarjeta y no escondido en el detalle.
+              if (enCola && esperando != null)
+                Text(
+                  'Esperando $esperando min',
+                  style: AppType.label.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: esperando >= 15
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFF0F766E),
+                  ),
+                )
+              else if (booking.startTime.isNotEmpty)
                 Text(
                   'Solicitada ${booking.startTime}',
                   style: AppType.label.copyWith(color: p.textFaint),
@@ -760,7 +898,39 @@ class _StaffDashboardState extends State<StaffDashboard> {
             ],
           ),
 
-          if (next != null) ...[
+          if (enCola && soyProfesional) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed:
+                    (isBusy || !puedeTomar) ? null : () => _claim(booking),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: isBusy
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        puedeTomar
+                            ? 'Tomar paciente'
+                            : 'Llevas ${widget.state.staffOpenCases} de ${widget.state.staffQueueCap}',
+                        style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ),
+          ] else if (next != null) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -784,9 +954,27 @@ class _StaffDashboardState extends State<StaffDashboard> {
                         ),
                       )
                     : Text(
-                        canAccept ? 'Tomar y salir' : booking.nextActionLabel,
+                        booking.nextActionLabel,
                         style: AppType.button.copyWith(fontWeight: FontWeight.bold),
                       ),
+              ),
+            ),
+          ],
+
+          // Soltar solo tiene sentido antes de llegar al domicilio: dentro se
+          // cierra o se cancela, que son actos distintos y quedan registrados.
+          if (puedeSoltar) ...[
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: isBusy ? null : () => _release(booking),
+                icon: const Icon(Icons.undo, size: 16),
+                label: Text(
+                  'Devolver a la cola',
+                  style: AppType.label.copyWith(fontWeight: FontWeight.bold),
+                ),
+                style: TextButton.styleFrom(foregroundColor: p.textMuted),
               ),
             ),
           ],

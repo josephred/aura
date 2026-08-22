@@ -1331,6 +1331,43 @@ class AppState extends ChangeNotifier {
   List<StaffBooking> get staffBookingsOutsideZone =>
       _staffBookings.where((b) => b.outsideZone && b.isOpen).toList();
 
+  // El cupo de atenciones simultaneas lo sirve `/staff/queue` y sale de la
+  // tabla de parametros: operaciones lo cambia sin desplegar, asi que el
+  // cliente no puede tenerlo quemado.
+  int _staffQueueCap = 1;
+  int _staffOpenCases = 0;
+  String? _staffQueueNotice;
+
+  int get staffQueueCap => _staffQueueCap;
+  int get staffOpenCases => _staffOpenCases;
+
+  /// Por que la cola se ve vacia cuando lo esta por configuracion y no por
+  /// falta de pacientes (por ejemplo, nadie le habilito servicios).
+  String? get staffQueueNotice => _staffQueueNotice;
+
+  bool get staffAtCap =>
+      _staffProfile?.professionalId != null && _staffOpenCases >= _staffQueueCap;
+
+  /// Lo que este profesional ya tomo. Una cuenta de coordinacion no toma
+  /// pacientes: para ella son todas las que tienen profesional asignado.
+  List<StaffBooking> get staffMyBookings {
+    final ownId = _staffProfile?.professionalId;
+    return _staffBookings
+        .where((b) =>
+            b.isOpen &&
+            (ownId == null ? !b.isUnassigned : b.professionalId == ownId))
+        .toList();
+  }
+
+  /// La cola propiamente tal: abiertas, sin duenno y dentro de su zona.
+  List<StaffBooking> get staffQueueInZone => _staffBookings
+      .where((b) => b.isOpen && b.isUnassigned && !b.outsideZone)
+      .toList();
+
+  List<StaffBooking> get staffQueueOutsideZone => _staffBookings
+      .where((b) => b.isOpen && b.isUnassigned && b.outsideZone)
+      .toList();
+
   /// Visits already carried out, newest first.
   ///
   /// `/staff/bookings` returns the closed requests alongside the live queue, so
@@ -1362,6 +1399,7 @@ class AppState extends ChangeNotifier {
       final results = await Future.wait([
         _apiService.get('/staff/duty', timeout: const Duration(seconds: 8)),
         _apiService.get('/staff/bookings', timeout: const Duration(seconds: 8)),
+        _apiService.get('/staff/queue', timeout: const Duration(seconds: 8)),
       ]);
 
       if (results[0].statusCode == 200) {
@@ -1380,6 +1418,13 @@ class AppState extends ChangeNotifier {
             .toList();
       }
 
+      if (results[2].statusCode == 200) {
+        final cola = json.decode(results[2].body) as Map<String, dynamic>;
+        _staffQueueCap = int.tryParse('${cola['tope'] ?? 1}') ?? 1;
+        _staffOpenCases = int.tryParse('${cola['casos_abiertos'] ?? 0}') ?? 0;
+        _staffQueueNotice = cola['aviso'] as String?;
+      }
+
       if (_staffProfile?.providesLab == true) {
         await fetchStaffLabCollections();
       }
@@ -1392,7 +1437,64 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Accepts a queued request or advances one already in progress.
+  /// Tomar una solicitud de la cola.
+  ///
+  /// Antes esto ocurria solo, como efecto colateral de avanzar el estado o de
+  /// transmitir la posicion. Ahora es un acto explicito y el servidor lo
+  /// resuelve con un UPDATE condicionado a que siga libre: si dos profesionales
+  /// pulsan a la vez, el segundo recibe 409 y se entera, en vez de pisar al
+  /// primero en silencio.
+  /// Devuelve el mensaje de error, o null si se tomo.
+  Future<String?> claimStaffBooking(String id) async {
+    try {
+      final response = await _apiService.post(
+        '/staff/bookings/$id/claim',
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshStaffArea();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo tomar la solicitud.';
+    } catch (e) {
+      debugPrint('claimStaffBooking failed. Error: $e');
+      return 'Sin conexion con el servidor.';
+    }
+  }
+
+  /// Devolver una solicitud a la cola.
+  ///
+  /// Sin esto, un toque equivocado deja al paciente esperando a alguien que no
+  /// va a ir y a nadie mas le aparece para tomarla.
+  Future<String?> releaseStaffBooking(String id) async {
+    try {
+      final response = await _apiService.post(
+        '/staff/bookings/$id/release',
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        await refreshStaffArea();
+        return null;
+      }
+
+      final body = json.decode(response.body);
+      return (body is Map ? body['error'] as String? : null) ??
+          'No se pudo devolver la solicitud a la cola.';
+    } catch (e) {
+      debugPrint('releaseStaffBooking failed. Error: $e');
+      return 'Sin conexion con el servidor.';
+    }
+  }
+
+  /// Avanza una atencion ya tomada.
+  ///
+  /// Ya no acepta ni asigna: sobre una solicitud sin duenno el servidor
+  /// responde 409 y hay que tomarla antes con [claimStaffBooking].
   /// Returns an error message, or null on success.
   Future<String?> updateStaffBookingStatus(String id, String status) async {
     try {
