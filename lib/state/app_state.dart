@@ -894,6 +894,108 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  // ------------------------------------------- estado de la atencion en vivo
+  //
+  // El estado de la reserva solo se actualizaba por el stream SSE. Cuando ese
+  // stream no entrega —un proxy que almacena en bufer, la conexion que muere
+  // con el telefono en segundo plano, la ventana de reconexion— la pantalla de
+  // seguimiento se quedaba congelada en el estado que tenia al abrirla, que
+  // para el paciente recien pagado es "Confirmado". El profesional salia,
+  // llegaba y cerraba la atencion desde el portal, y en el telefono no se movia
+  // nada. Es exactamente lo que ya habia pasado con el hilo del chat: un solo
+  // camino en vivo, sin nadie que preguntara si ese camino seguia abierto.
+  //
+  // Con esto el SSE pasa a ser una mejora —llega antes— y no un requisito.
+
+  DateTime? _ultimoSondeoEstado;
+  static const _cadaCuantoEstado = Duration(seconds: 5);
+
+  /// Vuelve a pedir las atenciones abiertas y actualiza sus estados.
+  ///
+  /// Deliberadamente ligero: no reabre streams, no recarga el hilo y no toca
+  /// los temporizadores salvo cuando la atencion se cierra. `fetchActiveRequest`
+  /// hace todo eso y llamarlo desde el propio temporizador lo reiniciaria en
+  /// cada vuelta.
+  Future<void> refreshActiveStatuses({bool forzar = false}) async {
+    if (_authToken == null || _activeRequests.isEmpty) return;
+
+    final ahora = DateTime.now();
+    if (!forzar &&
+        _ultimoSondeoEstado != null &&
+        ahora.difference(_ultimoSondeoEstado!) < _cadaCuantoEstado) {
+      return;
+    }
+    _ultimoSondeoEstado = ahora;
+
+    try {
+      final response = await _apiService.get('/bookings/active-all');
+      if (response.statusCode != 200) return;
+
+      final decoded = json.decode(response.body);
+      if (decoded is! List) return;
+
+      final frescas = decoded
+          .where((item) => item is Map && item['id'] != null)
+          .map((item) => ServiceRequest.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      final anterior = _currentRequest?.status;
+      final previas = {for (final r in _activeRequests) r.id: r};
+
+      // Las que ya no vienen es que se cerraron o se anularon.
+      var cambio = frescas.length != _activeRequests.length;
+
+      for (final fresca in frescas) {
+        final vieja = previas[fresca.id];
+        if (vieja == null ||
+            vieja.status != fresca.status ||
+            vieja.currentStep != fresca.currentStep ||
+            vieja.professionalLat != fresca.professionalLat ||
+            vieja.professionalLng != fresca.professionalLng ||
+            vieja.professionalName != fresca.professionalName) {
+          cambio = true;
+        }
+      }
+
+      if (!cambio) return;
+
+      _activeRequests = frescas;
+
+      if (frescas.isEmpty) {
+        // La ultima atencion se cerro mientras mirabas.
+        _currentRequest = null;
+        stopChatPolling();
+        stopActiveBookingStream();
+        await fetchHistory();
+        notifyListeners();
+        return;
+      }
+
+      final porId = {for (final r in frescas) r.id: r};
+      _currentRequest = porId[_selectedChatRequestId] ?? frescas.first;
+      _selectedChatRequestId = _currentRequest!.id;
+
+      try {
+        await DbHelper.instance.saveBookings(_activeRequests);
+      } catch (dbErr) {
+        debugPrint('saveBookings tras sondeo de estado: $dbErr');
+      }
+
+      // Las mismas consecuencias que aplica el stream, para que el paciente vea
+      // lo mismo llegue la noticia por donde llegue.
+      if (anterior != _currentRequest!.status) {
+        if (_currentRequest!.status == RequestStatus.completed) {
+          await fetchHistory();
+        }
+        _restartChatPolling();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('refreshActiveStatuses failed. Error: $e');
+    }
+  }
+
   Future<void> fetchChatMessages(String requestId) async {
     try {
       debugPrint('[CHAT-DEBUG] fetchChatMessages → GET /bookings/$requestId/chat');
@@ -1072,6 +1174,9 @@ class AppState extends ChangeNotifier {
     final requestId = _currentRequest?.id;
     if (requestId == null || _authToken == null) return;
     await fetchChatMessages(requestId);
+    // Sin esperar a la siguiente vuelta del temporizador: abrir la pantalla es
+    // justo cuando el paciente quiere ver el estado de ahora.
+    await refreshActiveStatuses(forzar: true);
   }
 
   void _restartChatPolling() {
@@ -1090,6 +1195,10 @@ class AppState extends ChangeNotifier {
     final every = _chatScreenVisible ? _chatPollVisible : _chatPollHidden;
     _chatPollTimer = Timer.periodic(every, (_) {
       fetchChatMessages(request.id);
+      // Y el estado de la atencion, que hasta aqui solo llegaba por SSE. Se
+      // limita solo a si mismo a una vez cada cinco segundos, asi que subir el
+      // ritmo del chat cuando la pantalla esta a la vista no lo arrastra.
+      refreshActiveStatuses();
       // Y lo que falta por leer en las otras atenciones. `refreshUnreadSummary`
       // no pide nada cuando solo hay una en curso, asi que el caso habitual no
       // paga ninguna llamada extra.
