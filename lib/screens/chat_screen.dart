@@ -210,9 +210,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
             ),
+            // Quick reply chips row
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              color: p.card,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildQuickChip('👋 Saludo', 'Hola, quedo atento a su llegada.'),
+                    const SizedBox(width: 6),
+                    _buildQuickChip('🔔 Timbre ok', 'El timbre y citófono funcionan correctamente.'),
+                    const SizedBox(width: 6),
+                    _buildQuickChip('🚪 En puerta', 'Estaré atento para abrir la puerta.'),
+                    const SizedBox(width: 6),
+                    _buildQuickChip('📍 Acceso', '¿Necesita alguna indicación para ingresar al domicilio?'),
+                  ],
+                ),
+              ),
+            ),
             // Input text row
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               color: p.card,
               child: Row(
                 children: [
@@ -361,6 +380,32 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickChip(String label, String text) {
+    final p = context.palette;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _controller.text = text;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: p.accentSurface.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: p.accentSurface),
+        ),
+        child: Text(
+          label,
+          style: AppType.label.copyWith(
+            color: p.accentText,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
