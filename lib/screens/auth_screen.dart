@@ -7,11 +7,11 @@ const String _testAccountPassword = 'aura1234';
 const Map<String, String> _testAccounts = {
   '👤 Paciente': 'paciente@aura.cl',
   '👨‍👧 Tutor Familiar': 'tutor@aura.cl',
-  '🩺 Dra. Camila (Médico)': 'camilarivera@aura.cl',
-  '🩺 Dr. Sebastián (Médico)': 'sebastianleyton@aura.cl',
-  '🏃 Klga. María José (Kine)': 'mariajosediaz@aura.cl',
-  '💉 Enf. Patricia (Enfermera)': 'patriciajara@aura.cl',
-  '🧪 Laboratorista': 'laboratorista@aura.cl',
+  '🩺 Dra. Camila (Médico)': 'camila.rivera@aura.cl',
+  '🩺 Dr. Sebastián (Médico)': 'sebastian.leyton@aura.cl',
+  '🏃 Klga. María José (Kine)': 'maria.jose.diaz@aura.cl',
+  '💉 Enf. Patricia (Enfermera)': 'patricia.jara@aura.cl',
+  '🧪 Laboratorista': 'laboratorio@aura.cl',
   '🚑 Conductor Ambulancia': 'conductor@aura.cl',
   '🛡️ Operador / Admin': 'operador@aura.cl',
 };
