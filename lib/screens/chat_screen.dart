@@ -724,6 +724,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final isSelected = req.id == state.selectedChatRequestId ||
                     (state.selectedChatRequestId == null && req.id == state.currentRequest?.id);
 
+                final sinLeer = state.unreadFor(req.id);
                 final profName = req.professionalName ?? _getServiceName(req.serviceId);
                 final specialty = req.professionalSpecialty ?? req.status.label;
                 final icon = _getServiceIcon(req.serviceId);
@@ -756,17 +757,52 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: isSelected ? p.accent : p.card,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              icon,
-                              size: 14,
-                              color: isSelected ? Colors.white : p.accentText,
-                            ),
+                          // El punto de sin leer va en la pestana de cada
+                          // profesional y no solo en el globo de la barra
+                          // inferior: ese dice cuantos hay en total, pero no
+                          // en cual, que es lo que decide a cual entrar.
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? p.accent : p.card,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  icon,
+                                  size: 14,
+                                  color: isSelected ? Colors.white : p.accentText,
+                                ),
+                              ),
+                              if (sinLeer > 0)
+                                Positioned(
+                                  top: -4,
+                                  right: -4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    constraints:
+                                        const BoxConstraints(minWidth: 16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF43F5E),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: p.card, width: 1.5),
+                                    ),
+                                    child: Text(
+                                      sinLeer > 9 ? '9+' : '$sinLeer',
+                                      textAlign: TextAlign.center,
+                                      style: AppType.label.copyWith(
+                                        fontSize: 9,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(width: 8),
                           Column(

@@ -92,7 +92,13 @@ class AppState extends ChangeNotifier {
   bool _isSearchingDoctor = false;
 
   // Canal clinico
-  int _pendingMessages = 0;
+  //
+  // Los no leidos son por hilo, no uno solo. Con dos atenciones a la vez
+  // —un medico y un kinesiologo— un unico contador solo podia hablar del hilo
+  // que estabas mirando: entrar al del medico hacia desaparecer del globo los
+  // mensajes sin leer del otro, no porque los hubieras leido sino porque el
+  // contador no tenia sitio para los dos.
+  final Map<String, int> _unreadByRequest = {};
   String _currentRole = 'patient'; // 'patient' | 'dependent_tutor' | 'doctor_provider' | 'operator_admin' | 'ambulance_driver'
   final List<ChatMessage> _chatMessages = [];
 
@@ -221,7 +227,7 @@ class AppState extends ChangeNotifier {
     _userEmail = '';
     _isDemoMode = false;
     _currentRequest = null;
-    _pendingMessages = 0;
+    _unreadByRequest.clear();
     _activeTab = 'home';
     _currentRole = 'patient';
     _serverAssignedRole = null;
@@ -536,7 +542,7 @@ class AppState extends ChangeNotifier {
     _isDemoMode = false;
     _isOnboarded = false;
     _currentRequest = null;
-    _pendingMessages = 0;
+    _unreadByRequest.clear();
     _activeTab = 'home';
     _currentRole = 'patient';
     _serverAssignedRole = null;
@@ -608,7 +614,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get pendingMessages => _pendingMessages;
+  /// Total para el globo de la pestana Mensajes: la suma de todos los hilos.
+  int get pendingMessages =>
+      _unreadByRequest.values.fold(0, (total, n) => total + n);
+
+  /// Sin leer en un hilo concreto, para el punto de cada pestana de profesional.
+  int unreadFor(String requestId) => _unreadByRequest[requestId] ?? 0;
   String get currentRole => _currentRole;
   List<ChatMessage> get chatMessages => _chatMessages;
 
@@ -809,6 +820,8 @@ class AppState extends ChangeNotifier {
 
           startActiveBookingStream(_currentRequest!.id);
           await fetchChatMessages(_currentRequest!.id);
+          // Estado inicial de los puntos de las otras atenciones.
+          await refreshUnreadSummary();
           _restartChatPolling();
         } else {
           _handleNoActiveRequests();
@@ -857,7 +870,7 @@ class AppState extends ChangeNotifier {
     _selectedChatRequestId = null;
     _currentRequest = null;
     _chatMessages.clear();
-    _pendingMessages = 0;
+    _unreadByRequest.clear();
     try {
       DbHelper.instance.saveBookings([]);
     } catch (_) {}
@@ -932,56 +945,98 @@ class AppState extends ChangeNotifier {
 
   // -------------------------------------------------- mensajes sin leer
   //
-  // El contador era un `_pendingMessages = 1` escrito a mano en tres sitios al
+  // Primero fue un `_pendingMessages = 1` escrito a mano en tres sitios al
   // confirmar una solicitud. Siempre decía 1 —daba igual que el servidor
   // hubiese creado dos mensajes de apertura o que llegaran seis— y se borraba
   // al abrir la pestaña, hubieras leído o no.
+  //
+  // Despues fue un unico contador correcto, pero de un solo hilo. Con varias
+  // atenciones a la vez volvia a mentir por otro motivo: solo sabia hablar de
+  // la conversacion que tenias abierta.
 
-  /// Id del último mensaje que el paciente vio en la solicitud en curso.
-  String? _lastSeenMessageId;
+  /// Cuantos mensajes del hilo ya vio el paciente, por solicitud.
+  ///
+  /// Se guarda un numero y no el id del ultimo visto porque asi se puede saber
+  /// lo que falta por leer en los hilos que no estan cargados: el servidor
+  /// dice cuantos lleva cada atencion (`/bookings/unread-summary`) y la resta
+  /// da el pendiente, sin descargar cada conversacion entera en cada sondeo.
+  ///
+  /// La primera vez tras actualizar no existe la marca y todo cuenta como
+  /// nuevo. Es deliberado: pasarse contando avisa de mas una vez, quedarse
+  /// corto esconde un mensaje del profesional.
+  static String _seenKey(String requestId) => 'seen_count_$requestId';
 
-  /// Recalcula los no leídos del hilo: los mensajes posteriores al último visto
-  /// que no escribió el propio paciente.
+  int _fromProvider(List<ChatMessage> mensajes) =>
+      mensajes.where((m) => m.sender != 'patient').length;
+
+  /// Recalcula los no leidos del hilo que esta cargado en memoria.
   Future<void> _refreshUnreadCount(String requestId) async {
     final prefs = await SharedPreferences.getInstance();
-    _lastSeenMessageId = prefs.getString('last_seen_msg_$requestId');
+    final vistos = prefs.getInt(_seenKey(requestId)) ?? 0;
+    final recibidos = _fromProvider(_chatMessages);
 
-    if (_chatMessages.isEmpty) {
-      _pendingMessages = 0;
-      return;
-    }
+    // Nunca negativo: un mensaje borrado en el servidor no puede dejar el
+    // contador por debajo de cero.
+    final pendiente = recibidos - vistos;
+    _unreadByRequest[requestId] = pendiente > 0 ? pendiente : 0;
 
-    // Sin marca previa, todo lo del prestador cuenta como nuevo.
-    final seenIndex = _lastSeenMessageId == null
-        ? -1
-        : _chatMessages.indexWhere((m) => m.id == _lastSeenMessageId);
-
-    _pendingMessages = _chatMessages
-        .sublist(seenIndex + 1)
-        .where((m) => m.sender != 'patient')
-        .length;
-
-    // Si ya está mirando el chat, no tiene sentido marcarle un pendiente.
-    if (_activeTab == 'messages' && _pendingMessages > 0) {
+    // Si ya esta mirando ese chat, no tiene sentido marcarle un pendiente.
+    // Con una sola atencion `_selectedChatRequestId` puede seguir en null, y
+    // entonces el hilo abierto es sencillamente el actual.
+    final abierto = _selectedChatRequestId ?? _currentRequest?.id;
+    if (_activeTab == 'messages' &&
+        abierto == requestId &&
+        _unreadByRequest[requestId]! > 0) {
       await markMessagesRead();
     }
   }
 
-  /// Marca el hilo como leído hasta el último mensaje recibido.
-  Future<void> markMessagesRead() async {
-    _pendingMessages = 0;
+  /// Lo que falta por leer en las demas atenciones abiertas.
+  ///
+  /// Solo se pregunta con mas de una atencion en curso: con una sola, el hilo
+  /// que ya esta cargado contesta lo mismo sin pedirle nada al servidor.
+  Future<void> refreshUnreadSummary() async {
+    if (_authToken == null || _activeRequests.length < 2) return;
 
-    final requestId = _currentRequest?.id;
-    if (requestId == null || _chatMessages.isEmpty) {
+    try {
+      final response = await _apiService.get('/bookings/unread-summary');
+      if (response.statusCode != 200) return;
+
+      final List<dynamic> data = json.decode(response.body);
+      final prefs = await SharedPreferences.getInstance();
+
+      for (final fila in data) {
+        if (fila is! Map) continue;
+        final id = '${fila['booking_id']}';
+        // El hilo abierto se cuenta con lo que hay en memoria, que esta mas
+        // fresco que este resumen.
+        if (id == _selectedChatRequestId) continue;
+
+        final recibidos = int.tryParse('${fila['from_provider'] ?? 0}') ?? 0;
+        final vistos = prefs.getInt(_seenKey(id)) ?? 0;
+        final pendiente = recibidos - vistos;
+        _unreadByRequest[id] = pendiente > 0 ? pendiente : 0;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('refreshUnreadSummary failed. Error: $e');
+    }
+  }
+
+  /// Marca como leido el hilo que el paciente tiene abierto.
+  Future<void> markMessagesRead() async {
+    final requestId = _selectedChatRequestId ?? _currentRequest?.id;
+    if (requestId == null) {
       notifyListeners();
       return;
     }
 
-    _lastSeenMessageId = _chatMessages.last.id;
+    _unreadByRequest[requestId] = 0;
     notifyListeners();
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_seen_msg_$requestId', _lastSeenMessageId!);
+    await prefs.setInt(_seenKey(requestId), _fromProvider(_chatMessages));
   }
 
   // -------------------------------------------------- refresco del hilo
@@ -1033,8 +1088,13 @@ class AppState extends ChangeNotifier {
     }
 
     final every = _chatScreenVisible ? _chatPollVisible : _chatPollHidden;
-    _chatPollTimer =
-        Timer.periodic(every, (_) => fetchChatMessages(request.id));
+    _chatPollTimer = Timer.periodic(every, (_) {
+      fetchChatMessages(request.id);
+      // Y lo que falta por leer en las otras atenciones. `refreshUnreadSummary`
+      // no pide nada cuando solo hay una en curso, asi que el caso habitual no
+      // paga ninguna llamada extra.
+      refreshUnreadSummary();
+    });
   }
 
   void stopChatPolling() {
@@ -1309,7 +1369,7 @@ class AppState extends ChangeNotifier {
     _userEmail = '';
     _isDemoMode = false;
     _currentRequest = null;
-    _pendingMessages = 0;
+    _unreadByRequest.clear();
     _assignedProfessionalName = null;
     _assignedProfessionalPhone = null;
     _assignedProfessionalSpecialty = null;
@@ -2727,7 +2787,7 @@ class AppState extends ChangeNotifier {
     }
     stopChatPolling();
     _currentRequest = null;
-    _pendingMessages = 0;
+    _unreadByRequest.clear();
     _assignedProfessionalName = null;
     _assignedProfessionalPhone = null;
     _assignedProfessionalSpecialty = null;
