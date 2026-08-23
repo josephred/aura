@@ -203,39 +203,31 @@ class ServiceRequest {
 
   factory ServiceRequest.fromJson(Map<String, dynamic> json) {
     return ServiceRequest(
-      id: json['id'] as String,
-      serviceId: (json['service_id'] ?? json['serviceId']) as String,
-      status: RequestStatus.fromJson(json['status'] as String),
-      patientType: (json['patient_type'] ?? json['patientType']) as String,
-      dependentId: (json['dependent_id'] ?? json['dependentId']) as String?,
-      addressText: (json['address_text'] ?? json['addressText']) as String,
-      originAddress: (json['origin_address'] ?? json['originAddress']) as String?,
-      destinationAddress: (json['destination_address'] ?? json['destinationAddress']) as String?,
-      ambulanceType: (json['ambulance_type'] ?? json['ambulanceType']) as String?,
-      patientLat: (json['patient_lat'] ?? json['patientLat']) is num
-          ? (json['patient_lat'] ?? json['patientLat'] as num).toDouble()
-          : null,
-      patientLng: (json['patient_lng'] ?? json['patientLng']) is num
-          ? (json['patient_lng'] ?? json['patientLng'] as num).toDouble()
-          : null,
-      professionalLat: (json['professional_lat'] ?? json['professionalLat']) is num
-          ? (json['professional_lat'] ?? json['professionalLat'] as num).toDouble()
-          : null,
-      professionalLng: (json['professional_lng'] ?? json['professionalLng']) is num
-          ? (json['professional_lng'] ?? json['professionalLng'] as num).toDouble()
-          : null,
-      symptomsDescription: (json['symptoms_description'] ?? json['symptomsDescription']) as String?,
-      prescriptionName: (json['prescription_name'] ?? json['prescriptionName']) as String?,
-      prescriptionPreview: (json['prescription_preview'] ?? json['prescriptionPreview']) as String?,
-      prescriptionFile: (json['prescription_file'] ?? json['prescriptionFile']) as String?,
-      examRequired: (json['exam_required'] ?? json['examRequired']) as String?,
-      paymentMethod: (json['payment_method'] ?? json['paymentMethod']) as String,
-      paymentUrl: (json['payment_url'] ?? json['paymentUrl']) as String?,
-      paymentStatus: (json['payment_status'] ?? json['paymentStatus']) as String?,
-      finalPrice: (json['final_price'] ?? json['finalPrice']) as int,
-      startTime: (json['start_time'] ?? json['startTime']) as String,
-      etaMinutes: (json['eta_minutes'] ?? json['etaMinutes']) as int,
-      currentStep: (json['current_step'] ?? json['currentStep']) as int,
+      id: json['id'].toString(),
+      serviceId: (json['service_id'] ?? json['serviceId'] ?? '').toString(),
+      status: RequestStatus.fromJson((json['status'] ?? 'pending').toString()),
+      patientType: (json['patient_type'] ?? json['patientType'] ?? 'self').toString(),
+      dependentId: (json['dependent_id'] ?? json['dependentId'])?.toString(),
+      addressText: (json['address_text'] ?? json['addressText'] ?? '').toString(),
+      originAddress: (json['origin_address'] ?? json['originAddress'])?.toString(),
+      destinationAddress: (json['destination_address'] ?? json['destinationAddress'])?.toString(),
+      ambulanceType: (json['ambulance_type'] ?? json['ambulanceType'])?.toString(),
+      patientLat: _toDouble(json['patient_lat'] ?? json['patientLat']),
+      patientLng: _toDouble(json['patient_lng'] ?? json['patientLng']),
+      professionalLat: _toDouble(json['professional_lat'] ?? json['professionalLat']),
+      professionalLng: _toDouble(json['professional_lng'] ?? json['professionalLng']),
+      symptomsDescription: (json['symptoms_description'] ?? json['symptomsDescription'])?.toString(),
+      prescriptionName: (json['prescription_name'] ?? json['prescriptionName'])?.toString(),
+      prescriptionPreview: (json['prescription_preview'] ?? json['prescriptionPreview'])?.toString(),
+      prescriptionFile: (json['prescription_file'] ?? json['prescriptionFile'])?.toString(),
+      examRequired: (json['exam_required'] ?? json['examRequired'])?.toString(),
+      paymentMethod: (json['payment_method'] ?? json['paymentMethod'] ?? 'credit').toString(),
+      paymentUrl: (json['payment_url'] ?? json['paymentUrl'])?.toString(),
+      paymentStatus: (json['payment_status'] ?? json['paymentStatus'])?.toString(),
+      finalPrice: _toInt(json['final_price'] ?? json['finalPrice']),
+      startTime: (json['start_time'] ?? json['startTime'] ?? '').toString(),
+      etaMinutes: _toInt(json['eta_minutes'] ?? json['etaMinutes']),
+      currentStep: _toInt(json['current_step'] ?? json['currentStep']),
       // From the API the identity arrives nested under `assigned_professional`;
       // from the local SQLite cache it comes back as flat columns.
       professionalId: _assigned(json, 'id', 'professional_id'),
@@ -249,6 +241,22 @@ class ServiceRequest {
             )
           : null,
     );
+  }
+
+  /// Convierte de forma segura un valor mixto (int, double, String, null) a int.
+  static int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    if (v is double) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
+  /// Convierte de forma segura un valor mixto a double.
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 
   /// Reads [nestedKey] from the `assigned_professional` object when present,
@@ -294,6 +302,40 @@ class ServiceRequest {
           'phone': professionalPhone,
         } : null
       ),
+      'symptoms_description': symptomsDescription,
+      'prescription_name': prescriptionName,
+      'prescription_preview': prescriptionPreview,
+      'prescription_file': prescriptionFile,
+      'exam_required': examRequired,
+      'payment_method': paymentMethod,
+      'payment_url': paymentUrl,
+      'payment_status': paymentStatus,
+      'final_price': finalPrice,
+      'start_time': startTime,
+      'eta_minutes': etaMinutes,
+      'current_step': currentStep,
+    };
+  }
+
+  Map<String, dynamic> toDbMap() {
+    return {
+      'id': id,
+      'service_id': serviceId,
+      'status': status.toJson(),
+      'patient_type': patientType,
+      'dependent_id': dependentId,
+      'address_text': addressText,
+      'origin_address': originAddress,
+      'destination_address': destinationAddress,
+      'ambulance_type': ambulanceType,
+      'patient_lat': patientLat,
+      'patient_lng': patientLng,
+      'professional_lat': professionalLat,
+      'professional_lng': professionalLng,
+      'professional_id': professionalId,
+      'professional_name': professionalName,
+      'professional_specialty': professionalSpecialty,
+      'professional_phone': professionalPhone,
       'symptoms_description': symptomsDescription,
       'prescription_name': prescriptionName,
       'prescription_preview': prescriptionPreview,

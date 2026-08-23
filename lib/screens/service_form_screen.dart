@@ -2310,33 +2310,41 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    color: p.accent,
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Lugar de la atención',
-                        style: AppType.bodySmall.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: p.textPrimary,
-                        ),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: p.accent,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lugar de la atención',
+                            style: AppType.bodySmall.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: p.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '¿Dónde asistirá el personal clínico?',
+                            style: AppType.bodySmall.copyWith(
+                              color: p.textFaint,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        '¿Dónde asistirá el personal clínico?',
-                        style: AppType.bodySmall.copyWith( color: p.textFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   setState(() {

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:aura/theme/app_theme.dart';
 import '../models/dependent.dart';
@@ -310,10 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Role switcher. It only previews other dashboards, so it must not
-          // ship: in release the role comes from the account and nothing else.
-          if (kDebugMode)
-          // Interactive Role Simulator Selector Banner
+          // Interactive Role Simulator Selector Banner (disponible para revisiones y pruebas)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

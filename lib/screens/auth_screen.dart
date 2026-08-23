@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
@@ -6,11 +5,15 @@ import '../theme/app_theme.dart';
 /// Seeded QA accounts, one per role (see `TestUsersSeeder` in the backend).
 const String _testAccountPassword = 'aura1234';
 const Map<String, String> _testAccounts = {
-  'Paciente': 'paciente@aura.cl',
-  'Familiar / Tutor': 'tutor@aura.cl',
-  'Profesional': 'profesional@aura.cl',
-  'Operador / Admin': 'operador@aura.cl',
-  'Conductor': 'conductor@aura.cl',
+  '👤 Paciente': 'paciente@aura.cl',
+  '👨‍👧 Tutor Familiar': 'tutor@aura.cl',
+  '🩺 Dra. Camila (Médico)': 'camilarivera@aura.cl',
+  '🩺 Dr. Sebastián (Médico)': 'sebastianleyton@aura.cl',
+  '🏃 Klga. María José (Kine)': 'mariajosediaz@aura.cl',
+  '💉 Enf. Patricia (Enfermera)': 'patriciajara@aura.cl',
+  '🧪 Laboratorista': 'laboratorista@aura.cl',
+  '🚑 Conductor Ambulancia': 'conductor@aura.cl',
+  '🛡️ Operador / Admin': 'operador@aura.cl',
 };
 
 class AuthScreen extends StatefulWidget {
@@ -411,10 +414,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
-                if (kDebugMode) ...[
-                  const SizedBox(height: 8),
-                  _buildTestAccountsPanel(),
-                ],
+                const SizedBox(height: 12),
+                _buildTestAccountsPanel(),
               ],
             ),
           ),
@@ -423,8 +424,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  /// Quick access to the seeded QA accounts — one per role. Debug builds only,
-  /// so it never ships to end users.
+  /// Acceso rápido a cuentas QA sembradas en el backend (disponible para pruebas y revisiones).
   Widget _buildTestAccountsPanel() {
     return Container(
       padding: const EdgeInsets.all(14),

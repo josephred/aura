@@ -87,6 +87,8 @@ class AppState extends ChangeNotifier {
   // Form selection and active requests
   ClinicalService? _selectedService;
   ServiceRequest? _currentRequest;
+  List<ServiceRequest> _activeRequests = [];
+  String? _selectedChatRequestId;
   bool _isSearchingDoctor = false;
 
   // Canal clinico
@@ -581,8 +583,30 @@ class AppState extends ChangeNotifier {
   List<PastService> get pastServices => _pastServices;
 
   ClinicalService? get selectedService => _selectedService;
-  ServiceRequest? get currentRequest => _currentRequest;
+  List<ServiceRequest> get activeRequests => _activeRequests;
+  String? get selectedChatRequestId => _selectedChatRequestId;
+  ServiceRequest? get currentRequest {
+    if (_selectedChatRequestId != null) {
+      final match = _activeRequests.where((r) => r.id == _selectedChatRequestId).toList();
+      if (match.isNotEmpty) return match.first;
+    }
+    if (_activeRequests.isNotEmpty) return _activeRequests.first;
+    return _currentRequest;
+  }
   bool get isSearchingDoctor => _isSearchingDoctor;
+
+  /// Cambia la conversacion activa del chat al profesional de otra solicitud
+  Future<void> selectChatRequest(String requestId) async {
+    _selectedChatRequestId = requestId;
+    final match = _activeRequests.where((r) => r.id == requestId).toList();
+    if (match.isNotEmpty) {
+      _currentRequest = match.first;
+    }
+    startActiveBookingStream(requestId);
+    await fetchChatMessages(requestId);
+    _restartChatPolling();
+    notifyListeners();
+  }
 
   int get pendingMessages => _pendingMessages;
   String get currentRole => _currentRole;
@@ -646,17 +670,23 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _dependents.clear();
         _dependents.addAll(data.map((d) => Dependent.fromJson(d)).toList());
-        await DbHelper.instance.saveDependents(_dependents);
+        try {
+          await DbHelper.instance.saveDependents(_dependents);
+        } catch (dbErr) {
+          debugPrint('Local SQLite saveDependents warning: $dbErr');
+        }
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Backend fetchDependents failed, loading from local DB. Error: $e');
-      final localDeps = await DbHelper.instance.getDependents();
-      if (localDeps.isNotEmpty) {
-        _dependents.clear();
-        _dependents.addAll(localDeps);
-        notifyListeners();
-      }
+      try {
+        final localDeps = await DbHelper.instance.getDependents();
+        if (localDeps.isNotEmpty) {
+          _dependents.clear();
+          _dependents.addAll(localDeps);
+          notifyListeners();
+        }
+      } catch (_) {}
     }
   }
 
@@ -667,17 +697,23 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _addresses.clear();
         _addresses.addAll(data.map((a) => SavedAddress.fromJson(a)).toList());
-        await DbHelper.instance.saveAddresses(_addresses);
+        try {
+          await DbHelper.instance.saveAddresses(_addresses);
+        } catch (dbErr) {
+          debugPrint('Local SQLite saveAddresses warning: $dbErr');
+        }
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Backend fetchAddresses failed, loading from local DB. Error: $e');
-      final localAddrs = await DbHelper.instance.getAddresses();
-      if (localAddrs.isNotEmpty) {
-        _addresses.clear();
-        _addresses.addAll(localAddrs);
-        notifyListeners();
-      }
+      try {
+        final localAddrs = await DbHelper.instance.getAddresses();
+        if (localAddrs.isNotEmpty) {
+          _addresses.clear();
+          _addresses.addAll(localAddrs);
+          notifyListeners();
+        }
+      } catch (_) {}
     }
   }
 
@@ -688,17 +724,23 @@ class AppState extends ChangeNotifier {
         final List<dynamic> data = json.decode(response.body);
         _paymentMethods.clear();
         _paymentMethods.addAll(data.map((p) => SavedPaymentMethod.fromJson(p)).toList());
-        await DbHelper.instance.savePaymentMethods(_paymentMethods);
+        try {
+          await DbHelper.instance.savePaymentMethods(_paymentMethods);
+        } catch (dbErr) {
+          debugPrint('Local SQLite savePaymentMethods warning: $dbErr');
+        }
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Backend fetchPaymentMethods failed, loading from local DB. Error: $e');
-      final localPays = await DbHelper.instance.getPaymentMethods();
-      if (localPays.isNotEmpty) {
-        _paymentMethods.clear();
-        _paymentMethods.addAll(localPays);
-        notifyListeners();
-      }
+      try {
+        final localPays = await DbHelper.instance.getPaymentMethods();
+        if (localPays.isNotEmpty) {
+          _paymentMethods.clear();
+          _paymentMethods.addAll(localPays);
+          notifyListeners();
+        }
+      } catch (_) {}
     }
   }
 
@@ -725,41 +767,100 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchActiveRequest() async {
     try {
-      final response = await _apiService.get('/bookings/active');
+      debugPrint('[CHAT-DEBUG] fetchActiveRequest → GET /bookings/active-all');
+      http.Response response;
+      try {
+        response = await _apiService.get('/bookings/active-all');
+        if (response.statusCode != 200) {
+          response = await _apiService.get('/bookings/active');
+        }
+      } catch (_) {
+        response = await _apiService.get('/bookings/active');
+      }
+
+      debugPrint('[CHAT-DEBUG] fetchActiveRequest status=${response.statusCode}, '
+          'bodyLen=${response.body.length}, body=${response.body.substring(0, response.body.length.clamp(0, 300))}');
+
       if (response.statusCode == 200 && !_isEmptyActiveResponse(response.body)) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        _currentRequest = ServiceRequest.fromJson(data);
-        await DbHelper.instance.saveBookings([_currentRequest!]);
-        startActiveBookingStream(_currentRequest!.id);
-        await fetchChatMessages(_currentRequest!.id);
-        _restartChatPolling();
+        final dynamic decoded = json.decode(response.body);
+        final List<dynamic> list = decoded is List ? decoded : [decoded];
+        _activeRequests = list
+            .where((item) => item is Map && item['id'] != null)
+            .map((item) => ServiceRequest.fromJson(item as Map<String, dynamic>))
+            .toList();
+
+        if (_activeRequests.isNotEmpty) {
+          if (_selectedChatRequestId == null ||
+              !_activeRequests.any((r) => r.id == _selectedChatRequestId)) {
+            _selectedChatRequestId = _activeRequests.first.id;
+          }
+          _currentRequest = _activeRequests.firstWhere(
+            (r) => r.id == _selectedChatRequestId,
+            orElse: () => _activeRequests.first,
+          );
+          debugPrint('[CHAT-DEBUG] fetchActiveRequest ✓ ${_activeRequests.length} active request(s), '
+              'selected id=${_currentRequest!.id} status=${_currentRequest!.status}');
+
+          try {
+            await DbHelper.instance.saveBookings(_activeRequests);
+          } catch (dbErr) {
+            debugPrint('[CHAT-DEBUG] Local SQLite saveBookings warning: $dbErr');
+          }
+
+          startActiveBookingStream(_currentRequest!.id);
+          await fetchChatMessages(_currentRequest!.id);
+          _restartChatPolling();
+        } else {
+          _handleNoActiveRequests();
+        }
       } else {
-        stopActiveBookingStream();
-        stopChatPolling();
-        _currentRequest = null;
-        // Sin solicitud no hay canal clínico, así que tampoco puede haber
-        // mensajes pendientes. Es justo la contradicción que se veía: el globo
-        // marcaba 1 y la pantalla decía "Canal de Asistencia Inactivo".
-        _chatMessages.clear();
-        _pendingMessages = 0;
-        await DbHelper.instance.saveBookings([]);
+        _handleNoActiveRequests();
       }
       notifyListeners();
-    } catch (e) {
-      debugPrint('Backend fetchActiveRequest failed, loading from local DB. Error: $e');
-      final localBookings = await DbHelper.instance.getBookings();
-      final active = localBookings.where((b) => b.status != RequestStatus.completed && b.status != RequestStatus.cancelled).toList();
-      if (active.isNotEmpty) {
-        _currentRequest = active.first;
-        startActiveBookingStream(_currentRequest!.id);
-        await fetchChatMessages(_currentRequest!.id);
-        _restartChatPolling();
-      } else {
-        _currentRequest = null;
-        stopChatPolling();
+    } catch (e, st) {
+      debugPrint('[CHAT-DEBUG] fetchActiveRequest EXCEPTION: $e');
+      debugPrint('[CHAT-DEBUG] fetchActiveRequest stackTrace: ${st.toString().substring(0, st.toString().length.clamp(0, 500))}');
+      try {
+        final localBookings = await DbHelper.instance.getBookings();
+        final active = localBookings
+            .where((b) => b.status != RequestStatus.completed && b.status != RequestStatus.cancelled)
+            .toList();
+        if (active.isNotEmpty) {
+          _activeRequests = active;
+          if (_selectedChatRequestId == null || !_activeRequests.any((r) => r.id == _selectedChatRequestId)) {
+            _selectedChatRequestId = active.first.id;
+          }
+          _currentRequest = _activeRequests.firstWhere(
+            (r) => r.id == _selectedChatRequestId,
+            orElse: () => _activeRequests.first,
+          );
+          debugPrint('[CHAT-DEBUG] fetchActiveRequest fallback to local: id=${_currentRequest!.id}');
+          startActiveBookingStream(_currentRequest!.id);
+          await fetchChatMessages(_currentRequest!.id);
+          _restartChatPolling();
+        } else {
+          _handleNoActiveRequests();
+        }
+      } catch (localErr) {
+        debugPrint('[CHAT-DEBUG] Local fallback failed: $localErr');
+        _handleNoActiveRequests();
       }
       notifyListeners();
     }
+  }
+
+  void _handleNoActiveRequests() {
+    debugPrint('[CHAT-DEBUG] fetchActiveRequest → empty/null response, clearing active requests');
+    stopActiveBookingStream();
+    stopChatPolling();
+    _activeRequests.clear();
+    _selectedChatRequestId = null;
+    _currentRequest = null;
+    _chatMessages.clear();
+    _pendingMessages = 0;
+    try {
+      DbHelper.instance.saveBookings([]);
+    } catch (_) {}
   }
 
   /// True cuando dos hilos son el mismo mensaje a mensaje.
@@ -782,22 +883,43 @@ class AppState extends ChangeNotifier {
 
   Future<void> fetchChatMessages(String requestId) async {
     try {
+      debugPrint('[CHAT-DEBUG] fetchChatMessages → GET /bookings/$requestId/chat');
       final response = await _apiService.get('/bookings/$requestId/chat');
+      debugPrint('[CHAT-DEBUG] fetchChatMessages status=${response.statusCode}, '
+          'bodyLen=${response.body.length}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        debugPrint('[CHAT-DEBUG] fetchChatMessages parsed ${data.length} messages');
         final incoming =
             data.map((m) => ChatMessage.fromJson(m)).toList();
-        if (_sameThread(_chatMessages, incoming)) return;
+        if (_sameThread(_chatMessages, incoming)) {
+          debugPrint('[CHAT-DEBUG] fetchChatMessages → same thread, skipping update');
+          return;
+        }
+
+        debugPrint('[CHAT-DEBUG] fetchChatMessages → NEW messages detected! '
+            'old=${_chatMessages.length} new=${incoming.length}');
+        for (final m in incoming) {
+          debugPrint('[CHAT-DEBUG]   msg id=${m.id} sender=${m.sender} '
+              'senderName=${m.senderName} text="${m.text.substring(0, m.text.length.clamp(0, 60))}"');
+        }
 
         _chatMessages
           ..clear()
           ..addAll(incoming);
-        await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
+        try {
+          await DbHelper.instance.saveChatMessages(requestId, _chatMessages);
+        } catch (dbErr) {
+          debugPrint('[CHAT-DEBUG] Local SQLite saveChatMessages warning: $dbErr');
+        }
         await _refreshUnreadCount(requestId);
         notifyListeners();
+      } else {
+        debugPrint('[CHAT-DEBUG] fetchChatMessages non-200: ${response.statusCode} body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
       }
-    } catch (e) {
-      debugPrint('Backend fetchChatMessages failed, loading from local DB. Error: $e');
+    } catch (e, st) {
+      debugPrint('[CHAT-DEBUG] fetchChatMessages EXCEPTION: $e');
+      debugPrint('[CHAT-DEBUG] fetchChatMessages stackTrace: ${st.toString().substring(0, st.toString().length.clamp(0, 400))}');
       final localMsgs = await DbHelper.instance.getChatMessages(requestId);
       if (localMsgs.isNotEmpty) {
         _chatMessages.clear();
@@ -2763,14 +2885,23 @@ class AppState extends ChangeNotifier {
                 if (data.containsKey('messages')) {
                   final List<dynamic> msgsList = data['messages'] as List<dynamic>;
                   final newMessages = msgsList.map((m) => ChatMessage.fromJson(m as Map<String, dynamic>)).toList();
+                  debugPrint('[CHAT-DEBUG] SSE received ${newMessages.length} messages');
                   
                   if (!_sameThread(_chatMessages, newMessages)) {
+                    debugPrint('[CHAT-DEBUG] SSE → NEW messages via SSE! '
+                        'old=${_chatMessages.length} new=${newMessages.length}');
                     _chatMessages.clear();
                     _chatMessages.addAll(newMessages);
-                    await DbHelper.instance.saveChatMessages(newRequest.id, _chatMessages);
+                    try {
+                      await DbHelper.instance.saveChatMessages(newRequest.id, _chatMessages);
+                    } catch (dbErr) {
+                      debugPrint('[CHAT-DEBUG] Local SQLite saveChatMessages SSE warning: $dbErr');
+                    }
                     await _refreshUnreadCount(newRequest.id);
                     updated = true;
                   }
+                } else {
+                  debugPrint('[CHAT-DEBUG] SSE payload has NO messages key');
                 }
 
                 if (updated) {
@@ -2778,7 +2909,7 @@ class AppState extends ChangeNotifier {
                 }
               }
             } catch (e) {
-              debugPrint('Error decoding SSE payload: $e');
+              debugPrint('[CHAT-DEBUG] SSE decode error: $e');
             }
           }
         },

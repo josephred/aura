@@ -45,7 +45,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 6,
+        version: 7,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -61,7 +61,7 @@ class DbHelper {
       return await openDatabase(
         path,
         password: password,
-        version: 6,
+        version: 7,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -93,6 +93,14 @@ class DbHelper {
       await db.execute('ALTER TABLE service_requests ADD COLUMN professional_specialty TEXT');
       await db.execute('ALTER TABLE service_requests ADD COLUMN professional_phone TEXT');
     }
+    if (oldVersion < 7) {
+      try {
+        await db.execute('ALTER TABLE dependents ADD COLUMN birth_date TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE dependents ADD COLUMN age_months INTEGER');
+      } catch (_) {}
+    }
   }
 
   Future<void> _createOutboxTable(Database db) async {
@@ -115,7 +123,9 @@ class DbHelper {
         relationship TEXT,
         age INTEGER,
         health_insurance TEXT,
-        medical_conditions TEXT
+        medical_conditions TEXT,
+        birth_date TEXT,
+        age_months INTEGER
       )
     ''');
 
@@ -281,7 +291,7 @@ class DbHelper {
     await db.transaction((txn) async {
       await txn.delete('service_requests');
       for (final item in list) {
-        await txn.insert('service_requests', item.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert('service_requests', item.toDbMap(), conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }

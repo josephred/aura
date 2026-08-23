@@ -129,9 +129,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           Row(
                             children: [
                               Text(
-                                isClosed
-                                    ? 'Historial de Comunicación'
-                                    : 'Mesa de Asistencia Aura',
+                                currentRequest?.professionalName != null
+                                    ? currentRequest!.professionalName!
+                                    : (isClosed
+                                        ? 'Historial de Comunicación'
+                                        : 'Mesa de Asistencia Aura'),
                                 style: AppType.bodyMedium.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: p.textPrimary,
@@ -152,9 +154,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isClosed
-                                ? 'Atención finalizada (solo lectura)'
-                                : 'Canal cifrado de extremo a extremo',
+                            currentRequest?.professionalSpecialty != null
+                                ? '${currentRequest!.professionalSpecialty!} · ${currentRequest.status.label}'
+                                : (isClosed
+                                    ? 'Atención finalizada (solo lectura)'
+                                    : 'Canal cifrado de extremo a extremo'),
                             style: AppType.label.copyWith(
                               color: isClosed ? p.textMuted : p.accentText,
                               fontWeight: FontWeight.w600,
@@ -164,21 +168,58 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: p.accentSurface,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.security,
-                      color: p.accentText,
-                      size: 16,
-                    ),
+                  Row(
+                    children: [
+                      if (state.activeRequests.length > 1 || state.pastServices.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: InkWell(
+                            onTap: () => _showConversationsBottomSheet(context, state),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: p.accentSurface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: p.accent.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.forum_outlined, size: 14, color: p.accentText),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Chats (${state.activeRequests.length})',
+                                    style: AppType.label.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: p.accentText,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: p.accentSurface,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.security,
+                          color: p.accentText,
+                          size: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+            // Multi-Professional Selector (si hay más de una atención activa)
+            _buildProfessionalSelector(state, p),
             // Safety banner
             Container(
               width: double.infinity,
@@ -198,7 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       isClosed
                           ? 'Registro histórico de mensajes de la consulta realizada.'
-                          : 'Canal clínico directo con el equipo y profesional a cargo de su solicitud.',
+                          : 'Canal clínico directo con el profesional a cargo de esta atención.',
                       style: AppType.label.copyWith(
                         color: isClosed ? p.textMuted : p.accentText,
                         fontWeight: FontWeight.w500,
@@ -640,6 +681,301 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         Icon(Icons.chevron_right, color: p.borderStrong, size: 16),
       ],
+    );
+  }
+
+  Widget _buildProfessionalSelector(AppState state, AppPalette p) {
+    if (state.activeRequests.length <= 1) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.card,
+        border: Border(
+          bottom: BorderSide(color: p.border.withValues(alpha: 0.5)),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz_rounded, size: 14, color: p.accentText),
+                const SizedBox(width: 4),
+                Text(
+                  'ATENCIONES ACTIVAS (${state.activeRequests.length}) · SELECCIONE PROFESIONAL',
+                  style: AppType.label.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                    color: p.accentText,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: state.activeRequests.map((req) {
+                final isSelected = req.id == state.selectedChatRequestId ||
+                    (state.selectedChatRequestId == null && req.id == state.currentRequest?.id);
+
+                final profName = req.professionalName ?? _getServiceName(req.serviceId);
+                final specialty = req.professionalSpecialty ?? req.status.label;
+                final icon = _getServiceIcon(req.serviceId);
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => state.selectChatRequest(req.id),
+                    borderRadius: BorderRadius.circular(16),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? p.accentSurface : p.fill,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? p.accent : p.border,
+                          width: isSelected ? 1.8 : 1,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: p.accent.withValues(alpha: 0.15),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? p.accent : p.card,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 14,
+                              color: isSelected ? Colors.white : p.accentText,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                profName,
+                                style: AppType.label.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? p.textPrimary : p.textSecondary,
+                                ),
+                              ),
+                              Text(
+                                specialty,
+                                style: AppType.label.copyWith(
+                                  color: isSelected ? p.accentText : p.textFaint,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (isSelected) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              height: 6,
+                              width: 6,
+                              decoration: BoxDecoration(
+                                color: p.accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getServiceName(String serviceId) {
+    switch (serviceId) {
+      case 'medico':
+        return 'Médico General';
+      case 'kine_motora':
+      case 'kine_respiratoria':
+        return 'Kinesiología';
+      case 'enfermeria':
+        return 'Enfermería';
+      case 'laboratorio':
+        return 'Laboratorio';
+      case 'ambulancia':
+      case 'traslado_simple':
+      case 'traslado_avanzado':
+        return 'Ambulancia';
+      default:
+        return 'Atención Domiciliaria';
+    }
+  }
+
+  IconData _getServiceIcon(String serviceId) {
+    switch (serviceId) {
+      case 'medico':
+        return Icons.local_hospital_rounded;
+      case 'kine_motora':
+      case 'kine_respiratoria':
+        return Icons.accessibility_new_rounded;
+      case 'enfermeria':
+        return Icons.healing_rounded;
+      case 'laboratorio':
+        return Icons.biotech_rounded;
+      case 'ambulancia':
+      case 'traslado_simple':
+      case 'traslado_avanzado':
+        return Icons.local_shipping_rounded;
+      default:
+        return Icons.medical_services_rounded;
+    }
+  }
+
+  void _showConversationsBottomSheet(BuildContext context, AppState state) {
+    final p = context.palette;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: p.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: p.borderStrong,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(Icons.forum_rounded, color: p.accent, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Canales de Conversación',
+                      style: AppType.bodyLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Seleccione la atención con la que desea comunicarse:',
+                  style: AppType.bodySmall.copyWith(color: p.textFaint),
+                ),
+                const SizedBox(height: 16),
+                if (state.activeRequests.isNotEmpty) ...[
+                  Text(
+                    'ATENCIONES EN CURSO',
+                    style: AppType.label.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: p.accentText,
+                      fontSize: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...state.activeRequests.map((req) {
+                    final isSelected = req.id == state.selectedChatRequestId ||
+                        (state.selectedChatRequestId == null && req.id == state.currentRequest?.id);
+                    final profName = req.professionalName ?? _getServiceName(req.serviceId);
+                    final specialty = req.professionalSpecialty ?? req.status.label;
+                    final icon = _getServiceIcon(req.serviceId);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? p.accentSurface : p.fill,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? p.accent : p.border,
+                          width: isSelected ? 1.8 : 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected ? p.accent : p.card,
+                          child: Icon(icon, color: isSelected ? Colors.white : p.accentText, size: 20),
+                        ),
+                        title: Text(
+                          profName,
+                          style: AppType.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: p.textPrimary,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$specialty · ${req.status.label}',
+                          style: AppType.bodySmall.copyWith(
+                            color: isSelected ? p.accentText : p.textFaint,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: p.accent,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Activo',
+                                  style: AppType.label.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              )
+                            : Icon(Icons.chevron_right, color: p.textMuted),
+                        onTap: () {
+                          state.selectChatRequest(req.id);
+                          Navigator.pop(ctx);
+                        },
+                      ),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

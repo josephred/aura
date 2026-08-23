@@ -214,7 +214,11 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          if (widget.state.activeRequests.length > 1) ...[
+            _buildActiveServicesSwitcher(p),
+            const SizedBox(height: 14),
+          ],
 
           // Main Countdown target card
           Container(
@@ -1307,5 +1311,139 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildActiveServicesSwitcher(AppPalette p) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: p.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz_rounded, size: 14, color: p.accent),
+                const SizedBox(width: 4),
+                Text(
+                  'ATENCIONES EN CURSO (${widget.state.activeRequests.length})',
+                  style: AppType.label.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6,
+                    color: p.accent,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: widget.state.activeRequests.map((req) {
+                final isSelected = req.id == widget.request.id;
+                final profName = req.professionalName ?? _getServiceName(req.serviceId);
+                final specialty = req.professionalSpecialty ?? req.status.label;
+                final icon = _getServiceIcon(req.serviceId);
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => widget.state.selectChatRequest(req.id),
+                    borderRadius: BorderRadius.circular(14),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? p.accentSurface : p.fill,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? p.accent : p.border,
+                          width: isSelected ? 1.8 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 14, color: isSelected ? p.accentText : p.textMuted),
+                          const SizedBox(width: 6),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                profName,
+                                style: AppType.label.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? p.textPrimary : p.textSecondary,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              Text(
+                                specialty,
+                                style: AppType.label.copyWith(
+                                  color: isSelected ? p.accentText : p.textFaint,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getServiceName(String serviceId) {
+    switch (serviceId) {
+      case 'medico':
+        return 'Médico General';
+      case 'kine_motora':
+      case 'kine_respiratoria':
+        return 'Kinesiología';
+      case 'enfermeria':
+        return 'Enfermería';
+      case 'laboratorio':
+        return 'Laboratorio';
+      case 'ambulancia':
+      case 'traslado_simple':
+      case 'traslado_avanzado':
+        return 'Ambulancia';
+      default:
+        return 'Atención Domiciliaria';
+    }
+  }
+
+  IconData _getServiceIcon(String serviceId) {
+    switch (serviceId) {
+      case 'medico':
+        return Icons.local_hospital_rounded;
+      case 'kine_motora':
+      case 'kine_respiratoria':
+        return Icons.accessibility_new_rounded;
+      case 'enfermeria':
+        return Icons.healing_rounded;
+      case 'laboratorio':
+        return Icons.biotech_rounded;
+      case 'ambulancia':
+      case 'traslado_simple':
+      case 'traslado_avanzado':
+        return Icons.local_shipping_rounded;
+      default:
+        return Icons.medical_services_rounded;
+    }
   }
 }
