@@ -73,8 +73,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final state = widget.state;
     final currentRequest = state.currentRequest;
     final p = context.palette;
-
-    if (currentRequest == null) {
+    final isClosed = currentRequest == null;
+    if (currentRequest == null && state.chatMessages.isEmpty) {
       return _buildNoActiveRequestState();
     }
 
@@ -129,7 +129,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           Row(
                             children: [
                               Text(
-                                'Mesa de Asistencia Aura',
+                                isClosed
+                                    ? 'Historial de Comunicación'
+                                    : 'Mesa de Asistencia Aura',
                                 style: AppType.bodyMedium.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: p.textPrimary,
@@ -139,18 +141,23 @@ class _ChatScreenState extends State<ChatScreen> {
                               Container(
                                 height: 6,
                                 width: 6,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF10B981),
+                                decoration: BoxDecoration(
+                                  color: isClosed
+                                      ? p.textMuted
+                                      : const Color(0xFF10B981),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 1),
+                          const SizedBox(height: 2),
                           Text(
-                            'Canal de Chat Seguro Encriptado',
+                            isClosed
+                                ? 'Atención finalizada (solo lectura)'
+                                : 'Canal cifrado de extremo a extremo',
                             style: AppType.label.copyWith(
-                              color: p.textMuted,
+                              color: isClosed ? p.textMuted : p.accentText,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -158,132 +165,162 @@ class _ChatScreenState extends State<ChatScreen> {
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: p.accentSurface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.shield_rounded,
-                          color: p.accentText,
-                          size: 10,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Clínica Digital',
-                          style: AppType.label.copyWith(
-                            color: p.accentText,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    child: Icon(
+                      Icons.security,
+                      color: p.accentText,
+                      size: 16,
                     ),
                   ),
                 ],
               ),
             ),
-            // Message List
+            // Safety banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: isClosed
+                  ? p.cardSubtle
+                  : const Color(0xFF0D9488).withValues(alpha: 0.1),
+              child: Row(
+                children: [
+                  Icon(
+                    isClosed ? Icons.history : Icons.lock_outline,
+                    size: 14,
+                    color: isClosed ? p.textMuted : p.accentText,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isClosed
+                          ? 'Registro histórico de mensajes de la consulta realizada.'
+                          : 'Canal clínico directo con el equipo y profesional a cargo de su solicitud.',
+                      style: AppType.label.copyWith(
+                        color: isClosed ? p.textMuted : p.accentText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Messages Area
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                color: p.background,
                 child: messages.isEmpty
                     ? _buildEmptyThread()
                     : ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  itemCount: messages.length,
-                  itemBuilder: (context, idx) {
-                    final msg = messages[idx];
+                        reverse: true,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, idx) {
+                          final msg = messages[idx];
 
-                    if (msg.sender == 'system') {
-                      return _buildSystemBubble(msg);
-                    }
+                          if (msg.sender == 'system') {
+                            return _buildSystemBubble(msg);
+                          }
 
-                    final isMe = msg.sender == 'patient';
-                    return _buildChatBubble(msg, isMe);
-                  },
-                ),
+                          final isMe = msg.sender == 'patient';
+                          return _buildChatBubble(msg, isMe);
+                        },
+                      ),
               ),
             ),
-            // Quick reply chips row
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
-              color: p.card,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+            if (!isClosed) ...[
+              // Quick reply chips row
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+                color: p.card,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildQuickChip('👋 Saludo', 'Hola, quedo atento a su llegada.'),
+                      const SizedBox(width: 6),
+                      _buildQuickChip('🔔 Timbre ok', 'El timbre y citófono funcionan correctamente.'),
+                      const SizedBox(width: 6),
+                      _buildQuickChip('🚪 En puerta', 'Estaré atento para abrir la puerta.'),
+                      const SizedBox(width: 6),
+                      _buildQuickChip('📍 Acceso', '¿Necesita alguna indicación para ingresar al domicilio?'),
+                    ],
+                  ),
+                ),
+              ),
+              // Input text row
+              Container(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                color: p.card,
                 child: Row(
                   children: [
-                    _buildQuickChip('👋 Saludo', 'Hola, quedo atento a su llegada.'),
-                    const SizedBox(width: 6),
-                    _buildQuickChip('🔔 Timbre ok', 'El timbre y citófono funcionan correctamente.'),
-                    const SizedBox(width: 6),
-                    _buildQuickChip('🚪 En puerta', 'Estaré atento para abrir la puerta.'),
-                    const SizedBox(width: 6),
-                    _buildQuickChip('📍 Acceso', '¿Necesita alguna indicación para ingresar al domicilio?'),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: p.cardSubtle,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: p.border),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          style: AppType.bodyMedium.copyWith(
+                            color: p.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _send(),
+                          decoration: InputDecoration(
+                            hintText: 'Escriba su consulta al profesional...',
+                            hintStyle: AppType.bodyMedium.copyWith(
+                              color: p.textFaint,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _send,
+                      child: Container(
+                        height: 42,
+                        width: 42,
+                        decoration: BoxDecoration(
+                          color: p.accent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            // Input text row
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              color: p.card,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: p.cardSubtle,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: p.border),
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        style: AppType.bodyMedium.copyWith(
-                          color: p.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                        decoration: InputDecoration(
-                          hintText: 'Escriba su consulta al profesional...',
-                          hintStyle: AppType.bodyMedium.copyWith(
-                            color: p.textFaint,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                color: p.card,
+                child: Center(
+                  child: Text(
+                    'Atención finalizada. El canal directo se encuentra cerrado.',
+                    style: AppType.bodySmall.copyWith(
+                      color: p.textMuted,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _send,
-                    child: Container(
-                      height: 42,
-                      width: 42,
-                      decoration: BoxDecoration(
-                        color: p.accent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

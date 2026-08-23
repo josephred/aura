@@ -543,8 +543,12 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                           child: ElevatedButton(
                             onPressed: widget.onNavigateToChat,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: p.accentSurface,
-                              foregroundColor: p.accent,
+                              backgroundColor: widget.state.pendingMessages > 0
+                                  ? p.accent
+                                  : p.accentSurface,
+                              foregroundColor: widget.state.pendingMessages > 0
+                                  ? Colors.white
+                                  : p.accent,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -553,18 +557,20 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.chat_bubble_outline_rounded,
                                   size: 14,
                                 ),
-                                SizedBox(width: 6),
+                                const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                  'Chatear',
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
+                                    widget.state.pendingMessages > 0
+                                        ? 'Chatear (${widget.state.pendingMessages})'
+                                        : 'Chatear',
+                                    style: AppType.bodySmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
                                 ),
                               ],
                             ),
@@ -620,15 +626,15 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.phone_outlined, size: 14),
-                                SizedBox(width: 6),
+                                const Icon(Icons.phone_outlined, size: 14),
+                                const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                  'Llamar',
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
+                                    'Llamar',
+                                    style: AppType.bodySmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
                                 ),
                               ],
                             ),
@@ -637,6 +643,58 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
                       ),
                     ],
                   ),
+                  if (widget.state.chatMessages.any((m) => m.sender == 'provider')) ...[
+                    const SizedBox(height: 12),
+                    Builder(
+                      builder: (context) {
+                        final lastMsg = widget.state.chatMessages.lastWhere((m) => m.sender == 'provider');
+                        return GestureDetector(
+                          onTap: widget.onNavigateToChat,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: p.accentSurface.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: p.accent.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.chat_bubble_rounded, size: 16, color: p.accent),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        lastMsg.senderName ?? 'Profesional Clínico',
+                                        style: AppType.label.copyWith(
+                                          color: p.accent,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        lastMsg.text,
+                                        style: AppType.bodySmall.copyWith(
+                                          color: p.textPrimary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: p.accent),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),

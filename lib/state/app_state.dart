@@ -770,7 +770,12 @@ class AppState extends ChangeNotifier {
   bool _sameThread(List<ChatMessage> a, List<ChatMessage> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id || a[i].text != b[i].text) return false;
+      if (a[i].id != b[i].id ||
+          a[i].text != b[i].text ||
+          a[i].sender != b[i].sender ||
+          a[i].senderName != b[i].senderName) {
+        return false;
+      }
     }
     return true;
   }
@@ -873,12 +878,11 @@ class AppState extends ChangeNotifier {
   Timer? _chatPollTimer;
   bool _chatScreenVisible = false;
 
-  static const _chatPollVisible = Duration(seconds: 4);
-  static const _chatPollHidden = Duration(seconds: 20);
+  static const _chatPollVisible = Duration(seconds: 2);
+  static const _chatPollHidden = Duration(seconds: 5);
 
   /// La pantalla de chat avisa cuando se monta y cuando se va.
   void setChatScreenVisible(bool visible) {
-    if (_chatScreenVisible == visible) return;
     _chatScreenVisible = visible;
     _restartChatPolling();
     if (visible) refreshChatNow();
@@ -2760,15 +2764,10 @@ class AppState extends ChangeNotifier {
                   final List<dynamic> msgsList = data['messages'] as List<dynamic>;
                   final newMessages = msgsList.map((m) => ChatMessage.fromJson(m as Map<String, dynamic>)).toList();
                   
-                  if (_chatMessages.length != newMessages.length ||
-                      (_chatMessages.isNotEmpty && _chatMessages.last.text != newMessages.last.text)) {
+                  if (!_sameThread(_chatMessages, newMessages)) {
                     _chatMessages.clear();
                     _chatMessages.addAll(newMessages);
                     await DbHelper.instance.saveChatMessages(newRequest.id, _chatMessages);
-                    // Este es el camino por el que llega un mensaje del
-                    // profesional con la app abierta. Sin recalcular aquí, el
-                    // texto aparecía en el chat pero el globo de la barra se
-                    // quedaba como estaba.
                     await _refreshUnreadCount(newRequest.id);
                     updated = true;
                   }

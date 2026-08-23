@@ -15,11 +15,11 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: json['id'] as String,
-      sender: json['sender'] as String,
-      senderName: json['sender_name'] as String?,
-      text: json['text'] as String,
-      timestamp: json['timestamp'] as String,
+      id: (json['id'] ?? '').toString(),
+      sender: (json['sender'] ?? 'system').toString(),
+      senderName: json['sender_name']?.toString(),
+      text: (json['text'] ?? '').toString(),
+      timestamp: (json['timestamp'] ?? '').toString(),
     );
   }
 
