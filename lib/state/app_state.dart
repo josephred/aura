@@ -863,17 +863,28 @@ class AppState extends ChangeNotifier {
   }
 
   void _handleNoActiveRequests() {
-    debugPrint('[CHAT-DEBUG] fetchActiveRequest → empty/null response, clearing active requests');
+    debugPrint('[CHAT-DEBUG] fetchActiveRequest → empty/null response');
     stopActiveBookingStream();
     stopChatPolling();
     _activeRequests.clear();
     _selectedChatRequestId = null;
-    _currentRequest = null;
-    _chatMessages.clear();
-    _unreadByRequest.clear();
-    try {
-      DbHelper.instance.saveBookings([]);
-    } catch (_) {}
+
+    if (_currentRequest != null &&
+        _currentRequest!.status != RequestStatus.completed &&
+        _currentRequest!.status != RequestStatus.cancelled) {
+      // Mantener visible el estado completado y evaluación antes de salir al inicio.
+      _currentRequest = _currentRequest!.copyWith(
+        status: RequestStatus.completed,
+        currentStep: 4,
+      );
+    } else if (_currentRequest?.status != RequestStatus.completed) {
+      _currentRequest = null;
+      _chatMessages.clear();
+      _unreadByRequest.clear();
+      try {
+        DbHelper.instance.saveBookings([]);
+      } catch (_) {}
+    }
   }
 
   /// True cuando dos hilos son el mismo mensaje a mensaje.
@@ -963,6 +974,22 @@ class AppState extends ChangeNotifier {
 
       if (frescas.isEmpty) {
         // La ultima atencion se cerro mientras mirabas.
+        if (_currentRequest != null &&
+            _currentRequest!.status != RequestStatus.completed &&
+            _currentRequest!.status != RequestStatus.cancelled) {
+          _currentRequest = _currentRequest!.copyWith(
+            status: RequestStatus.completed,
+            currentStep: 4,
+          );
+          _activeRequests.clear();
+          stopChatPolling();
+          stopActiveBookingStream();
+          await fetchHistory();
+          notifyListeners();
+          return;
+        } else if (_currentRequest?.status == RequestStatus.completed) {
+          return;
+        }
         _currentRequest = null;
         stopChatPolling();
         stopActiveBookingStream();
