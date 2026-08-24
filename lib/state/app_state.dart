@@ -145,9 +145,8 @@ class AppState extends ChangeNotifier {
   String? _assignedProfessionalPhone;
   String? _assignedProfessionalSpecialty;
   ThemeMode _themeMode = ThemeMode.system;
-  // Baseline above 1.0: a large share of patients are older adults, and the
-  // default type sizes were reported as too small to use comfortably.
-  double _textScaleFactor = 1.15;
+  // Tamaño de texto por defecto: 1.0 (tamaño estándar/más compacto).
+  double _textScaleFactor = 1.0;
 
   AppState() {
     _apiService = ApiService(
@@ -248,9 +247,8 @@ class AppState extends ChangeNotifier {
           orElse: () => ThemeMode.system,
         );
       }
-      // Older installs have no stored value; 1.15 is the new baseline so the
-      // app is legible for older adults out of the box.
-      _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.15;
+      // Escala de texto por defecto: 1.0 (el tamaño más chico / estándar del sistema).
+      _textScaleFactor = prefs.getDouble('text_scale_factor') ?? 1.0;
       _userAge = prefs.getInt('user_age');
       // Última comuna conocida: se pinta de inmediato y se refresca por detrás.
       _currentLocality = prefs.getString('last_locality');
