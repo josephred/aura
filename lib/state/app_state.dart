@@ -472,7 +472,7 @@ class AppState extends ChangeNotifier {
           'provider': provider,
           'credential': credential,
         },
-        timeout: const Duration(seconds: 8),
+        timeout: const Duration(seconds: 15),
       );
 
       final Map<String, dynamic> data = json.decode(response.body);
@@ -483,7 +483,7 @@ class AppState extends ChangeNotifier {
       return data['message'] ?? 'No se pudo iniciar sesión con $provider.';
     } catch (e) {
       debugPrint('Backend social login failed. Error: $e');
-      return 'No se pudo conectar con el servidor. Verifica tu conexión o usa el modo demo.';
+      return 'No se pudo conectar con el servidor ($e). Verifica tu conexión o intenta nuevamente.';
     }
   }
 
