@@ -133,3 +133,40 @@ flutter build apk --release
 | **Usuario Demo** | `principal@aura.cl` | `password` | App Móvil — Cuenta histórica con direcciones y dependientes precargados. |
 
 > **Nota**: Puedes registrar nuevas cuentas directamente desde el botón **Registrarse** en la App Móvil y se guardarán en vivo en la base de datos de producción.
+
+
+
+
+
+Ran command: `flutter devices`
+
+Para ejecutar la app en la web debes indicar el dispositivo con el parámetro **`-d`** (device).
+
+Tienes las siguientes opciones desde la carpeta `c:\github\aura\aura`:
+
+---
+
+### 1. 🌐 Abrir directamente en Google Chrome (Recomendado):
+```bash
+flutter run -d chrome
+```
+
+---
+
+### 2. 🌐 Abrir en Microsoft Edge:
+```bash
+flutter run -d edge
+```
+
+---
+
+### 3. 🖥️ Levantar como servidor web (para abrirlo en cualquier navegador en un puerto fijo):
+```bash
+flutter run -d web-server --web-port 8080
+```
+*(Luego abres tu navegador en `http://localhost:8080`)*.
+
+---
+
+### 💡 ¿Por qué dio error `flutter run web`?
+En Flutter, si escribes `flutter run web` sin `-d`, Flutter piensa que `web` es un archivo `.dart` (como `main.dart`). Siempre que quieras elegir navegador o dispositivo, se usa **`-d chrome`** o **`-d edge`**.
