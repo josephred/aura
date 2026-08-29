@@ -109,6 +109,8 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: AuraSpace.md),
                 _ServiceGrid(state: state, onSelectService: onSelectService),
                 const SizedBox(height: AuraSpace.sm),
+                _TelemedicineBanner(state: state),
+                const SizedBox(height: AuraSpace.sm),
                 _AllServicesLink(state: state, onSelectService: onSelectService),
 
                 // 3 · Atajos: repetir lo último, agendar, ver resultados.
@@ -482,34 +484,11 @@ class _ServiceGrid extends StatelessWidget {
           label: serviceShortName(service.id, service.shortTitle),
           hint: serviceOneLiner(service.id, service.subtitle),
           icon: serviceIconFor(service.iconName, serviceId: service.id),
-          // La ambulancia domina sin ser roja: fondo de marca profundo. Un rojo
-          // de alarma en el inicio de una app de salud produce ansiedad cada vez
-          // que se abre, y el traslado programado no es una urgencia vital.
           emphasis: service.id == 'ambulancia',
           onTap: () => onSelectService(service),
         ),
       );
     }
-
-    // Telemedicina. No está en el catálogo de servicios a domicilio porque no
-    // es uno: es una cita por vídeo, y por eso lleva a agendar y no al
-    // formulario de despacho.
-    tiles.add(
-      AuraServiceTile(
-        label: 'Atención online',
-        hint: 'Por videollamada',
-        icon: Icons.videocam_rounded,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BookAppointmentScreen(
-              state: state,
-              headerTitle: 'Atención online',
-            ),
-          ),
-        ),
-      ),
-    );
 
     final columns = AuraBreak.serviceColumns(context);
 
@@ -519,9 +498,6 @@ class _ServiceGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: AuraSpace.sm,
       crossAxisSpacing: AuraSpace.sm,
-      // Alto fijo por azulejo en vez de proporción: con la letra al 200 % una
-      // proporción hace que el azulejo crezca a lo ancho y rompa la rejilla,
-      // mientras que un alto generoso simplemente deja el texto respirar.
       childAspectRatio: _aspectFor(context, columns),
       children: tiles,
     );
@@ -529,9 +505,102 @@ class _ServiceGrid extends StatelessWidget {
 
   double _aspectFor(BuildContext context, int columns) {
     final scale = MediaQuery.textScalerOf(context).scale(1.0);
-    final base = columns >= 4 ? 1.0 : (columns == 3 ? 0.95 : 0.92);
+    final base = columns >= 4 ? 1.35 : (columns == 3 ? 1.25 : 1.18);
     // Al agrandar la letra el azulejo necesita más alto, no más ancho.
-    return (base / scale.clamp(1.0, 1.6)).clamp(0.52, 1.1);
+    return (base / scale.clamp(1.0, 1.6)).clamp(0.68, 1.4);
+  }
+}
+
+/// Banner destacado de telemedicina por videollamada.
+class _TelemedicineBanner extends StatelessWidget {
+  final AppState state;
+  const _TelemedicineBanner({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = context.isDark;
+
+    return AuraCard(
+      padding: const EdgeInsets.all(AuraSpace.md),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookAppointmentScreen(
+            state: state,
+            headerTitle: 'Atención online',
+          ),
+        ),
+      ),
+      semanticLabel: 'Atención médica online por videollamada. Tocar para agendar.',
+      child: Row(
+        children: [
+          Container(
+            height: 46,
+            width: 46,
+            decoration: BoxDecoration(
+              borderRadius: AuraRadius.allMd,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  p.accent.withValues(alpha: isDark ? 0.25 : 0.18),
+                  p.accent.withValues(alpha: isDark ? 0.10 : 0.05),
+                ],
+              ),
+              border: Border.all(
+                color: p.accent.withValues(alpha: isDark ? 0.4 : 0.25),
+                width: 1.2,
+              ),
+            ),
+            child: Icon(
+              Icons.videocam_rounded,
+              color: p.accent,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: AuraSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Atención médica online',
+                        style: AppType.titleSmall.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: p.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AuraSpace.xxs),
+                    const AuraBadge(label: 'Video', tone: AuraTone.info),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Consulta por videollamada sin salir de casa',
+                  style: AppType.label.copyWith(color: p.textMuted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AuraSpace.xs),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: p.textMuted.withValues(alpha: 0.7),
+            size: AuraIcon.md,
+          ),
+        ],
+      ),
+    );
   }
 }
 

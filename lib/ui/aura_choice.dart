@@ -197,54 +197,133 @@ class AuraServiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final fg = emphasis ? p.onBrandDeep : p.textPrimary;
-    final iconBg = emphasis
-        ? p.onBrandDeep.withValues(alpha: 0.16)
-        : p.accentSurface;
-    final iconFg = emphasis ? p.onBrandDeep : p.accentText;
+    final isDark = context.isDark;
+
+    final fg = emphasis
+        ? (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E))
+        : p.textPrimary;
+    final hintFg = emphasis
+        ? (isDark ? const Color(0xFFFDE68A).withValues(alpha: 0.8) : const Color(0xFFB45309))
+        : p.textMuted;
+    final iconColor = emphasis
+        ? (isDark ? const Color(0xFFF59E0B) : const Color(0xFFD97706))
+        : p.accent;
 
     return Semantics(
       button: true,
       label: hint == null ? label : '$label. $hint',
       child: ExcludeSemantics(
         child: Material(
-          color: emphasis ? p.brandDeep : p.card,
-          borderRadius: AuraRadius.allLg,
+          color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
             borderRadius: AuraRadius.allLg,
             focusColor: p.accent.withValues(alpha: 0.20),
             child: Container(
-              constraints: const BoxConstraints(minHeight: 132),
-              padding: const EdgeInsets.all(AuraSpace.sm),
+              padding: const EdgeInsets.all(AuraSpace.md),
               decoration: BoxDecoration(
                 borderRadius: AuraRadius.allLg,
-                border: emphasis ? null : Border.all(color: p.border),
-                boxShadow: emphasis
-                    ? AuraShadow.none()
-                    : AuraShadow.soft(context.isDark),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: emphasis
+                      ? (isDark
+                          ? [
+                              const Color(0xFF1E293B),
+                              const Color(0xFF292524),
+                            ]
+                          : [
+                              const Color(0xFFFFFBEB),
+                              const Color(0xFFFEF3C7),
+                            ])
+                      : (isDark
+                          ? [
+                              p.card,
+                              p.card.withValues(alpha: 0.85),
+                            ]
+                          : [
+                              p.card,
+                              p.cardSubtle,
+                            ]),
+                ),
+                border: Border.all(
+                  color: emphasis
+                      ? (isDark
+                          ? const Color(0xFFD97706).withValues(alpha: 0.5)
+                          : const Color(0xFFF59E0B).withValues(alpha: 0.6))
+                      : p.border.withValues(alpha: isDark ? 0.45 : 0.8),
+                  width: emphasis ? 1.4 : 1.0,
+                ),
+                boxShadow: isDark
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [
+                        BoxShadow(
+                          color: p.textPrimary.withValues(alpha: 0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
-                        height: 48,
-                        width: 48,
+                        height: 44,
+                        width: 44,
                         decoration: BoxDecoration(
-                          color: iconBg,
-                          borderRadius: AuraRadius.allSm,
+                          borderRadius: AuraRadius.allMd,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: emphasis
+                                ? [
+                                    (isDark ? const Color(0xFFF59E0B) : const Color(0xFFD97706)).withValues(alpha: 0.22),
+                                    (isDark ? const Color(0xFFF59E0B) : const Color(0xFFD97706)).withValues(alpha: 0.08),
+                                  ]
+                                : [
+                                    p.accent.withValues(alpha: isDark ? 0.22 : 0.14),
+                                    p.accent.withValues(alpha: isDark ? 0.08 : 0.04),
+                                  ],
+                          ),
+                          border: Border.all(
+                            color: (emphasis ? const Color(0xFFF59E0B) : p.accent)
+                                .withValues(alpha: isDark ? 0.4 : 0.25),
+                            width: 1.2,
+                          ),
                         ),
-                        child: Icon(icon, size: AuraIcon.lg, color: iconFg),
+                        child: Icon(icon, size: 24, color: iconColor),
                       ),
-                      const Spacer(),
-                      if (badge != null) Flexible(child: badge!),
+                      if (badge != null)
+                        Flexible(child: badge!)
+                      else if (emphasis)
+                        const AuraBadge(label: 'Urgente', tone: AuraTone.warning)
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: p.fill.withValues(alpha: isDark ? 0.5 : 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 13,
+                            color: p.textMuted.withValues(alpha: 0.6),
+                          ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: AuraSpace.xs),
+                  const SizedBox(height: AuraSpace.sm),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -254,20 +333,20 @@ class AuraServiceTile extends StatelessWidget {
                         style: AppType.titleSmall.copyWith(
                           fontWeight: FontWeight.w700,
                           color: fg,
+                          letterSpacing: -0.2,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (hint != null) ...[
-                        const SizedBox(height: AuraSpace.xxxs),
+                        const SizedBox(height: 3),
                         Text(
                           hint!,
                           style: AppType.label.copyWith(
-                            color: emphasis
-                                ? p.onBrandDeep.withValues(alpha: 0.82)
-                                : p.textMuted,
+                            color: hintFg,
+                            height: 1.25,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
