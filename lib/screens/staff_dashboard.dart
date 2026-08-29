@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/staff_models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
 /// Work area for professionals and ambulance drivers.
 ///
@@ -68,7 +69,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       SnackBar(
         content: Text(error ?? 'Atención actualizada.'),
         backgroundColor:
-            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
+            error == null ? p.accent : p.error,
       ),
     );
   }
@@ -85,7 +86,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       SnackBar(
         content: Text(error ?? 'Paciente tomado. Ya puedes escribirle.'),
         backgroundColor:
-            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
+            error == null ? p.accent : p.error,
       ),
     );
   }
@@ -128,7 +129,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
       SnackBar(
         content: Text(error ?? 'Solicitud devuelta a la cola.'),
         backgroundColor:
-            error == null ? const Color(0xFF0F766E) : const Color(0xFFDC2626),
+            error == null ? p.accent : p.error,
       ),
     );
   }
@@ -139,7 +140,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
     if (!mounted || error == null) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error), backgroundColor: const Color(0xFFDC2626)),
+      SnackBar(content: Text(error), backgroundColor: p.error),
     );
   }
 
@@ -429,8 +430,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: widget.ambulanceOnly
-              ? const [Color(0xFF0F766E), Color(0xFF1E3A8A)]
-              : const [Color(0xFF0F172A), Color(0xFF0F766E)],
+              ? [p.brandDeep, p.brandDeep]
+              : [p.brandDeep, p.brandDeep],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -440,17 +441,16 @@ class _StaffDashboardState extends State<StaffDashboard> {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: const Color(0xFF2DD4BF),
+            backgroundColor: p.accent,
             foregroundImage: (photo != null && photo.isNotEmpty)
                 ? NetworkImage(photo)
                 : null,
             child: widget.ambulanceOnly
-                ? const Icon(Icons.local_shipping, color: Color(0xFF0F172A))
+                ? Icon(Icons.local_shipping, color: p.onBrandDeep)
                 : Text(
                     initial.isEmpty ? 'A' : initial[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Color(0xFF0F172A),
-                      fontSize: 24,
+                    style: TextStyle(
+                      color: p.onBrandDeep,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -463,20 +463,20 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 Text(
                   profile?.name ?? 'Equipo Aura',
                   style: AppType.titleMedium.copyWith(
-                    color: Colors.white,
+                    color: context.scheme.onPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   profile?.specialty ?? 'Prestador clínico',
-                  style: AppType.label.copyWith(color: const Color(0xFFCCFBF1)),
+                  style: AppType.label.copyWith(color: p.onBrandDeep),
                 ),
                 if (profile != null && profile.coverageZones.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     'Cubre: ${profile.coverageZones.join(', ')}',
-                    style: AppType.label.copyWith(color: const Color(0xFF99F6E4)),
+                    style: AppType.label.copyWith(color: p.onBrandDeep),
                   ),
                 ],
               ],
@@ -484,7 +484,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
           ),
           if (profile != null)
             IconButton(
-              icon: const Icon(Icons.edit_outlined, color: Colors.white70),
+              icon: Icon(Icons.edit_outlined, color: p.onBrandDeep),
               tooltip: 'Editar perfil y currículum',
               onPressed: () => _showEditProfileModal(profile),
             ),
@@ -508,10 +508,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            color: p.card,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
@@ -530,7 +529,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.grey[700] : Colors.grey[300],
+                      color: p.borderStrong,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -601,8 +600,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
+                      backgroundColor: p.accent,
+                      foregroundColor: context.scheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -628,8 +627,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                           SnackBar(
                             content: Text(error ?? 'Perfil actualizado correctamente.'),
                             backgroundColor: error == null
-                                ? const Color(0xFF0F766E)
-                                : const Color(0xFFDC2626),
+                                ? p.accent
+                                : p.error,
                           ),
                         );
                       }
@@ -667,9 +666,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 Icons.circle,
                 size: 12,
                 color: busy
-                    ? const Color(0xFFF59E0B)
+                    ? p.warning
                     : onDuty
-                        ? const Color(0xFF10B981)
+                        ? p.success
                         : p.textFaint,
               ),
               const SizedBox(width: 8),
@@ -687,7 +686,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
               ),
               Switch(
                 value: onDuty,
-                activeThumbColor: const Color(0xFF0F766E),
+                activeThumbColor: p.accent,
                 onChanged: busy ? null : _toggleDuty,
               ),
             ],
@@ -810,7 +809,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   booking.serviceTitle,
                   style: AppType.bodyMedium.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0F766E),
+                    color: p.accent,
                   ),
                 ),
               ),
@@ -889,8 +888,8 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
                     color: booking.escalationLevel > 0
-                        ? const Color(0xFFDC2626)
-                        : const Color(0xFF0F766E),
+                        ? p.error
+                        : p.accent,
                   ),
                 )
               else if (booking.startTime.isNotEmpty)
@@ -910,14 +909,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFDC2626).withValues(alpha: 0.10),
+                color: p.error.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 'Lleva demasiado sin que nadie vaya. Operaciones ya esta avisada.',
                 style: AppType.label.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFFDC2626),
+                  color: p.error,
                 ),
               ),
             ),
@@ -931,20 +930,20 @@ class _StaffDashboardState extends State<StaffDashboard> {
                 onPressed:
                     (isBusy || !puedeTomar) ? null : () => _claim(booking),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
+                  backgroundColor: p.accent,
+                  foregroundColor: context.scheme.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: isBusy
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 16,
                         width: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: context.scheme.onPrimary,
                         ),
                       )
                     : Text(
@@ -962,20 +961,20 @@ class _StaffDashboardState extends State<StaffDashboard> {
               child: ElevatedButton(
                 onPressed: isBusy ? null : () => _advance(booking, next),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0F766E),
-                  foregroundColor: Colors.white,
+                  backgroundColor: p.accent,
+                  foregroundColor: context.scheme.onPrimary,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: isBusy
-                    ? const SizedBox(
+                    ? SizedBox(
                         height: 16,
                         width: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: context.scheme.onPrimary,
                         ),
                       )
                     : Text(
@@ -1112,14 +1111,14 @@ class _StaffDashboardState extends State<StaffDashboard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: col.hasResult ? const Color(0xFF0F766E).withValues(alpha: 0.15) : p.accentSurface,
+                  color: col.hasResult ? p.accent.withValues(alpha: 0.15) : p.accentSurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   col.hasResult ? 'Informe emitido' : 'Pendiente',
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: col.hasResult ? const Color(0xFF0F766E) : p.accentText,
+                    color: col.hasResult ? p.accent : p.accentText,
                   ),
                 ),
               ),
@@ -1156,17 +1155,17 @@ class _StaffDashboardState extends State<StaffDashboard> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
+                color: p.warningSurface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 14, color: Colors.amber),
+                  Icon(Icons.info_outline, size: AuraIcon.sm, color: p.warning),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Notas: ${col.clinicalNotes}',
-                      style: AppType.label.copyWith(color: Colors.brown),
+                      style: AppType.bodySmall.copyWith(color: p.onWarningSurface),
                     ),
                   ),
                 ],
@@ -1184,7 +1183,7 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     await widget.state.fetchStaffLabCollections();
                   },
                   icon: const Icon(Icons.directions_car, size: 16),
-                  label: Text('En camino', style: AppType.button.copyWith(color: Colors.white)),
+                  label: Text('En camino', style: AppType.button.copyWith(color: context.scheme.onPrimary)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: p.accent,
                     padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1200,9 +1199,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     await widget.state.fetchStaffLabCollections();
                   },
                   icon: const Icon(Icons.local_hospital, size: 16),
-                  label: Text('En atención', style: AppType.button.copyWith(color: Colors.white)),
+                  label: Text('En atención', style: AppType.button.copyWith(color: context.scheme.onPrimary)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
+                    backgroundColor: p.accent,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
@@ -1216,9 +1215,9 @@ class _StaffDashboardState extends State<StaffDashboard> {
                     await widget.state.fetchStaffLabCollections();
                   },
                   icon: const Icon(Icons.check_circle_outline, size: 16),
-                  label: Text('Toma completada', style: AppType.button.copyWith(color: Colors.white)),
+                  label: Text('Toma completada', style: AppType.button.copyWith(color: context.scheme.onPrimary)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
+                    backgroundColor: p.accent,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),

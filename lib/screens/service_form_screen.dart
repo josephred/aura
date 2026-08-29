@@ -10,14 +10,14 @@ import '../models/dependent.dart';
 import '../models/saved_address.dart';
 import '../models/zone_eta_estimate.dart';
 import '../state/app_state.dart';
-import '../utils/service_specialties.dart';
 import '../utils/symptom_validation.dart';
 import '../models/lab_models.dart';
 import '../widgets/booking_voucher_dialog.dart';
 import '../widgets/lab_slot_picker.dart';
 import '../widgets/map_location_picker.dart';
 import '../widgets/symptom_voice_input.dart';
-import 'book_appointment_screen.dart';
+import '../ui/aura.dart';
+import '../ui/service_visuals.dart';
 
 class ServiceFormScreen extends StatefulWidget {
   final AppState state;
@@ -117,9 +117,19 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   static const int _ambulanceBasicPrice = 18500;
   static const int _ambulanceMedicalizedPrice = 28500;
 
+  // ------------------------------------------------------------ asistente
+  //
+  // El formulario dejó de ser una página con ocho bloques y pasó a ser una
+  // pregunta por pantalla. Estos tres campos son todo lo que hace falta para
+  // eso: en qué paso estamos, hacia dónde vamos (para la dirección de la
+  // transición) y si ya se intentó avanzar (para no pintar errores en rojo
+  // sobre campos que la persona todavía no ha tenido ocasión de rellenar).
+  int _stepIndex = 0;
+  bool _goingForward = true;
+  final Set<int> _visited = {0};
+
   // Live zone demand / wait estimate
   ZoneEtaEstimate? _zoneEta;
-  bool _zoneEtaExpanded = false;
   bool _loadingZoneEta = false;
   Timer? _zoneEtaDebounce;
 
@@ -325,27 +335,13 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
 
   Future<void> _submitForm() async {
     if (widget.service.requiresPrescription && _uploadedFileName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Toda prestación clínica de enfermería/estudios requiere cargar un pedido u orden médica.',
-          ),
-          backgroundColor: Colors.amber,
-        ),
-      );
+      _warn('Necesitamos una foto de tu orden médica para poder atenderte.');
       return;
     }
 
     if (widget.service.id == 'ambulancia' &&
         _destinationAddressController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Por favor ingrese el lugar de llegada (destino) del traslado.',
-          ),
-          backgroundColor: Colors.amber,
-        ),
-      );
+      _warn('Falta indicar a dónde va el traslado.');
       return;
     }
 
@@ -387,12 +383,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
       final symptomsError = validateSymptoms(symptomsOrExam);
       if (symptomsError != null) {
         setState(() => _symptomsError = symptomsError);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(symptomsError),
-            backgroundColor: const Color(0xFFDC2626),
-          ),
-        );
+        _fail(symptomsError);
         return;
       }
       setState(() => _symptomsError = null);
@@ -432,12 +423,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     );
 
     if (error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: const Color(0xFFDC2626),
-        ),
-      );
+      _fail(error);
       return;
     }
 
@@ -578,7 +564,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
               ? 'Cupo reservado. Confirma el pago para dejarla agendada.'
               : 'Toma de muestras agendada para ${request.scheduledLabel ?? 'la fecha elegida'}.',
         ),
-        backgroundColor: const Color(0xFF0F766E),
+        backgroundColor: context.palette.success,
       ),
     );
 
@@ -634,1852 +620,807 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     widget.onBack();
   }
 
+  /// Aviso de que falta algo. Ámbar del sistema, no un literal.
   void _warn(String message) {
+    final c = auraToneColors(context, AuraTone.warning);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.amber),
+      SnackBar(
+        content: Text(message, style: TextStyle(color: c.onSurface)),
+        backgroundColor: c.surface,
+      ),
     );
   }
 
-  /// E.2 — comentarios e indicaciones clínicas para el laboratorista.
-  Widget _buildLabIndicationsBlock() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.assignment_outlined, color: p.accent, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Comentarios e indicaciones',
-                      style: AppType.bodySmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Condiciones previas y para cuándo lo necesitas',
-                      style: AppType.bodySmall.copyWith( color: p.textFaint,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: p.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: p.border),
-            ),
-            child: TextField(
-              controller: _labNotesController,
-              maxLines: 4,
-              maxLength: 1000,
-              style: AppType.bodySmall.copyWith(
-                color: p.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-              decoration: InputDecoration(
-                hintText:
-                    'Ej. Ayuno de 12 horas. Tengo la orden médica en papel. '
-                    'Necesito el resultado antes del viernes.',
-                hintStyle: AppType.bodySmall.copyWith(color: p.textFaint,
-                ),
-                border: InputBorder.none,
-                counterStyle: AppType.bodySmall.copyWith( color: p.textFaint,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ),
-        ],
+  /// Algo falló de verdad.
+  void _fail(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: context.palette.error,
       ),
     );
+  }
+
+  // ========================================================================
+  //  Presentación: un asistente de una pregunta por pantalla
+  // ========================================================================
+  //
+  // Lo que había antes: un `SingleChildScrollView` con, de una sola vez, la
+  // ficha del servicio, el estado de la zona, un atajo a agendar, un aviso
+  // legal en ámbar, el selector de paciente, los síntomas, la carga de la
+  // orden médica, la dirección, la tarjeta de precio y el botón. Y una
+  // cabecera que decía «PASO 1 DE 2» mientras enseñaba las diez cosas.
+  //
+  // Lo que hay ahora: entre tres y cinco pasos, según el servicio, con una
+  // pregunta cada uno. Ningún dato se ha dejado de pedir; lo que cambia es
+  // cuándo se pide.
+  //
+  // Cada paso sabe tres cosas: qué pregunta, si se puede avanzar, y qué falta
+  // si no se puede. Ese último punto es el que arregla el patrón viejo, donde
+  // lo único que decía qué faltaba era el rótulo de un botón inhabilitado al
+  // fondo de la página, lejos del campo sin rellenar.
+
+  /// Los pasos de este servicio, en orden.
+  ///
+  /// Se calcula en cada `build` en vez de guardarse: depende del servicio, que
+  /// no cambia, pero también de si hay familiares cargados, que sí puede
+  /// cambiar mientras el asistente está abierto.
+  List<_StepId> get _steps {
+    final id = widget.service.id;
+    return [
+      _StepId.patient,
+      if (id == 'medico') _StepId.symptoms,
+      if (id == 'radiologia' || id == 'electrocardiograma') _StepId.exam,
+      if (widget.service.requiresPrescription) _StepId.prescription,
+      _StepId.location,
+      if (id == 'ambulancia') _StepId.ambulanceType,
+      if (_isScheduledLab) _StepId.labSlot,
+      _StepId.confirm,
+    ];
+  }
+
+  _StepId get _currentStep => _steps[_stepIndex.clamp(0, _steps.length - 1)];
+
+  /// Qué impide avanzar desde el paso actual, en lenguaje corriente.
+  ///
+  /// Devuelve `null` cuando se puede seguir. El texto es el que se muestra
+  /// junto al botón, así que está escrito para leerse, no para registrarse:
+  /// «Elige el día y la hora», no «labSlot is required».
+  String? _blockerFor(_StepId step) {
+    switch (step) {
+      case _StepId.patient:
+        if (_patientType == 'dependent' && _selectedDependentId == null) {
+          return 'Elige a la persona que necesita la atención.';
+        }
+        return null;
+
+      case _StepId.symptoms:
+        final text = _symptomsController.text.trim();
+        if (text.isEmpty) return 'Cuéntanos qué le pasa para poder ayudarte.';
+        // Se usa la misma regla que aplica el servidor, para que nadie llegue
+        // al final del asistente y ahí descubra que el texto no vale.
+        return validateSymptoms(text);
+
+      case _StepId.exam:
+        if (_examController.text.trim().isEmpty) {
+          return 'Escribe qué examen necesitas, como aparece en tu orden.';
+        }
+        return null;
+
+      case _StepId.prescription:
+        if (_uploadedFileName == null) {
+          return 'Adjunta una foto de tu orden médica para continuar.';
+        }
+        return null;
+
+      case _StepId.location:
+        if (widget.service.id == 'ambulancia') {
+          if (_originAddressController.text.trim().isEmpty) {
+            return 'Indica desde dónde sale el traslado.';
+          }
+          if (_destinationAddressController.text.trim().isEmpty) {
+            return 'Indica a dónde va el traslado.';
+          }
+          return null;
+        }
+        if (_useCustomAddress && _customAddressController.text.trim().isEmpty) {
+          return 'Escribe la dirección donde te atendemos.';
+        }
+        if (!_useCustomAddress && widget.addresses.isEmpty) {
+          return 'Añade una dirección para continuar.';
+        }
+        return null;
+
+      case _StepId.ambulanceType:
+        return null;
+
+      case _StepId.labSlot:
+        if (_labSlot == null) return 'Elige el día y la hora de la toma.';
+        if (_examController.text.trim().isEmpty) {
+          return 'Escribe qué exámenes te indicaron.';
+        }
+        return null;
+
+      case _StepId.confirm:
+        if (_isRecordingVoice) {
+          return 'Detén la grabación antes de enviar la solicitud.';
+        }
+        return null;
+    }
+  }
+
+  void _next() {
+    final blocker = _blockerFor(_currentStep);
+    if (blocker != null) {
+      // Marcar el paso como visitado hace que sus errores en línea aparezcan.
+      // Antes de tocar «Continuar» no había ocurrido nada que justificara
+      // pintar un campo en rojo.
+      setState(() => _visited.add(_stepIndex));
+      return;
+    }
+    if (_stepIndex >= _steps.length - 1) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _goingForward = true;
+      _stepIndex++;
+      _visited.add(_stepIndex);
+    });
+  }
+
+  void _back() {
+    if (_stepIndex == 0) {
+      widget.onBack();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _goingForward = false;
+      _stepIndex--;
+    });
+  }
+
+  /// Salta directamente a un paso. Lo usa el resumen final: cada línea del
+  /// resumen es tocable y lleva al paso donde se decidió ese dato, que es más
+  /// rápido que retroceder de uno en uno.
+  void _jumpTo(_StepId step) {
+    final index = _steps.indexOf(step);
+    if (index < 0) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _goingForward = index > _stepIndex;
+      _stepIndex = index;
+      _visited.add(index);
+    });
+  }
+
+  /// Confirmar sin salir del asistente si algo falta.
+  Future<void> _confirmAndSubmit() async {
+    final blocker = _blockerFor(_StepId.confirm);
+    if (blocker != null) {
+      _warn(blocker);
+      return;
+    }
+    // Toda la lógica de envío —validaciones del servidor, el desvío del
+    // laboratorio por su propio endpoint, el comprobante y la navegación al
+    // seguimiento— sigue siendo la de antes, intacta.
+    await _submitForm();
+  }
+
+  /// Dirección seleccionada, tal y como la verá el resumen.
+  String get _resolvedAddress {
+    if (widget.service.id == 'ambulancia') {
+      return _originAddressController.text.trim();
+    }
+    if (_useCustomAddress) return _customAddressController.text.trim();
+    if (widget.addresses.isEmpty) return '';
+    return widget.addresses[_addressIndex].text;
+  }
+
+  /// Nombre de la persona atendida, para el resumen.
+  String get _patientLabel {
+    if (_patientType == 'self') {
+      return widget.state.userName.trim().isEmpty
+          ? 'Para mí'
+          : widget.state.userName.trim();
+    }
+    final dep = widget.dependents
+        .cast<Dependent?>()
+        .firstWhere((d) => d?.id == _selectedDependentId, orElse: () => null);
+    return dep?.name ?? 'Un familiar';
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final service = widget.service;
-    final price = _calculatePrice();
+    final step = _currentStep;
+    final blocker = _blockerFor(step);
+    final isLast = step == _StepId.confirm;
 
-    return Scaffold(
-      backgroundColor: p.background, // slate-50
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Sticky Back Header
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              color: Theme.of(context).cardColor,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: widget.onBack,
-                    child: Row(
-                      children: [
-                        Icon(Icons.chevron_left, color: p.accent),
-                        Text(
-                          'Volver al inicio',
-                          style: AppType.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: p.accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Flexible(
-                    child: Text(
-                    'PASO 1 DE 2',
-                    style: AppType.bodySmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: p.textFaint,
-                    ),
-                  ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Main Title
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: p.accentSurface,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'Solicitud de Prestación',
-                        style: AppType.bodySmall.copyWith(
-                          color: p.accent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      service.title,
-                      style: AppType.titleLarge.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      service.subtitle,
-                      style: AppType.bodySmall.copyWith(
-                        color: p.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Live wait estimate for the patient's zone. A scheduled
-                    // collection has no queue to wait in, so quoting a wait
-                    // there would be meaningless.
-                    if (!_isScheduledLab) ...[
-                      _buildZoneEtaBlock(),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // Scheduled-appointment shortcut for this same discipline.
-                    // Replaces the old global "Citas con especialistas" banner.
-                    if (specialtyForService(service.id) != null) ...[
-                      _buildSchedulingShortcut(service),
-                      const SizedBox(height: 16),
-                    ] else
-                      const SizedBox(height: 4),
-
-                    // Warning card if set
-                    if (service.warningInfo != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEB), // amber-50
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFFDE68A)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: Colors.amber,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'AVISO IMPORTANTE',
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF92400E),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    service.warningInfo!,
-                                    style: AppType.bodySmall.copyWith(
-                                      color: Color(0xFF92400E),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 1: Patient selection
-                    _buildPatientSelection(),
-                    const SizedBox(height: 16),
-
-                    // Block 2: Symptoms description (Medico only)
-                    if (service.id == 'medico') ...[
-                      _buildSymptomsBlock(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 3: Prescription Upload
-                    if (service.requiresPrescription) ...[
-                      _buildPrescriptionBlock(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 4: Ambulance coordinates & type selection
-                    if (service.id == 'ambulancia') ...[
-                      _buildAmbulanceLocationsBlock(),
-                      const SizedBox(height: 16),
-                      _buildAmbulanceTypeBlock(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 5: Standard Location Selection
-                    if (service.id != 'ambulancia') ...[
-                      _buildStandardLocationBlock(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 5b: Lab scheduling (Módulo E). The slot picker
-                    // comes after the address because availability can be
-                    // filtered by sector.
-                    if (_isScheduledLab) ...[
-                      LabSlotPicker(
-                        state: widget.state,
-                        zone: _zoneEta?.zone,
-                        onSlotSelected: (slot) => setState(() => _labSlot = slot),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLabIndicationsBlock(),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Block 6: Pricing Card
-                    _buildPricingCard(service, price),
-                    const SizedBox(height: 24),
-
-                    // Block 7: Submit Buttons
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _submittingLab ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: p.accent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: _submittingLab
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                    switch (service.id) {
-                                      'medico' => 'SOLICITAR MÉDICO',
-                                      'laboratorio' => 'AGENDAR TOMA DE MUESTRAS',
-                                      _ => 'CONFIRMAR SOLICITUD',
-                                    },
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.arrow_forward_rounded, size: 16),
-                                ],
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
-                          _isScheduledLab
-                              ? 'La toma de muestras no es un servicio de urgencia: queda reservada '
-                                  'en el horario que elegiste y el laboratorista recibe tus indicaciones. '
-                                  'Pago online protegido.'
-                              : 'Al confirmar, nuestro sistema conectará con el prestador clínico de guardia más cercano en base a su ubicación. Pago online protegido.',
-                          textAlign: TextAlign.center,
-                          style: AppType.bodySmall.copyWith(
-                            color: p.textFaint,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPatientSelection() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.person_outline_rounded,
-                color: p.accent,
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                '¿Para quién es la atención?',
-                style: AppType.bodySmall.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: p.textPrimary,
-                ),
-              ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _patientType = 'self'),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: _patientType == 'self'
-                          ? p.accentSurface
-                          : p.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _patientType == 'self'
-                            ? p.accent
-                            : p.border,
-                        width: _patientType == 'self' ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: _patientType == 'self'
-                                ? p.accent
-                                : p.fill,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            'Yo',
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: _patientType == 'self'
-                                  ? Colors.white
-                                  : p.textMuted,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Paciente Principal',
-                          style: AppType.bodySmall.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _patientType == 'self'
-                                ? p.accent
-                                : p.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _patientType = 'dependent');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: _patientType == 'dependent'
-                          ? p.accentSurface
-                          : p.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _patientType == 'dependent'
-                            ? p.accent
-                            : p.border,
-                        width: _patientType == 'dependent' ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: _patientType == 'dependent'
-                                ? p.accent
-                                : p.fill,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.add,
-                            size: 13,
-                            color: _patientType == 'dependent'
-                                ? Colors.white
-                                : p.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Familiar / Dependiente',
-                          style: AppType.bodySmall.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _patientType == 'dependent'
-                                ? p.accent
-                                : p.textPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_patientType == 'dependent') ...[
-            const SizedBox(height: 16),
-            Text(
-              'SELECCIONE FAMILIAR GUARDADO',
-              style: AppType.label.copyWith(
-                fontWeight: FontWeight.bold,
-                color: p.textFaint,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (widget.dependents.isEmpty) ...[
-              Text(
-                'No tienes familiares agregados.',
-                style: AppType.bodySmall.copyWith( color: p.textMuted,
-                ),
-              ),
-            ] else ...[
-              Column(
-                children: widget.dependents.map((dep) {
-                  final isSel = _selectedDependentId == dep.id;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: GestureDetector(
-                      onTap: () =>
-                          setState(() => _selectedDependentId = dep.id),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isSel
-                              ? p.accentSurface.withValues(alpha: 0.4)
-                              : p.background,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSel
-                                ? p.accent
-                                : p.border,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  dep.name,
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: p.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${dep.relationship} • ${dep.age} años • ${dep.healthInsurance}',
-                                  style: AppType.bodySmall.copyWith(
-                                    color: p.textMuted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (isSel)
-                              Icon(
-                                Icons.check,
-                                color: p.accent,
-                                size: 16,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: OutlinedButton(
-                onPressed: widget.onAddDependentRedirect,
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: p.accentSurface),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  backgroundColor: const Color(0x33E6F6F4),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add, size: 14, color: p.accent),
-                    SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                      'Agregar Nuevo Familiar Dependiente',
-                      style: AppType.bodySmall.copyWith(
-                        color: p.accent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Live "how long will this take right now" card.
-  ///
-  /// Instead of promising a fixed ETA, it reflects the professionals on duty
-  /// and the requests already open in the patient's zone.
-  /// Compact wait indicator.
-  ///
-  /// Deliberately one line: the previous version was a full paragraph card that
-  /// dominated the form. The demand detail is still available, but folded away
-  /// behind a tap so it does not compete with the actual request.
-  Widget _buildZoneEtaBlock() {
-    final estimate = _zoneEta;
-
-    if (_loadingZoneEta && estimate == null) {
-      return Row(
-        children: [
-          SizedBox(
-            height: 12,
-            width: 12,
-            child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-            'Calculando demora…',
-            style: AppType.bodySmall.copyWith( color: p.textMuted,
-            ),
-          ),
-          ),
-        ],
-      );
-    }
-
-    if (estimate == null) {
-      // Backend unreachable: fall back to the catalog range.
-      return Row(
-        children: [
-          Icon(Icons.schedule, size: 14, color: p.textMuted),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-            'Demora referencial ${widget.service.baseEta} min',
-            style: AppType.bodySmall.copyWith( color: p.textSecondary,
-            ),
-          ),
-          ),
-        ],
-      );
-    }
-
-    final Color tone = switch (estimate.demandLevel) {
-      'high' => const Color(0xFFB91C1C),
-      'medium' => const Color(0xFF92400E),
-      _ => const Color(0xFF047857),
-    };
-
-    return GestureDetector(
-      onTap: () => setState(() => _zoneEtaExpanded = !_zoneEtaExpanded),
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.schedule, size: 14, color: tone),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                'Llega en ${estimate.rangeLabel}',
-                style: AppType.bodySmall.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: tone,
-                ),
-              ),
-              ),
-              if (estimate.demandLevel != 'low') ...[
-                const SizedBox(width: 6),
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  estimate.demandLevel == 'high' ? 'alta demanda' : 'demanda media',
-                  style: AppType.bodySmall.copyWith( color: tone,
-                  ),
-                ),
-              ],
-              const Spacer(),
-              if (_loadingZoneEta)
-                SizedBox(
-                  height: 11,
-                  width: 11,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: tone),
-                )
-              else
-                Icon(
-                  _zoneEtaExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: p.textFaint,
-                ),
-            ],
-          ),
-          if (_zoneEtaExpanded) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: p.fill,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    estimate.message,
-                    style: AppType.bodySmall.copyWith(
-                      color: p.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Tu solicitud entra a la cola de '
-                    '${estimate.zone == 'General' ? 'tu sector' : estimate.zone} '
-                    'y la toma el próximo prestador en turno del área.',
-                    style: AppType.bodySmall.copyWith(
-                      color: p.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// "Prefer a scheduled visit?" strip shown inside every service that maps to
-  /// a bookable discipline (médico, enfermería, kinesiología, cuidados).
-  Widget _buildSchedulingShortcut(ClinicalService service) {
-    final specialty = specialtyForService(service.id)!;
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BookAppointmentScreen(
-              state: widget.state,
-              specialtyFilter: specialty.searchTerms,
-              headerTitle: 'Agendar con ${specialty.label}',
-            ),
-          ),
-        );
+    return PopScope(
+      // Retroceder con el gesto del sistema retrocede un paso, no cierra el
+      // asistente entero. Perder cuatro respuestas por un gesto involuntario
+      // era el peor fallo posible de este flujo.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: p.accentSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: p.accent.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_month, color: p.accent, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '¿Prefieres agendar para otro día?',
-                    style: AppType.bodySmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: p.accent,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Reserva hora con ${specialty.label} en el horario que te acomode.',
-                    style: AppType.bodySmall.copyWith( color: p.textMuted,
-                    ),
-                  ),
-                ],
+      child: Scaffold(
+        backgroundColor: p.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              AuraFlowHeader(
+                step: _stepIndex,
+                total: _steps.length,
+                title: serviceShortName(
+                  widget.service.id,
+                  widget.service.shortTitle,
+                ),
+                onBack: _back,
+                onClose: _stepIndex == 0 ? null : widget.onBack,
               ),
-            ),
-            Icon(Icons.chevron_right, color: p.accent, size: 18),
-          ],
+              Expanded(
+                child: AuraStepTransition(
+                  stepKey: step,
+                  forward: _goingForward,
+                  child: AuraFlowStep(
+                    key: ValueKey(step),
+                    question: _questionFor(step),
+                    help: _helpFor(step),
+                    primaryLabel: isLast ? _submitLabel() : 'Continuar',
+                    primaryIcon: isLast ? null : Icons.arrow_forward_rounded,
+                    onPrimary: blocker != null
+                        ? null
+                        : (isLast ? _confirmAndSubmit : _next),
+                    primaryLoading: _submittingLab,
+                    blockedReason: blocker,
+                    secondaryLabel: _secondaryLabelFor(step),
+                    onSecondary: _secondaryActionFor(step),
+                    child: _bodyFor(step),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSymptomsBlock() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.favorite_outline, color: p.accent, size: 20),
-              SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                'Describa Síntomas',
-                style: AppType.bodySmall.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: p.textPrimary,
-                ),
-              ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: p.background,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _symptomsError != null ? const Color(0xFFDC2626) : p.border,
-              ),
-            ),
-            child: TextField(
-              controller: _symptomsController,
-              maxLines: 3,
-              keyboardType: TextInputType.multiline,
-              textCapitalization: TextCapitalization.sentences,
-              enableSuggestions: true,
-              autocorrect: true,
+  /// La pregunta de cada paso. En segunda persona y sin vocabulario de ficha
+  /// clínica: «¿Qué le pasa?» en vez de «Descripción de sintomatología».
+  String _questionFor(_StepId step) => switch (step) {
+    _StepId.patient => '¿Para quién es la atención?',
+    _StepId.symptoms => '¿Qué le pasa?',
+    _StepId.exam => '¿Qué examen necesitas?',
+    _StepId.prescription => 'Adjunta la orden médica',
+    _StepId.location => widget.service.id == 'ambulancia'
+        ? '¿Desde dónde y hasta dónde?'
+        : '¿Dónde te atendemos?',
+    _StepId.ambulanceType => '¿Qué tipo de traslado?',
+    _StepId.labSlot => '¿Cuándo tomamos la muestra?',
+    _StepId.confirm => 'Revisa y confirma',
+  };
+
+  String? _helpFor(_StepId step) => switch (step) {
+    _StepId.patient => null,
+    _StepId.symptoms =>
+      'Nombra al menos dos molestias. Con eso el médico llega sabiendo qué esperar.',
+    _StepId.exam => 'Cópialo tal como está escrito en tu orden.',
+    _StepId.prescription =>
+      'Una foto legible basta. Puedes hacerla ahora mismo.',
+    _StepId.location => widget.service.id == 'ambulancia'
+        ? null
+        : 'Puedes usar una dirección guardada o marcar el punto en el mapa.',
+    _StepId.ambulanceType => null,
+    _StepId.labSlot => 'Elige el bloque que te acomode.',
+    _StepId.confirm => null,
+  };
+
+  /// El rótulo del botón dice qué va a pasar, no «Confirmar».
+  String _submitLabel() => switch (widget.service.id) {
+    'medico' => 'Pedir un médico',
+    'enfermeria' => 'Pedir enfermería',
+    'ambulancia' => 'Pedir el traslado',
+    'laboratorio' => 'Reservar la toma',
+    _ => 'Enviar solicitud',
+  };
+
+  String? _secondaryLabelFor(_StepId step) {
+    if (step == _StepId.patient && widget.dependents.isEmpty) {
+      return 'Añadir un familiar';
+    }
+    if (step == _StepId.location &&
+        widget.service.id != 'ambulancia' &&
+        !_useCustomAddress) {
+      return 'Usar otra dirección';
+    }
+    return null;
+  }
+
+  VoidCallback? _secondaryActionFor(_StepId step) {
+    if (step == _StepId.patient && widget.dependents.isEmpty) {
+      return widget.onAddDependentRedirect;
+    }
+    if (step == _StepId.location &&
+        widget.service.id != 'ambulancia' &&
+        !_useCustomAddress) {
+      return () => setState(() => _useCustomAddress = true);
+    }
+    return null;
+  }
+
+  Widget _bodyFor(_StepId step) => switch (step) {
+    _StepId.patient => _patientStep(),
+    _StepId.symptoms => _symptomsStep(),
+    _StepId.exam => _examStep(),
+    _StepId.prescription => _prescriptionStep(),
+    _StepId.location => widget.service.id == 'ambulancia'
+        ? _ambulanceLocationStep()
+        : _locationStep(),
+    _StepId.ambulanceType => _ambulanceTypeStep(),
+    _StepId.labSlot => _labSlotStep(),
+    _StepId.confirm => _confirmStep(),
+  };
+
+  // ------------------------------------------------------- paso: paciente
+
+  /// Antes: dos recuadros con un círculo dentro que ponía «Yo», los rótulos
+  /// «Paciente Principal» y «Carga Familiar», y un desplegable debajo. Ahora:
+  /// dos opciones de 60 px y, si se elige familiar, la lista de personas.
+  Widget _patientStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuraChoiceTile(
+          title: 'Para mí',
+          subtitle: widget.state.userName.trim().isEmpty
+              ? null
+              : widget.state.userName.trim(),
+          icon: Icons.person_rounded,
+          selected: _patientType == 'self',
+          onTap: () => setState(() => _patientType = 'self'),
+        ),
+        const SizedBox(height: AuraTap.gap),
+        AuraChoiceTile(
+          title: 'Para un familiar',
+          subtitle: widget.dependents.isEmpty
+              ? 'Aún no tienes familiares guardados'
+              : '${widget.dependents.length} '
+                  '${widget.dependents.length == 1 ? "persona guardada" : "personas guardadas"}',
+          icon: Icons.family_restroom_rounded,
+          selected: _patientType == 'dependent',
+          onTap: () => setState(() => _patientType = 'dependent'),
+        ),
+
+        // La lista de familiares solo existe cuando hace falta: es progressive
+        // disclosure aplicado al sitio donde más se nota.
+        if (_patientType == 'dependent') ...[
+          const SizedBox(height: AuraSpace.lg),
+          if (widget.dependents.isEmpty)
+            AuraEmptyState(
+              icon: Icons.person_add_alt_1_rounded,
+              title: 'Todavía no hay nadie guardado',
+              message:
+                  'Guarda a la persona una vez y ya no tendrás que volver a '
+                  'escribir sus datos.',
+              actionLabel: 'Añadir un familiar',
+              onAction: widget.onAddDependentRedirect,
+              compact: true,
+            )
+          else ...[
+            Text(
+              'Elige a la persona',
               style: AppType.bodySmall.copyWith(
+                fontWeight: FontWeight.w700,
                 color: p.textSecondary,
               ),
-              // Re-validate while typing so the error clears as soon as the
-              // second symptom appears, instead of waiting for another submit.
-              onChanged: (value) {
-                if (_symptomsError != null && hasTwoSymptoms(value)) {
-                  setState(() => _symptomsError = null);
-                }
-              },
-              decoration: InputDecoration(
-                hintText: widget.service.placeholderText,
-                hintStyle: AppType.bodySmall.copyWith(
-                  color: p.textFaint,
+            ),
+            const SizedBox(height: AuraSpace.xs),
+            ...widget.dependents.map(
+              (dep) => Padding(
+                padding: const EdgeInsets.only(bottom: AuraTap.gap),
+                child: AuraChoiceTile(
+                  title: dep.name,
+                  subtitle: '${dep.relationship} · ${dep.age} años',
+                  icon: Icons.person_outline_rounded,
+                  selected: _selectedDependentId == dep.id,
+                  onTap: () => setState(() => _selectedDependentId = dep.id),
                 ),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(10),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                _symptomsError != null
-                    ? Icons.error_outline
-                    : Icons.info_outline,
-                size: 13,
-                color: _symptomsError != null
-                    ? const Color(0xFFDC2626)
-                    : p.textFaint,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _symptomsError ??
-                      'Indica al menos dos síntomas, separados por coma o «y». '
-                          'Ayuda al profesional a llegar preparado.',
-                  style: AppType.bodySmall.copyWith(
-                    color: _symptomsError != null
-                        ? const Color(0xFFDC2626)
-                        : p.textFaint,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Dictation + voice note. Both are optional: the field alone still
-          // works exactly as before.
-          SymptomVoiceInput(
-            controller: _symptomsController,
-            onAudioChanged: (path) => setState(() => _symptomAudioPath = path),
-            onRecordingChanged: (recording) => setState(() => _isRecordingVoice = recording),
-            onTextChanged: (text) {
-              if (_symptomsError != null && hasTwoSymptoms(text)) {
-                setState(() => _symptomsError = null);
-              }
-            },
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children:
-                  [
-                    'Fiebre alta',
-                    'Dificultad respiratoria leve',
-                    'Dolor de cabeza severo',
-                    'Infección urinaria',
-                    'Malestar estomacal',
-                  ].map((tag) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6.0),
-                      child: ActionChip(
-                        padding: const EdgeInsets.all(0),
-                        label: Text(
-                          tag,
-                          style: AppType.bodySmall.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: p.textMuted,
-                          ),
-                        ),
-                        backgroundColor: p.fill,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        onPressed: () {
-                          final currentText = _symptomsController.text.trim();
-                          setState(() {
-                            if (currentText.isEmpty) {
-                              _symptomsController.text = tag;
-                            } else {
-                              _symptomsController.text = '$currentText, $tag';
-                            }
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPrescriptionBlock() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.file_present_rounded,
-                color: p.accent,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ingrese el pedido médico',
-                      style: AppType.bodySmall.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: p.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Toda prestación clínica de ${widget.service.shortTitle} requiere orden',
-                      style: AppType.bodySmall.copyWith(
-                        color: p.accent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: p.background,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: p.border,
-                style: BorderStyle.solid,
-              ),
-            ),
-            child: _uploadedFileName == null
-                ? Column(
-                    children: [
-                      const Icon(
-                        Icons.cloud_upload_outlined,
-                        color: Color(0xFF99F6E4),
-                        size: 32,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Cargar Orden Médica Digital o Foto',
-                        style: AppType.bodySmall.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: p.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Soporta formatos PDF, PNG o JPG desde su teléfono',
-                        style: AppType.bodySmall.copyWith(
-                          color: p.textFaint,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      if (_isUploading)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              height: 12,
-                              width: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: p.accent,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                              'PROCESANDO DOCUMENTO...',
-                              style: AppType.bodySmall.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: p.accent,
-                              ),
-                            ),
-                            ),
-                          ],
-                        )
-                      else
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 36,
-                                child: ElevatedButton(
-                                  onPressed: () => _handleFileUpload('file'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: p.card,
-                                    foregroundColor: p.accent,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      side: BorderSide(
-                                        color: p.accentSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.file_upload_outlined,
-                                        size: 14,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                        'Subir archivo',
-                                        style: AppType.bodySmall.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: SizedBox(
-                                height: 36,
-                                child: ElevatedButton(
-                                  onPressed: () => _handleFileUpload('camera'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: p.accentSurface,
-                                    foregroundColor: p.accent,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      side: BorderSide(
-                                        color: p.accentSurface,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.camera_alt_outlined, size: 14),
-                                      SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                        'Foto',
-                                        style: AppType.bodySmall.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                    ],
-                  )
-                : Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: p.accentSurface.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: p.accent.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              height: 38,
-                              width: 38,
-                              decoration: BoxDecoration(
-                                color: p.accentSurface,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: _uploadedFilePreview != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(
-                                        File(_uploadedFilePreview!),
-                                        fit: BoxFit.cover,
-                                        width: 38,
-                                        height: 38,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Icon(
-                                            Icons.image,
-                                            color: p.accent,
-                                            size: 18,
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.picture_as_pdf,
-                                      color: p.accent,
-                                      size: 18,
-                                    ),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _uploadedFileName!,
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: p.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Verificado exitosamente',
-                                  style: AppType.bodySmall.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF10B981),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            if (_uploadedFilePreview != null) {
-                              try {
-                                final file = File(_uploadedFilePreview!);
-                                if (file.existsSync()) {
-                                  file.deleteSync();
-                                }
-                              } catch (e) {
-                                debugPrint('Error deleting file: $e');
-                              }
-                            }
-                            setState(() {
-                              _uploadedFileName = null;
-                              _uploadedFilePreview = null;
-                            });
-                          },
-                          style: TextButton.styleFrom(
-                            backgroundColor: p.card,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                          ),
-                          child: Text(
-                            'Borrar',
-                            style: AppType.bodySmall.copyWith(
-                              color: Color(0xFFF43F5E),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-          ),
-          if (widget.service.id == 'laboratorio' ||
-              widget.service.id == 'radiologia' ||
-              widget.service.id == 'electrocardiograma') ...[
-            const SizedBox(height: 14),
-            Text(
-              'ESPECIFIQUE EXAMEN SOLICITADO',
-              style: AppType.label.copyWith(
-                fontWeight: FontWeight.bold,
-                color: p.textFaint,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              decoration: BoxDecoration(
-                color: p.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.border),
-              ),
-              child: TextField(
-                controller: _examController,
-                style: AppType.bodySmall.copyWith(
-                  color: p.textPrimary,
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  hintText: widget.service.placeholderText,
-                  hintStyle: AppType.bodySmall.copyWith(
-                    color: p.textFaint,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-              ),
+            AuraButton.tertiary(
+              label: 'Añadir otro familiar',
+              icon: Icons.add_rounded,
+              onPressed: widget.onAddDependentRedirect,
             ),
           ],
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildAmbulanceLocationsBlock() {
-    final theme = Theme.of(context);
+  // ------------------------------------------------------- paso: síntomas
+
+  Widget _symptomsStep() {
+    final showError = _visited.contains(_stepIndex);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // From
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        color: Color(0xFFF43F5E),
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Desde dónde',
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Inicio del traslado',
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textFaint,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Icon(
-                    Icons.local_shipping,
-                    color: p.accent.withValues(alpha: 0.8),
-                    size: 22,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              MapLocationPicker(
-                height: 150,
-                accentColor: const Color(0xFFF43F5E),
-                autoLocateOnInit: true,
-                onLocationChanged: (point, address) {
-                  setState(() {
-                    _originLatLng = point;
-                    if (address != null && address.isNotEmpty) {
-                      _originAddressController.text = address;
-                    }
-                  });
-                  _updateTransportQuote();
-                },
-              ),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: p.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: p.border),
-                ),
-                child: TextField(
-                  controller: _originAddressController,
-                  style: AppType.bodySmall.copyWith(
-                    color: p.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Dirección exacta de inicio',
-                    hintStyle: AppType.bodySmall.copyWith(
-                      color: p.textFaint,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        AuraField.multiline(
+          label: 'Qué molestias tiene',
+          hint: widget.service.placeholderText ??
+              'Ej. fiebre desde ayer y dolor de garganta',
+          controller: _symptomsController,
+          maxLines: 5,
+          maxLength: 500,
+          errorText: showError ? _symptomsError : null,
+          onChanged: (_) => setState(() => _symptomsError = null),
         ),
-        const SizedBox(height: 16),
-        // To
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
+        const SizedBox(height: AuraSpace.md),
+
+        // El dictado y la nota de voz se conservan tal cual: para una persona
+        // mayor, hablar suele ser más fácil que escribir en un teclado táctil.
+        SymptomVoiceInput(
+          controller: _symptomsController,
+          onAudioChanged: (path) => setState(() => _symptomAudioPath = path),
+          onRecordingChanged: (rec) => setState(() => _isRecordingVoice = rec),
+          onTextChanged: (_) => setState(() => _symptomsError = null),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------- paso: examen
+
+  Widget _examStep() {
+    return AuraField.multiline(
+      label: 'Examen indicado',
+      hint: widget.service.placeholderText ?? 'Ej. radiografía de tórax',
+      help: 'Si son varios, escríbelos separados por comas.',
+      controller: _examController,
+      maxLines: 4,
+      maxLength: 300,
+      onChanged: (_) => setState(() {}),
+    );
+  }
+
+  // ------------------------------------------------------ paso: orden médica
+
+  /// La carga de la orden médica.
+  ///
+  /// Antes eran 335 líneas con dos botones, una vista previa, un aviso legal en
+  /// ámbar y una explicación de por qué hace falta la orden. Aquí el porqué se
+  /// dice en una línea, los dos botones son dos opciones grandes, y la vista
+  /// previa aparece solo cuando hay algo que previsualizar.
+  Widget _prescriptionStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_uploadedFileName == null) ...[
+          AuraChoiceTile(
+            title: 'Hacer una foto',
+            subtitle: 'Con la cámara del teléfono',
+            icon: Icons.photo_camera_rounded,
+            onTap: _isUploading ? null : () => _handleFileUpload('camera'),
+            enabled: !_isUploading,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Colors.blue,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Lugar de llegada',
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'Destino programado',
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textFaint,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Container(
-                    height: 24,
-                    width: 24,
-                    decoration: BoxDecoration(
-                      color: p.fill,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        'B',
-                        style: AppType.bodySmall.copyWith(
-                          color: Color(0xFF475569),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              MapLocationPicker(
-                height: 150,
-                accentColor: Colors.blue,
-                onLocationChanged: (point, address) {
-                  setState(() {
-                    _destinationLatLng = point;
-                    if (address != null && address.isNotEmpty) {
-                      _destinationAddressController.text = address;
-                    }
-                  });
-                  _updateTransportQuote();
-                },
-              ),
-              if (_isQuotingTransport || _quotedDistanceKm != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFBFDBFE)),
-                  ),
-                  child: Row(
-                    children: [
-                      if (_isQuotingTransport)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
-                        )
-                      else
-                        const Icon(Icons.route, color: Color(0xFF2563EB), size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _isQuotingTransport
-                                  ? 'Calculando distancia y tarifa...'
-                                  : 'Distancia estimada: ${_quotedDistanceKm!.toStringAsFixed(1)} km',
-                              style: AppType.bodySmall.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF1E40AF),
-                              ),
-                            ),
-                            Text(
-                              _quotedTransportFee != null
-                                  ? 'Tarifa base + kilometraje: ${Money.format(_quotedTransportFee!)}'
-                                  : 'Tarifa calculada dinámicamente según trayecto',
-                              style: AppType.label.copyWith(color: const Color(0xFF3B82F6)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: p.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: p.border),
-                ),
-                child: TextField(
-                  controller: _destinationAddressController,
-                  style: AppType.bodySmall.copyWith(
-                    color: p.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Dirección exacta de destino',
-                    hintStyle: AppType.bodySmall.copyWith(
-                      color: p.textFaint,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: AuraTap.gap),
+          AuraChoiceTile(
+            title: 'Elegir de la galería',
+            subtitle: 'Si ya le hiciste una foto',
+            icon: Icons.photo_library_rounded,
+            onTap: _isUploading ? null : () => _handleFileUpload('gallery'),
+            enabled: !_isUploading,
+          ),
+          if (_isUploading) ...[
+            const SizedBox(height: AuraSpace.md),
+            const Center(child: AuraLoading(message: 'Abriendo…')),
+          ],
+        ] else
+          _uploadedPreview(),
+
+        const SizedBox(height: AuraSpace.lg),
+        // El motivo, en una línea. El texto largo del catálogo
+        // (`service.warningInfo`) queda plegado para quien quiera leerlo.
+        AuraDisclosure(
+          title: '¿Por qué necesito una orden médica?',
+          icon: Icons.help_outline_rounded,
+          child: Text(
+            widget.service.warningInfo ??
+                'Es un requisito clínico para poder realizar este procedimiento '
+                    'en tu domicilio.',
+            style: AppType.bodySmall.copyWith(color: p.textSecondary),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAmbulanceTypeBlock() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-      ),
+  Widget _uploadedPreview() {
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'TIPO DE AMBULANCIA',
-            style: AppType.label.copyWith(
-              fontWeight: FontWeight.bold,
-              color: p.textFaint,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _ambulanceType = 'basic');
-                    _updateTransportQuote();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: _ambulanceType == 'basic'
-                          ? p.accentSurface
-                          : p.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _ambulanceType == 'basic'
-                            ? p.accent
-                            : p.border,
-                        width: _ambulanceType == 'basic' ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Básica',
-                          style: AppType.bodySmall.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _ambulanceType == 'basic' ? p.accent : p.textPrimary,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '${Money.format(_ambulanceBasicPrice)} base',
-                          style: AppType.bodySmall.copyWith(
-                            color: p.accent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              Container(
+                height: 56,
+                width: 56,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: p.successSurface,
+                  borderRadius: AuraRadius.allSm,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _ambulanceType = 'medicalized');
-                    _updateTransportQuote();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: _ambulanceType == 'medicalized'
-                          ? p.accentSurface
-                          : p.card,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: _ambulanceType == 'medicalized'
-                            ? p.accent
-                            : p.border,
-                        width: _ambulanceType == 'medicalized' ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Medicalizada',
-                          style: AppType.bodySmall.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _ambulanceType == 'medicalized' ? p.accent : p.textPrimary,
-                          ),
+                child: _uploadedFilePreview != null &&
+                        File(_uploadedFilePreview!).existsSync()
+                    ? Image.file(
+                        File(_uploadedFilePreview!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Icon(
+                          Icons.description_rounded,
+                          color: p.onSuccessSurface,
                         ),
-                        SizedBox(height: 2),
+                      )
+                    : Icon(
+                        Icons.description_rounded,
+                        color: p.onSuccessSurface,
+                        size: AuraIcon.lg,
+                      ),
+              ),
+              const SizedBox(width: AuraSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: AuraIcon.sm,
+                          color: p.success,
+                        ),
+                        const SizedBox(width: AuraSpace.xxs),
                         Text(
-                          '${Money.format(_ambulanceMedicalizedPrice)} base',
-                          style: AppType.bodySmall.copyWith(
-                            color: p.accent,
-                            fontWeight: FontWeight.bold,
+                          'Orden adjunta',
+                          style: AppType.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: p.textPrimary,
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: AuraSpace.xxxs),
+                    Text(
+                      _uploadedFileName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppType.bodySmall.copyWith(color: p.textMuted),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Center(
-            child: Text(
-              'La Ambulancia Medicalizada incluye médico a bordo e instrumentación de cuidados intermedios/UTI.',
-              textAlign: TextAlign.center,
-              style: AppType.bodySmall.copyWith(
-                color: p.textFaint,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          const SizedBox(height: AuraSpace.sm),
+          AuraButton.tertiary(
+            label: 'Cambiar la foto',
+            icon: Icons.refresh_rounded,
+            onPressed: () => setState(() {
+              _uploadedFileName = null;
+              _uploadedFilePreview = null;
+            }),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStandardLocationBlock() {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.1)),
-      ),
+  // ------------------------------------------------------- paso: dirección
+
+  Widget _locationStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!_useCustomAddress && widget.addresses.isNotEmpty) ...[
+          ...widget.addresses.asMap().entries.map((e) {
+            final addr = e.value;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AuraTap.gap),
+              child: AuraChoiceTile(
+                title: addr.label,
+                subtitle: addr.text,
+                icon: Icons.home_rounded,
+                selected: _addressIndex == e.key,
+                onTap: () {
+                  setState(() => _addressIndex = e.key);
+                  _refreshZoneEta();
+                },
+              ),
+            );
+          }),
+        ] else ...[
+          AuraField(
+            label: 'Dirección',
+            hint: 'Calle, número, depto y comuna',
+            controller: _customAddressController,
+            icon: Icons.place_rounded,
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: AuraSpace.md),
+          _mapCard(
+            label: 'Marca el punto exacto',
+            onChanged: (point, address) {
+              setState(() {
+                _locationLatLng = point;
+                if (address != null && address.isNotEmpty) {
+                  _customAddressController.text = address;
+                }
+              });
+            },
+          ),
+          if (widget.addresses.isNotEmpty) ...[
+            const SizedBox(height: AuraSpace.sm),
+            AuraButton.tertiary(
+              label: 'Usar una dirección guardada',
+              icon: Icons.bookmark_rounded,
+              onPressed: () => setState(() => _useCustomAddress = false),
+            ),
+          ],
+        ],
+
+        const SizedBox(height: AuraSpace.md),
+        _zoneWaitLine(),
+      ],
+    );
+  }
+
+  Widget _ambulanceLocationStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuraField(
+          label: 'Desde dónde sale',
+          hint: 'Dirección de recogida',
+          controller: _originAddressController,
+          icon: Icons.trip_origin_rounded,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        _mapCard(
+          label: 'Punto de recogida',
+          height: 180,
+          onChanged: (point, address) {
+            setState(() {
+              _originLatLng = point;
+              if (address != null && address.isNotEmpty) {
+                _originAddressController.text = address;
+              }
+            });
+            _updateTransportQuote();
+          },
+        ),
+        const SizedBox(height: AuraSpace.lg),
+        AuraField(
+          label: 'A dónde va',
+          hint: 'Clínica, hospital o domicilio de destino',
+          controller: _destinationAddressController,
+          icon: Icons.place_rounded,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        _mapCard(
+          label: 'Punto de destino',
+          height: 180,
+          onChanged: (point, address) {
+            setState(() {
+              _destinationLatLng = point;
+              if (address != null && address.isNotEmpty) {
+                _destinationAddressController.text = address;
+              }
+            });
+            _updateTransportQuote();
+          },
+        ),
+        if (_isQuotingTransport) ...[
+          const SizedBox(height: AuraSpace.md),
+          const AuraLoading(message: 'Calculando la distancia…'),
+        ] else if (_quotedDistanceKm != null) ...[
+          const SizedBox(height: AuraSpace.md),
+          AuraBanner(
+            tone: AuraTone.info,
+            icon: Icons.route_rounded,
+            message: _quotedTransportFee == null
+                ? 'Son ${_quotedDistanceKm!.toStringAsFixed(1)} km de recorrido.'
+                : 'Son ${_quotedDistanceKm!.toStringAsFixed(1)} km. '
+                    'El traslado añade ${Money.format(_quotedTransportFee!)} al total.',
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _mapCard({
+    required String label,
+    required void Function(LatLng, String?) onChanged,
+    double height = 200,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppType.bodySmall.copyWith(
+            fontWeight: FontWeight.w700,
+            color: p.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        ClipRRect(
+          borderRadius: AuraRadius.allMd,
+          child: MapLocationPicker(
+            height: height,
+            accentColor: p.accent,
+            autoLocateOnInit: true,
+            onLocationChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// La espera en la zona, en una línea.
+  ///
+  /// Antes era un bloque desplegable de 130 líneas con el número de pacientes
+  /// en cola, los profesionales libres y una etiqueta de «nivel de demanda».
+  /// Nada de eso ayuda a decidir: lo único accionable es cuánto se va a
+  /// esperar. El detalle sigue disponible, plegado.
+  Widget _zoneWaitLine() {
+    if (_loadingZoneEta) {
+      return Row(
+        children: [
+          SizedBox(
+            width: AuraIcon.sm,
+            height: AuraIcon.sm,
+            child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+          ),
+          const SizedBox(width: AuraSpace.xs),
+          Text(
+            'Calculando la espera…',
+            style: AppType.bodySmall.copyWith(color: p.textMuted),
+          ),
+        ],
+      );
+    }
+
+    final eta = _zoneEta;
+    if (eta == null) return const SizedBox.shrink();
+
+    return AuraCard(
+      padding: const EdgeInsets.all(AuraSpace.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Icon(Icons.schedule_rounded, size: AuraIcon.md, color: p.accent),
+              const SizedBox(width: AuraSpace.xs),
               Expanded(
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      color: p.accent,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Lugar de la atención',
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            '¿Dónde asistirá el personal clínico?',
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textFaint,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _useCustomAddress = !_useCustomAddress;
-                  });
-                  _refreshZoneEta();
-                },
                 child: Text(
-                  _useCustomAddress ? 'Usar favoritas' : 'Nueva dirección',
-                  style: AppType.bodySmall.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: p.accent,
-                    decoration: TextDecoration.underline,
+                  'Ahora en ${eta.zone}: unos ${eta.rangeLabel}',
+                  style: AppType.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: p.textPrimary,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (!_useCustomAddress) ...[
-            if (widget.addresses.isEmpty) ...[
-              Text(
-                'No hay direcciones disponibles.',
-                style: AppType.bodySmall.copyWith( color: p.textMuted,
-                ),
-              ),
-            ] else ...[
-              Column(
-                children: List.generate(widget.addresses.length, (idx) {
-                  final addr = widget.addresses[idx];
-                  final isSel = _addressIndex == idx;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() => _addressIndex = idx);
-                        _refreshZoneEta();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isSel
-                              ? p.accentSurface.withValues(alpha: 0.4)
-                              : p.card,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSel
-                                ? p.accent
-                                : p.border,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    addr.label,
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: p.accent,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    addr.text,
-                                    style: AppType.bodySmall.copyWith(
-                                      color: p.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isSel)
-                              Icon(
-                                Icons.check,
-                                color: p.accent,
-                                size: 16,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          ] else ...[
-            Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: p.background,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: p.border),
-                  ),
-                  child: TextField(
-                    controller: _customAddressController,
-                    style: AppType.bodySmall.copyWith(
-                      color: p.textPrimary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: InputDecoration(
-                      hintText:
-                          'Ej: Calle Suecia 120, depto 201, Providencia, Santiago',
-                      hintStyle: AppType.bodySmall.copyWith(
-                        color: p.textFaint,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                MapLocationPicker(
-                  height: 170,
-                  autoLocateOnInit: true,
-                  onLocationChanged: (point, address) {
-                    setState(() {
-                      _locationLatLng = point;
-                      if (address != null && address.isNotEmpty) {
-                        _customAddressController.text = address;
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Mueva el mapa para ajustar el pin sobre la dirección exacta.',
-                  style: AppType.bodySmall.copyWith( color: p.textFaint,
-                  ),
-                ),
-              ],
+          if (eta.message.isNotEmpty) ...[
+            const SizedBox(height: AuraSpace.xxs),
+            Text(
+              eta.message,
+              style: AppType.bodySmall.copyWith(color: p.textMuted),
             ),
           ],
         ],
@@ -2487,112 +1428,318 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     );
   }
 
-  Widget _buildPricingCard(ClinicalService service, int calculatedPrice) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0F172A),
-            Color(0xFF115E59),
-          ], // brand-dark to teal-800 (always dark in both themes)
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+  // -------------------------------------------------- paso: tipo de traslado
+
+  Widget _ambulanceTypeStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuraChoiceTile(
+          title: 'Traslado básico',
+          subtitle: 'Camilla y técnico paramédico',
+          icon: Icons.airline_seat_flat_rounded,
+          trailingText: Money.format(
+            (_ambulanceBasicPrice * (1 + widget.commissionRate)).round(),
           ),
-        ],
-      ),
+          selected: _ambulanceType == 'basic',
+          onTap: () {
+            setState(() => _ambulanceType = 'basic');
+            _updateTransportQuote();
+          },
+        ),
+        const SizedBox(height: AuraTap.gap),
+        AuraChoiceTile(
+          title: 'Traslado medicalizado',
+          subtitle: 'Con enfermero y equipo de soporte',
+          icon: Icons.monitor_heart_rounded,
+          trailingText: Money.format(
+            (_ambulanceMedicalizedPrice * (1 + widget.commissionRate)).round(),
+          ),
+          selected: _ambulanceType == 'medicalized',
+          onTap: () {
+            setState(() => _ambulanceType = 'medicalized');
+            _updateTransportQuote();
+          },
+        ),
+        const SizedBox(height: AuraSpace.lg),
+        AuraBanner(
+          tone: AuraTone.info,
+          icon: Icons.info_outline_rounded,
+          message:
+              'Este servicio es para traslados programados. Si hay riesgo vital, '
+              'llama al 131.',
+        ),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------ paso: cupo
+
+  Widget _labSlotStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LabSlotPicker(
+          state: widget.state,
+          zone: _zoneEta?.zone,
+          onSlotSelected: (slot) => setState(() => _labSlot = slot),
+        ),
+        const SizedBox(height: AuraSpace.lg),
+        AuraField.multiline(
+          label: 'Qué exámenes te indicaron',
+          hint: 'Ej. hemograma, perfil lipídico',
+          controller: _examController,
+          maxLines: 3,
+          maxLength: 300,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: AuraSpace.md),
+        AuraDisclosure(
+          title: 'Añadir indicaciones para el laboratorista',
+          icon: Icons.note_add_outlined,
+          child: AuraField.multiline(
+            label: 'Indicaciones (opcional)',
+            hint: 'Ej. está en ayunas desde anoche',
+            controller: _labNotesController,
+            maxLines: 3,
+            maxLength: 300,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // -------------------------------------------------------- paso: confirmar
+
+  /// El resumen antes de enviar.
+  ///
+  /// Sustituye a la tarjeta de precio con degradado que decía «TARIFA COTIZADA
+  /// ESTIMADA» y «Minutos de arribo». Aquí el importe es lo más grande de la
+  /// pantalla porque es lo que se está aceptando, y cada dato del resumen es
+  /// tocable: lleva al paso donde se decidió, en vez de obligar a retroceder de
+  /// uno en uno.
+  Widget _confirmStep() {
+    final price = _calculatePrice();
+    final eta = _zoneEta;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuraCard(
+          emphasis: true,
+          padding: const EdgeInsets.all(AuraSpace.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total a pagar',
+                style: AppType.bodySmall.copyWith(
+                  color: p.onBrandDeep.withValues(alpha: 0.85),
+                ),
+              ),
+              const SizedBox(height: AuraSpace.xxs),
+              Text(
+                Money.format(price, withCode: true),
+                style: AppType.display.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: p.onBrandDeep,
+                ),
+              ),
+              const SizedBox(height: AuraSpace.xs),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_rounded,
+                    size: AuraIcon.sm,
+                    color: p.onBrandDeep.withValues(alpha: 0.85),
+                  ),
+                  const SizedBox(width: AuraSpace.xxs),
+                  Expanded(
+                    child: Text(
+                      'Pagas después de confirmar, en un sitio seguro.',
+                      style: AppType.bodySmall.copyWith(
+                        color: p.onBrandDeep.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AuraSpace.lg),
+
+        AuraCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AuraSpace.md,
+            vertical: AuraSpace.xs,
+          ),
+          child: Column(
+            children: [
+              _summaryLine(
+                icon: serviceIconFor(
+                  widget.service.iconName,
+                  serviceId: widget.service.id,
+                ),
+                label: 'Servicio',
+                value: serviceShortName(
+                  widget.service.id,
+                  widget.service.shortTitle,
+                ),
+              ),
+              _summaryLine(
+                icon: Icons.person_rounded,
+                label: 'Para',
+                value: _patientLabel,
+                onEdit: () => _jumpTo(_StepId.patient),
+              ),
+              if (widget.service.id == 'ambulancia') ...[
+                _summaryLine(
+                  icon: Icons.trip_origin_rounded,
+                  label: 'Desde',
+                  value: _originAddressController.text.trim(),
+                  onEdit: () => _jumpTo(_StepId.location),
+                ),
+                _summaryLine(
+                  icon: Icons.place_rounded,
+                  label: 'Hasta',
+                  value: _destinationAddressController.text.trim(),
+                  onEdit: () => _jumpTo(_StepId.location),
+                ),
+                _summaryLine(
+                  icon: Icons.local_shipping_rounded,
+                  label: 'Traslado',
+                  value: _ambulanceType == 'medicalized'
+                      ? 'Medicalizado'
+                      : 'Básico',
+                  onEdit: () => _jumpTo(_StepId.ambulanceType),
+                ),
+              ] else
+                _summaryLine(
+                  icon: Icons.place_rounded,
+                  label: 'Dónde',
+                  value: _resolvedAddress,
+                  onEdit: () => _jumpTo(_StepId.location),
+                ),
+              if (_isScheduledLab && _labSlot != null)
+                _summaryLine(
+                  icon: Icons.event_rounded,
+                  label: 'Cuándo',
+                  value: _labSlot!.label,
+                  onEdit: () => _jumpTo(_StepId.labSlot),
+                )
+              else if (eta != null)
+                _summaryLine(
+                  icon: Icons.schedule_rounded,
+                  label: 'Llegada',
+                  value: 'En unos ${eta.rangeLabel}',
+                ),
+              if (widget.service.id == 'medico' &&
+                  _symptomsController.text.trim().isNotEmpty)
+                _summaryLine(
+                  icon: Icons.notes_rounded,
+                  label: 'Motivo',
+                  value: _symptomsController.text.trim(),
+                  onEdit: () => _jumpTo(_StepId.symptoms),
+                ),
+              if (_uploadedFileName != null)
+                _summaryLine(
+                  icon: Icons.description_rounded,
+                  label: 'Orden médica',
+                  value: 'Adjunta',
+                  onEdit: () => _jumpTo(_StepId.prescription),
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AuraSpace.md),
+        Text(
+          _isScheduledLab
+              ? 'Guardamos tu hora y avisamos al laboratorista.'
+              : 'Avisamos a los profesionales de tu zona y te confirmamos por el chat.',
+          style: AppType.bodySmall.copyWith(color: p.textMuted),
+        ),
+      ],
+    );
+  }
+
+  /// Una línea del resumen. Con lápiz cuando ese dato se puede cambiar.
+  Widget _summaryLine({
+    required IconData icon,
+    required String label,
+    required String value,
+    VoidCallback? onEdit,
+  }) {
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(vertical: AuraSpace.sm),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, size: AuraIcon.md, color: p.textMuted),
+          const SizedBox(width: AuraSpace.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'TARIFA COTIZADA ESTIMADA',
-                  style: AppType.label.copyWith(
-                    color: Color(0xFF2DD4BF),
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+                  label,
+                  style: AppType.bodySmall.copyWith(color: p.textMuted),
                 ),
-                const SizedBox(height: 4),
-                RichText(
-                  text: TextSpan(
-                    text:
-                        '${Money.format(calculatedPrice)} ',
-                    style: AppType.titleLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    children: [
-                      TextSpan(
-                        text: Money.code,
-                        style: AppType.bodySmall.copyWith(
-                          fontWeight: FontWeight.normal,
-                          color: Color(0xFF99F6E4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 3),
+                const SizedBox(height: AuraSpace.xxxs),
                 Text(
-                  'Incluye insumos médicos clínicos y traslado profesional',
-                  style: AppType.bodySmall.copyWith(
-                    color: Color(0xFFCCFBF1),
+                  value.isEmpty ? '—' : value,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppType.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: p.textPrimary,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0x990F766E),
-              border: Border.all(color: const Color(0x4D0F766E)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      color: Color(0xFF2DD4BF),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      service.baseEta,
-                      style: AppType.bodySmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Minutos de arribo',
-                  style: AppType.bodySmall.copyWith(color: Color(0xFFCCFBF1),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          if (onEdit != null) ...[
+            const SizedBox(width: AuraSpace.xs),
+            Icon(Icons.edit_rounded, size: AuraIcon.sm, color: p.accent),
+          ],
         ],
       ),
     );
+
+    if (onEdit == null) return row;
+
+    return Semantics(
+      button: true,
+      label: '$label: $value. Tocar para cambiar.',
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onEdit,
+            borderRadius: AuraRadius.allSm,
+            child: row,
+          ),
+        ),
+      ),
+    );
   }
+}
+
+/// Los pasos posibles del asistente.
+///
+/// No todos aparecen en todos los servicios: la lista real la arma
+/// `_ServiceFormScreenState._steps` según lo que ese servicio necesite. Pedir
+/// la orden médica a quien pide cuidados en casa, o los síntomas a quien pide
+/// una radiografía, era parte de lo que hacía largo el formulario anterior.
+enum _StepId {
+  patient,
+  symptoms,
+  exam,
+  prescription,
+  location,
+  ambulanceType,
+  labSlot,
+  confirm,
 }

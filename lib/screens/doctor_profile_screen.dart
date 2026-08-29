@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/professional.dart';
-import '../theme/app_typography.dart';
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
-/// B.3 — ficha del profesional que va a atender: currículum, experiencia,
-/// registro de la Superintendencia de Salud y evaluación.
+/// B.3 — ficha de la persona que va a atender: quién es, qué registro tiene y
+/// cómo la han evaluado otros pacientes.
 ///
 /// Nada aquí tiene valor por defecto. Un número de registro, unos años de
 /// experiencia o unas estrellas inventadas son exactamente el tipo de dato con
@@ -31,7 +32,11 @@ class DoctorProfileScreen extends StatelessWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      // La hoja ya no se pinta a mano sobre un fondo transparente: el tema le
+      // pone superficie, esquinas y tirador de arrastre. El tirador anterior
+      // era un rectángulo de 40×4 dibujado a mano, sin gesto asociado ni
+      // significado para un lector de pantalla.
+      useSafeArea: true,
       builder: (context) => DoctorProfileScreen(
         professional: professional,
         phone: phone,
@@ -39,226 +44,166 @@ class DoctorProfileScreen extends StatelessWidget {
     );
   }
 
-  static const _accent = Color(0xFF0F766E);
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final muted = isDark ? Colors.grey[400] : Colors.grey[600];
+    final p = context.palette;
+    final bio = professional.bio?.trim() ?? '';
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+    return Padding(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 20,
+        left: AuraSpace.screenX,
+        right: AuraSpace.screenX,
+        top: AuraSpace.xs,
+        // `useSafeArea` esquiva la barra de estado y los lados, no el borde
+        // inferior: ese lo reserva la hoja.
+        bottom: MediaQuery.viewPaddingOf(context).bottom + AuraSpace.lg,
       ),
       child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[700] : Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                _buildAvatar(),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        professional.name,
-                        style: AppType.titleMedium.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (professional.specialty.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+        child: AuraReadable(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _avatar(context),
+                  const SizedBox(width: AuraSpace.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          professional.specialty,
-                          style: AppType.bodySmall.copyWith(
-                            color: _accent,
-                            fontWeight: FontWeight.w600,
+                          professional.name,
+                          style: AppType.titleMedium.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: p.textPrimary,
                           ),
                         ),
+                        if (professional.specialty.isNotEmpty) ...[
+                          const SizedBox(height: AuraSpace.xxs),
+                          Text(
+                            professional.specialty,
+                            style: AppType.bodySmall.copyWith(
+                              color: p.accent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AuraSpace.xs),
+                        _rating(context),
                       ],
-                      const SizedBox(height: 6),
-                      _buildRating(muted),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: AuraSpace.xl),
+              const AuraSectionHeader(title: 'Registro y experiencia'),
+              AuraCard(
+                child: Column(
+                  children: [
+                    AuraSummaryRow(
+                      icon: Icons.verified_user_rounded,
+                      label: 'Registro profesional',
+                      value: professional.registrationNumber ?? 'No informado',
+                    ),
+                    AuraSummaryRow(
+                      icon: Icons.work_history_rounded,
+                      label: 'Años atendiendo',
+                      value: _experienceLabel(),
+                    ),
+                    if (phone != null && phone!.isNotEmpty)
+                      AuraSummaryRow(
+                        icon: Icons.phone_rounded,
+                        label: 'Teléfono durante la atención',
+                        value: phone!,
+                      ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 12),
-            _buildSectionTitle('INFORMACIÓN PROFESIONAL Y REGISTRO'),
-            const SizedBox(height: 12),
-            _buildInfoRow(
-              icon: Icons.verified_user_rounded,
-              label: 'Registro Superintendencia de Salud',
-              value: professional.registrationNumber ?? 'No informado',
-              isDark: isDark,
-            ),
-            const SizedBox(height: 10),
-            _buildInfoRow(
-              icon: Icons.work_history_rounded,
-              label: 'Experiencia clínica',
-              value: professional.yearsOfExperience != null
-                  ? '${professional.yearsOfExperience} años de práctica'
-                  : 'No informada',
-              isDark: isDark,
-            ),
-            if (phone != null && phone!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                icon: Icons.phone_rounded,
-                label: 'Contacto durante la atención',
-                value: phone!,
-                isDark: isDark,
+              ),
+
+              const SizedBox(height: AuraSpace.xl),
+              const AuraSectionHeader(title: 'Quién es'),
+              Text(
+                bio.isNotEmpty
+                    ? bio
+                    : 'Todavía no ha escrito su presentación.',
+                // La presentación ausente ya no va en cursiva: la cursiva es lo
+                // que peor se lee en pantalla y aquí marcaba justo la línea que
+                // más gente iba a encontrarse.
+                style: AppType.bodyMedium.copyWith(
+                  color: bio.isNotEmpty ? p.textSecondary : p.textMuted,
+                ),
+              ),
+
+              const SizedBox(height: AuraSpace.xl),
+              AuraButton.secondary(
+                label: 'Cerrar',
+                onPressed: () => Navigator.pop(context),
               ),
             ],
-            const SizedBox(height: 16),
-            _buildSectionTitle('BIOGRAFÍA Y CURRÍCULUM'),
-            const SizedBox(height: 8),
-            Text(
-              professional.bio?.trim().isNotEmpty == true
-                  ? professional.bio!
-                  : 'Este profesional todavía no ha publicado su reseña.',
-              style: AppType.bodyMedium.copyWith(
-                height: 1.5,
-                fontStyle: professional.bio?.trim().isNotEmpty == true
-                    ? FontStyle.normal
-                    : FontStyle.italic,
-                color: isDark ? Colors.grey[300] : Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Cerrar perfil',
-                  style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _experienceLabel() {
+    final years = professional.yearsOfExperience;
+    if (years == null) return 'No informados';
+    return years == 1 ? '1 año' : '$years años';
+  }
+
+  Widget _avatar(BuildContext context) {
+    final p = context.palette;
+    final photo = professional.photoUrl;
+
+    return CircleAvatar(
+      radius: 36,
+      backgroundColor: p.accentSurface,
+      // `foregroundImage` deja el icono debajo como respaldo: si la foto no
+      // carga, la ficha no queda con un hueco gris.
+      foregroundImage: (photo != null && photo.isNotEmpty)
+          ? NetworkImage(photo)
+          : null,
+      child: Icon(Icons.person_rounded, size: AuraIcon.xl, color: p.accentText),
+    );
+  }
+
+  Widget _rating(BuildContext context) {
+    final p = context.palette;
+
+    if (!professional.hasRating) {
+      return Text(
+        'Todavía no tiene evaluaciones',
+        style: AppType.label.copyWith(color: p.textMuted),
+      );
+    }
+
+    final average = professional.ratingAvg!;
+    final count = professional.ratingCount;
+    final noun = count == 1 ? 'evaluación' : 'evaluaciones';
+
+    return Semantics(
+      label: '${average.toStringAsFixed(1)} de 5, $count $noun',
+      child: ExcludeSemantics(
+        child: Row(
+          children: [
+            Icon(Icons.star_rounded, size: AuraIcon.sm, color: p.warning),
+            const SizedBox(width: AuraSpace.xxs),
+            Flexible(
+              child: Text(
+                '${average.toStringAsFixed(1)} · $count $noun',
+                style: AppType.label.copyWith(
+                  color: p.textSecondary,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildAvatar() {
-    final photo = professional.photoUrl;
-
-    return CircleAvatar(
-      radius: 36,
-      backgroundColor: _accent.withValues(alpha: 0.15),
-      // `foregroundImage` deja el icono debajo como respaldo: si la foto no
-      // carga, la ficha no queda con un hueco gris.
-      foregroundImage: (photo != null && photo.isNotEmpty)
-          ? NetworkImage(photo)
-          : null,
-      child: const Icon(Icons.person_rounded, size: 40, color: _accent),
-    );
-  }
-
-  Widget _buildRating(Color? muted) {
-    if (!professional.hasRating) {
-      return Text(
-        'Sin evaluaciones aún',
-        style: AppType.label.copyWith(color: muted, fontStyle: FontStyle.italic),
-      );
-    }
-
-    final average = professional.ratingAvg!;
-    final count = professional.ratingCount;
-
-    return Row(
-      children: [
-        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-          '${average.toStringAsFixed(1)} '
-          '($count ${count == 1 ? 'evaluación' : 'evaluaciones'})',
-          style: AppType.label.copyWith(
-            color: muted,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String text) {
-    return Text(
-      text,
-      style: AppType.label.copyWith(
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.8,
-        color: _accent,
-      ),
-    );
-  }
-
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isDark,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: _accent),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppType.label.copyWith(
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              Text(
-                value,
-                style: AppType.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

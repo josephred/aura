@@ -1,15 +1,20 @@
 import 'dart:convert';
-import 'package:aura/theme/app_theme.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 
-/// Live tracking map that replaces the old `MockRoutePainter` canvas. It shows
-/// the patient's home and the professional's real position on OpenStreetMap
-/// tiles, draws the driving route between them (OSRM, with a straight-line
-/// fallback) and reports the real remaining distance and ETA.
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
+
+/// Mapa de seguimiento en vivo, en lugar del antiguo lienzo `MockRoutePainter`.
+///
+/// Muestra el domicilio del paciente y la posición real del profesional sobre
+/// las teselas de OpenStreetMap, dibuja la ruta entre ambos (OSRM, con una
+/// recta como respaldo) e informa de la distancia y el tiempo que quedan de
+/// verdad.
 class TrackingMap extends StatefulWidget {
   final double? patientLat;
   final double? patientLng;
@@ -53,7 +58,7 @@ class _TrackingMapState extends State<TrackingMap> {
   @override
   void didUpdateWidget(covariant TrackingMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The professional's live GPS arrives via SSE and rebuilds this widget.
+    // El GPS del profesional llega por SSE y reconstruye este widget.
     if (widget.professionalLat != oldWidget.professionalLat ||
         widget.professionalLng != oldWidget.professionalLng) {
       _pro = _proFromWidget();
@@ -78,7 +83,8 @@ class _TrackingMapState extends State<TrackingMap> {
     if (widget.patientLat != null && widget.patientLng != null) {
       _home = LatLng(widget.patientLat!, widget.patientLng!);
     } else {
-      // Older bookings stored no coordinates: geocode the address string.
+      // Las solicitudes antiguas no guardaban coordenadas: hay que geocodificar
+      // el texto de la dirección.
       try {
         final results = await Geocoding().locationFromAddress(widget.addressText);
         if (results.isNotEmpty) {
@@ -102,7 +108,8 @@ class _TrackingMapState extends State<TrackingMap> {
       return;
     }
 
-    // Try OSRM for a real driving route + duration; fall back to a straight line.
+    // Primero OSRM, que da la ruta de conducción y su duración reales; si falla,
+    // se cae a una recta.
     try {
       final url = Uri.parse(
         'https://router.project-osrm.org/route/v1/driving/'
@@ -133,7 +140,8 @@ class _TrackingMapState extends State<TrackingMap> {
       debugPrint('OSRM routing failed, using straight line: $e');
     }
 
-    // Fallback: straight segment with haversine distance and a ~30 km/h estimate.
+    // Respaldo: segmento recto, distancia por haversine y una estimación a
+    // unos 30 km/h.
     final meters = const Distance().as(LengthUnit.Meter, pro, home);
     if (!mounted) return;
     setState(() {
@@ -168,7 +176,6 @@ class _TrackingMapState extends State<TrackingMap> {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final center = _home ?? _pro ?? const LatLng(-34.6037, -58.3816);
     final hasAny = _home != null || _pro != null;
 
@@ -212,16 +219,23 @@ class _TrackingMapState extends State<TrackingMap> {
                       if (_home != null)
                         Marker(
                           point: _home!,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.home, color: Color(0xFFF43F5E), size: 30),
+                          width: 44,
+                          height: 44,
+                          child: const _MapPin(
+                            icon: Icons.home_rounded,
+                            semanticLabel: 'Tu domicilio',
+                            destination: true,
+                          ),
                         ),
                       if (_pro != null)
                         Marker(
                           point: _pro!,
                           width: 44,
                           height: 44,
-                          child: const _ProfessionalMarker(),
+                          child: const _MapPin(
+                            icon: Icons.local_shipping_rounded,
+                            semanticLabel: 'El profesional',
+                          ),
                         ),
                     ],
                   ),
@@ -230,89 +244,151 @@ class _TrackingMapState extends State<TrackingMap> {
 
               if (!hasAny)
                 Container(
-                  color: context.palette.fill,
+                  color: p.fill,
                   alignment: Alignment.center,
-                  child: Text(
-                    'Ubicando al profesional…',
-                    style: AppType.label.copyWith(color: context.palette.textMuted),
+                  child: const AuraLoading(
+                    message: 'Ubicando al profesional en el mapa…',
                   ),
                 ),
 
-              Positioned(
-                left: 6,
-                bottom: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  color: Colors.white70,
-                  child: Text(
-                    '© OpenStreetMap',
-                    style: AppType.label.copyWith(color: const Color(0xFF475569)),
-                  ),
+              _attribution(),
+            ],
+          ),
+        ),
+
+        if (_distanceKm != null) _readout(),
+      ],
+    );
+  }
+
+  /// Atribución obligatoria por la política de uso de las teselas.
+  Widget _attribution() {
+    return Positioned(
+      left: AuraSpace.xxs,
+      bottom: AuraSpace.xxxs,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AuraSpace.xxs,
+          vertical: AuraSpace.xxxs,
+        ),
+        decoration: BoxDecoration(
+          color: p.card.withValues(alpha: 0.88),
+          borderRadius: AuraRadius.allXs,
+        ),
+        child: Text(
+          '© OpenStreetMap',
+          style: AppType.label.copyWith(color: p.textSecondary),
+        ),
+      ),
+    );
+  }
+
+  /// Cuánto falta, en distancia y en tiempo.
+  Widget _readout() {
+    final distance = '${_distanceKm!.toStringAsFixed(1)} km';
+    final eta = _pro == null
+        ? 'Esperando la señal'
+        : '${_etaMin ?? '--'} min';
+
+    return Padding(
+      padding: const EdgeInsets.all(AuraSpace.sm),
+      child: Semantics(
+        liveRegion: true,
+        label: _pro == null
+            ? 'Faltan $distance. Todavía no llega la señal del profesional.'
+            : 'Faltan $distance, unos $eta.',
+        child: ExcludeSemantics(
+          child: Row(
+            children: [
+              Expanded(
+                child: _ReadoutItem(
+                  icon: Icons.route_rounded,
+                  text: '$distance por recorrer',
+                ),
+              ),
+              const SizedBox(width: AuraSpace.sm),
+              Expanded(
+                child: _ReadoutItem(
+                  icon: Icons.access_time_rounded,
+                  text: _pro == null ? eta : 'Llega en unos $eta',
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
 
-        // Real distance + ETA read-out
-        if (_distanceKm != null)
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
-              children: [
-                Icon(Icons.route, color: p.accent, size: 14),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    '${_distanceKm!.toStringAsFixed(1)} km restantes',
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: context.palette.textPrimary,
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Icon(Icons.access_time, color: p.accent, size: 14),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    _pro == null
-                        ? 'Esperando GPS'
-                        : '≈ ${_etaMin ?? '--'} min',
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: context.palette.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
+class _ReadoutItem extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _ReadoutItem({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Row(
+      children: [
+        Icon(icon, color: p.accent, size: AuraIcon.sm),
+        const SizedBox(width: AuraSpace.xxs),
+        Flexible(
+          child: Text(
+            text,
+            style: AppType.bodySmall.copyWith(
+              fontWeight: FontWeight.w700,
+              color: p.textPrimary,
             ),
           ),
+        ),
       ],
     );
   }
 }
 
-class _ProfessionalMarker extends StatelessWidget {
-  const _ProfessionalMarker();
+/// Marca del mapa.
+///
+/// Los dos puntos comparten forma y se separan por icono además de por color:
+/// sobre las teselas de OpenStreetMap, distinguirlos solo por el tono era
+/// pedirle a la persona que acertara con dos círculos de tamaño de moneda.
+class _MapPin extends StatelessWidget {
+  final IconData icon;
+  final String semanticLabel;
+
+  /// El domicilio, en el color de destino; en falso, el profesional en camino.
+  final bool destination;
+
+  const _MapPin({
+    required this.icon,
+    required this.semanticLabel,
+    this.destination = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    return Container(
-      decoration: BoxDecoration(
-        color: p.accent,
-        shape: BoxShape.circle,
-        border: Border.all(color: p.card, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: p.accent.withValues(alpha: 0.5),
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ],
+    final color = destination ? p.error : p.accent;
+
+    return Semantics(
+      label: semanticLabel,
+      image: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: p.card, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.5),
+              blurRadius: 8,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Icon(icon, color: p.card, size: AuraIcon.sm),
       ),
-      child: Icon(Icons.local_shipping, color: p.card, size: 18),
     );
   }
 }

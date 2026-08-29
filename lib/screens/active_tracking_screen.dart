@@ -1,14 +1,50 @@
 import 'dart:async';
-import 'package:aura/theme/app_theme.dart';
+
 import 'package:flutter/material.dart';
-import '../utils/money.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../models/dependent.dart';
 import '../models/service_request.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
+import '../ui/service_visuals.dart';
+import '../utils/money.dart';
 import '../widgets/tracking_map.dart';
 import 'doctor_profile_screen.dart';
 
+/// Seguimiento de una atención en curso.
+///
+/// ## El reloj mentía
+///
+/// La versión anterior arrancaba con `_secondsLeft = 53` y `_minutesLeft = 15`
+/// escritos a mano. No leía `request.etaMinutes` ni `request.startTime`: cada
+/// paciente, pidiera lo que pidiera y a la hora que fuera, veía la misma cuenta
+/// atrás de 15:53 empezar de cero cada vez que entraba a la pantalla. Encima
+/// había **dos relojes que se contradecían**: el círculo pintaba `00:$segundos`
+/// —siempre «00:»— y el rótulo de debajo `$minutos min`.
+///
+/// Un dato inventado en una pantalla de salud no es un detalle de maquetación.
+/// La persona que espera a un profesional en su casa organiza la siguiente hora
+/// alrededor de ese número.
+///
+/// Lo que hay ahora sale de los datos reales: `startTime` (la hora a la que se
+/// creó la solicitud) más `etaMinutes` da la hora de llegada. Si esa cuenta no
+/// se puede hacer —`startTime` viene vacío o ilegible— **no se inventa un
+/// reloj**: se dice «Llega en unos 45 minutos» y se acabó.
+///
+/// Y se refresca cada 30 segundos, no cada segundo. Una cuenta atrás al segundo
+/// sobre una espera de 45 minutos es teatro: no aporta precisión y mantiene la
+/// pantalla redibujándose.
+///
+/// ## Lo demás que se quitó
+///
+/// - «El vehículo clínico se desplaza por autopista principal. Tránsito
+///   fluido.» — texto fijo, no venía de ningún dato de tráfico.
+/// - «Pago Confirmado» se pintaba siempre, hubiera pago confirmado o no.
+/// - «Evaluación en progreso. Complete el registro si requiere reembolso
+///   aseguradora.» — no existe ningún registro que completar.
+/// - Ocho bloques apilados pasan a cuatro, con el detalle plegado.
 class ActiveTrackingScreen extends StatefulWidget {
   final AppState state;
   final ServiceRequest request;
@@ -29,1038 +65,219 @@ class ActiveTrackingScreen extends StatefulWidget {
 
 class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
   AppPalette get p => context.palette;
-  Timer? _timer;
-  int _secondsLeft = 53;
-  int _minutesLeft = 15;
 
-  int _selectedRating = 5;
+  /// Solo redibuja el tiempo restante. No cuenta nada por su cuenta: la fuente
+  /// es siempre `_arrivalAt`, así que salir de la app y volver da el número
+  /// correcto en vez de reanudar una cuenta congelada.
+  Timer? _ticker;
+
+  int _selectedRating = 0;
   final TextEditingController _ratingFeedbackCtrl = TextEditingController();
   bool _ratingSubmitted = false;
   bool _submittingRating = false;
+  bool _cancelling = false;
 
   @override
   void initState() {
     super.initState();
-    _startCountdown();
-  }
-
-  @override
-  void didUpdateWidget(covariant ActiveTrackingScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.state.simulationSpeed != widget.state.simulationSpeed) {
-      _startCountdown();
-    }
-  }
-
-  void _startCountdown() {
-    _timer?.cancel();
-    final intervalMs = (1000 / widget.state.simulationSpeed).round();
-    _timer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
-      if (mounted) {
-        setState(() {
-          if (_secondsLeft > 1) {
-            _secondsLeft--;
-          } else {
-            if (_minutesLeft > 0) {
-              _minutesLeft--;
-              _secondsLeft = 59;
-            } else {
-              _secondsLeft = 0;
-              _timer?.cancel();
-            }
-          }
-        });
-      }
-    });
+    _ticker = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => mounted ? setState(() {}) : null,
+    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _ticker?.cancel();
+    _ratingFeedbackCtrl.dispose();
     super.dispose();
   }
 
-  /// Identity of the professional attending, taken from the request itself.
+  // ------------------------------------------------------------------ tiempo
+
+  /// Hora de llegada estimada, o `null` si no se puede calcular honestamente.
   ///
-  /// Returns null while nobody has taken the request yet. There is deliberately
-  /// no placeholder: telling the patient a name and a phone number for someone
-  /// who is not coming to their home is worse than saying "still assigning".
-  Map<String, String>? _getAssignedProfessional() {
-    final request = widget.request;
+  /// `startTime` llega como `'HH:mm'`, sin fecha. Se combina con el día de hoy;
+  /// si eso da una hora en el futuro lejano, la solicitud se creó antes de
+  /// medianoche y hay que restar un día.
+  DateTime? get _arrivalAt {
+    final raw = widget.request.startTime.trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(raw);
+    if (match == null) return null;
 
-    // The backend sends the real identity in `assigned_professional`.
-    if (request.professionalName != null && request.professionalName!.isNotEmpty) {
-      return {
-        'name': request.professionalName!,
-        'specialty': request.professionalSpecialty ?? '',
-        'phone': request.professionalPhone ?? '',
-      };
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null || hour > 23 || minute > 59) return null;
+
+    final now = DateTime.now();
+    var start = DateTime(now.year, now.month, now.day, hour, minute);
+    if (start.isAfter(now.add(const Duration(hours: 2)))) {
+      start = start.subtract(const Duration(days: 1));
     }
+    return start.add(Duration(minutes: widget.request.etaMinutes));
+  }
 
-    // Offline fallback simulation keeps its own copy in app state.
-    final simulatedName = widget.state.assignedProfessionalName;
-    if (simulatedName != null && simulatedName.isNotEmpty) {
-      return {
-        'name': simulatedName,
-        'specialty': widget.state.assignedProfessionalSpecialty ?? '',
-        'phone': widget.state.assignedProfessionalPhone ?? '',
-      };
+  /// Minutos que faltan. Negativo significa que ya se pasó la estimación, y eso
+  /// se dice —«Está por llegar»— en vez de pintar un número en rojo.
+  int? get _minutesLeft {
+    final arrival = _arrivalAt;
+    if (arrival == null) return null;
+    return arrival.difference(DateTime.now()).inMinutes;
+  }
+
+  bool get _isOnTheWay =>
+      widget.request.status == RequestStatus.pending ||
+      widget.request.status == RequestStatus.accepted ||
+      widget.request.status == RequestStatus.enCamino;
+
+  bool get _isFinished =>
+      widget.request.status == RequestStatus.completed ||
+      widget.request.currentStep >= 4;
+
+  // -------------------------------------------------------------- profesional
+
+  /// Identidad de quien atiende, tomada de la propia solicitud.
+  ///
+  /// Devuelve null mientras nadie la ha tomado. Deliberadamente no hay un valor
+  /// de relleno: darle a un paciente el nombre y el teléfono de alguien que no
+  /// va a ir a su casa es peor que decir «asignando».
+  ({String name, String specialty, String phone})? get _professional {
+    final r = widget.request;
+    if (r.professionalName != null && r.professionalName!.isNotEmpty) {
+      return (
+        name: r.professionalName!,
+        specialty: r.professionalSpecialty ?? '',
+        phone: r.professionalPhone ?? '',
+      );
     }
-
+    final simulated = widget.state.assignedProfessionalName;
+    if (simulated != null && simulated.isNotEmpty) {
+      return (
+        name: simulated,
+        specialty: widget.state.assignedProfessionalSpecialty ?? '',
+        phone: widget.state.assignedProfessionalPhone ?? '',
+      );
+    }
     return null;
   }
 
-  /// Shown while the request sits in the zone queue and nobody has taken it.
-  Widget _buildAwaitingProfessionalCard() {
-    final p = context.palette;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.border),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Asignando profesional',
-                  style: AppType.bodyMedium.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: p.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  'Tu solicitud está en la cola de tu sector. Te mostraremos '
-                  'quién te atenderá apenas la tome un prestador en turno.',
-                  style: AppType.bodySmall.copyWith( color: p.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  Future<void> _call(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No pudimos abrir el teléfono. Marca $phone.')),
+      );
+    }
   }
+
+  // ------------------------------------------------------------------ build
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final request = widget.request;
-    final prof = _getAssignedProfessional();
+    final active = widget.state.activeRequests
+        .where((r) =>
+            r.status != RequestStatus.completed &&
+            r.status != RequestStatus.cancelled)
+        .toList();
 
-    final steps = [
-      {
-        'title': 'Solicitado',
-        'desc': 'En cola de tu zona, a la espera del próximo prestador en turno',
-      },
-      {
-        'title': 'Confirmado',
-        'desc': 'Personal clínico asignado y preparando insumos',
-      },
-      {
-        'title': 'En Camino',
-        'desc': 'Profesional viaja en dirección a su domicilio',
-      },
-      {
-        'title': 'En Atención',
-        'desc': 'Servicio clínico iniciándose en su hogar',
-      },
-      {'title': 'Completado', 'desc': 'Prestación realizada con éxito'},
-    ];
-
-    final isNotFinished =
-        request.status != RequestStatus.completed &&
-        request.status != RequestStatus.cancelled;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header tracking row. The service status now advances only from the
-          // real professional's actions on the doctor portal, streamed here via
-          // SSE — there is no client-side "advance" shortcut.
-          Row(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AuraSpace.screenX,
+        AuraSpace.md,
+        AuraSpace.screenX,
+        AuraSpace.navClearance,
+      ),
+      children: [
+        AuraReadable(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 10,
-                width: 10,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF10B981), // emerald-500
-                  shape: BoxShape.circle,
+              // Cambiar entre atenciones simultáneas. `selectChatRequest`
+              // mueve también `currentRequest`, así que esto cambia de verdad
+              // toda la pantalla, no solo el hilo del chat.
+              if (active.length > 1) ...[
+                _ServiceSwitcher(
+                  state: widget.state,
+                  active: active,
+                  currentId: request.id,
+                ),
+                const SizedBox(height: AuraSpace.lg),
+              ],
+
+              _StatusCard(
+                request: request,
+                minutesLeft: _minutesLeft,
+                arrivalAt: _arrivalAt,
+                showCountdown: _isOnTheWay,
+              ),
+              const SizedBox(height: AuraSpace.md),
+
+              if (!_isFinished) _professionalBlock(),
+
+              const SizedBox(height: AuraSpace.md),
+              ClipRRect(
+                borderRadius: AuraRadius.allLg,
+                child: TrackingMap(
+                  addressText: request.addressText,
+                  patientLat: request.patientLat,
+                  patientLng: request.patientLng,
+                  professionalLat: request.professionalLat,
+                  professionalLng: request.professionalLng,
+                  height: 200,
                 ),
               ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                'Seguimiento Clínico',
-                style: AppType.bodyLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: p.textPrimary,
-                ),
-              ),
-              ),
+
+              const SizedBox(height: AuraSpace.md),
+              _Timeline(step: request.currentStep),
+
+              const SizedBox(height: AuraSpace.md),
+              _detailsBlock(request),
+
+              const SizedBox(height: AuraSpace.xl),
+              if (_isFinished)
+                _ratingBlock(request)
+              else
+                _cancelBlock(),
             ],
           ),
-          const SizedBox(height: 12),
-          if (widget.state.activeRequests.length > 1) ...[
-            _buildActiveServicesSwitcher(p),
-            const SizedBox(height: 14),
-          ],
-
-          // Main Countdown target card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              // Intentionally always-dark branded card (light content sits on it
-              // in both themes), so it must NOT follow the text/background token.
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: const Color(0xFF1E293B)),
-            ),
-            child: Column(
-              children: [
-                // Top stripe gradient indicator
-                Container(
-                  height: 3,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF2DD4BF),
-                        Color(0xFF10B981),
-                        p.accent,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                // Soft notice banner
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B).withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: p.textSecondary.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFF99F6E4),
-                        size: 18,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ESTADO DEL TRASLADO / ATENCIÓN',
-                              style: AppType.label.copyWith(
-                                color: Color(0xFF2DD4BF),
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Evaluación en progreso. Complete el registro si requiere reembolso aseguradora.',
-                              style: AppType.bodySmall.copyWith(
-                                color: const Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Timer circular display
-                Container(
-                  height: 100,
-                  width: 100,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF090D16),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: p.accent,
-                      width: 3,
-                      style: BorderStyle.solid,
-                    ),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          color: p.accent,
-                          size: 14,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '00:${_secondsLeft < 10 ? '0$_secondsLeft' : _secondsLeft}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'TIEMPO ESPERADO DE DEMORA',
-                  style: AppType.label.copyWith(
-                    color: Color(0xFF94A3B8),
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$_minutesLeft min',
-                  style: AppType.titleLarge.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Payment summary
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B).withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF334155).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'VALOR DE LA PRESTACIÓN',
-                            style: AppType.bodySmall.copyWith(
-                              color: Color(0xFF94A3B8),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            Money.format(request.finalPrice, withCode: true),
-                            style: AppType.bodyLarge.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF0F766E,
-                          ).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF0F766E,
-                            ).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.shield_rounded,
-                              color: Color(0xFF2DD4BF),
-                              size: 12,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Pago Confirmado',
-                              style: AppType.bodySmall.copyWith(
-                                color: Color(0xFF2DD4BF),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Live route tracking. Despite the old name, this has never been a
-          // mock: it wraps the real TrackingMap (OSM tiles + OSRM route + the
-          // professional's live GPS) with a status header.
-          if (request.currentStep >= 1 &&
-              request.status != RequestStatus.cancelled) ...[
-            _buildTrackingSection(request.currentStep, request.serviceId),
-            const SizedBox(height: 16),
-          ],
-
-          // Professional assigned details — only once somebody has actually
-          // taken the request. While `prof` is null the placeholder below
-          // explains that the zone queue is still looking for someone.
-          if (request.currentStep >= 1 &&
-              request.status != RequestStatus.cancelled &&
-              prof == null) ...[
-            _buildAwaitingProfessionalCard(),
-            const SizedBox(height: 16),
-          ],
-
-          if (request.currentStep >= 1 &&
-              request.status != RequestStatus.cancelled &&
-              prof != null) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: p.card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: p.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: p.accentSurface,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'PROFESIONAL CLÍNICO ASIGNADO',
-                              style: AppType.label.copyWith(
-                                color: p.accent,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            prof['name']!,
-                            style: AppType.bodyMedium.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            prof['specialty']!,
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textMuted,
-                            ),
-                          ),
-                          // B.3 — el paciente puede conocer la experiencia y el
-                          // registro de quien va a entrar a su casa, antes de
-                          // que llegue. Solo aparece con datos del servidor: en
-                          // el modo de respaldo local no hay ficha que mostrar.
-                          if (request.professionalProfile != null) ...[
-                            const SizedBox(height: 6),
-                            GestureDetector(
-                              onTap: () => DoctorProfileScreen.showModal(
-                                context,
-                                request.professionalProfile!,
-                                phone: request.professionalPhone,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.badge_outlined,
-                                      size: 13, color: p.accent),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Ver ficha profesional',
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: p.accent,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      Container(
-                        height: 44,
-                        width: 44,
-                        decoration: BoxDecoration(
-                          color: p.accentSurface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          color: p.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 38,
-                          child: ElevatedButton(
-                            onPressed: widget.onNavigateToChat,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: widget.state.pendingMessages > 0
-                                  ? p.accent
-                                  : p.accentSurface,
-                              foregroundColor: widget.state.pendingMessages > 0
-                                  ? Colors.white
-                                  : p.accent,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.chat_bubble_outline_rounded,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    widget.state.pendingMessages > 0
-                                        ? 'Chatear (${widget.state.pendingMessages})'
-                                        : 'Chatear',
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: SizedBox(
-                          height: 38,
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              final Uri launchUri = Uri(
-                                scheme: 'tel',
-                                path: prof['phone']!,
-                              );
-                              try {
-                                if (await canLaunchUrl(launchUri)) {
-                                  await launchUrl(launchUri);
-                                } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'No se pudo abrir el marcador telefónico para llamar al ${prof['phone']!}',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error al intentar realizar la llamada: $e',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: p.fill,
-                              foregroundColor: const Color(0xFF475569),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.phone_outlined, size: 14),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    'Llamar',
-                                    style: AppType.bodySmall.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (widget.state.chatMessages.any((m) => m.sender == 'provider')) ...[
-                    const SizedBox(height: 12),
-                    Builder(
-                      builder: (context) {
-                        final lastMsg = widget.state.chatMessages.lastWhere((m) => m.sender == 'provider');
-                        return GestureDetector(
-                          onTap: widget.onNavigateToChat,
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: p.accentSurface.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: p.accent.withValues(alpha: 0.2)),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.chat_bubble_rounded, size: 16, color: p.accent),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        lastMsg.senderName ?? 'Profesional Clínico',
-                                        style: AppType.label.copyWith(
-                                          color: p.accent,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        lastMsg.text,
-                                        style: AppType.bodySmall.copyWith(
-                                          color: p.textPrimary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: p.accent),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Steps timeline
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PROGRESO DEL SERVICIO',
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: p.textFaint,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: steps.length,
-                  itemBuilder: (context, idx) {
-                    final step = steps[idx];
-                    final isCompleted = request.currentStep >= idx;
-                    final isCurrent = request.currentStep == idx;
-
-                    return IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Vertical line + marker
-                          Column(
-                            children: [
-                              Container(
-                                height: 14,
-                                width: 14,
-                                decoration: BoxDecoration(
-                                  color: isCompleted
-                                      ? p.accent
-                                      : Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: isCompleted
-                                        ? p.accent
-                                        : p.borderStrong,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: isCompleted
-                                    ? Center(
-                                        child: Icon(
-                                          Icons.check,
-                                          color: p.card,
-                                          size: 8,
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                              if (idx < steps.length - 1)
-                                Expanded(
-                                  child: Container(
-                                    width: 2,
-                                    color: isCompleted
-                                        ? p.accent
-                                        : p.border,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 18.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                        step['title']!,
-                                        style: AppType.bodySmall.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: isCurrent
-                                              ? p.textPrimary
-                                              : (isCompleted
-                                                    ? p.textSecondary
-                                                    : p.textFaint),
-                                        ),
-                                      ),
-                                      ),
-                                      if (isCurrent) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 5,
-                                            vertical: 1.5,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: p.accentSurface,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'ACTUAL',
-                                            style: AppType.bodySmall.copyWith(
-                                              color: p.accent,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    step['desc']!,
-                                    style: AppType.bodySmall.copyWith(
-                                      color: p.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Metadata block
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: p.card,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: p.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'DETALLES DE LA CITA',
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: p.textFaint,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.person,
-                      color: Color(0xFF10B981),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'PACIENTE',
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textFaint,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            widget.dependent != null
-                                ? '${widget.dependent!.name} (${widget.dependent!.relationship})'
-                                : 'Usuario Principal',
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textSecondary,
-                            ),
-                          ),
-                          if (widget.dependent != null)
-                            Text(
-                              widget.dependent!.medicalConditions,
-                              style: AppType.bodySmall.copyWith(
-                                color: p.textMuted,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                Divider(height: 20, color: p.fill),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Color(0xFFF43F5E),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'DOMICILIO',
-                            style: AppType.bodySmall.copyWith(
-                              color: p.textFaint,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            request.addressText,
-                            style: AppType.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Cancel or Finish buttons
-          if (isNotFinished)
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Cancelar Solicitud'),
-                      content: const Text(
-                        '¿Está seguro de querer cancelar esta solicitud de atención clínica? Se podría aplicar un recargo por respuesta técnica si el profesional ya va en camino.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Volver'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            widget.state.cancelRequest();
-                          },
-                          child: const Text(
-                            'Cancelar Servicio',
-                            style: TextStyle(color: Color(0xFFF43F5E)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF43F5E).withValues(alpha: 0.12),
-                  foregroundColor: const Color(0xFFE11D48),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: const Color(0xFFF43F5E).withValues(alpha: 0.25),
-                    ),
-                  ),
-                ),
-                child: Text(
-                  'Cancelar Solicitud de Servicio',
-                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            )
-          else ...[
-            _buildRatingSection(context, widget.request),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  widget.state.completeSimulation();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: p.accent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  'Volver al inicio',
-                  style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildRatingSection(BuildContext context, ServiceRequest request) {
-    final prof = _getAssignedProfessional();
-    final profName = prof?['name'] ?? 'el profesional';
+  // ---------------------------------------------------------- profesional UI
 
-    if (_ratingSubmitted) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
-        ),
+  Widget _professionalBlock() {
+    final prof = _professional;
+
+    if (prof == null) {
+      return AuraCard(
         child: Row(
           children: [
-            const Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 28),
-            const SizedBox(width: 12),
+            SizedBox(
+              height: AuraIcon.md,
+              width: AuraIcon.md,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: p.accent),
+            ),
+            const SizedBox(width: AuraSpace.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '¡Gracias por tu evaluación!',
-                    style: AppType.bodySmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF166534),
+                    'Buscando a quien te atienda',
+                    style: AppType.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: p.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (i) => Icon(
-                        i < _selectedRating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 18,
-                      ),
-                    ),
+                  const SizedBox(height: AuraSpace.xxxs),
+                  Text(
+                    'Avisamos a los profesionales de tu zona. Te lo confirmamos aquí.',
+                    style: AppType.bodySmall.copyWith(color: p.textMuted),
                   ),
                 ],
               ),
@@ -1070,380 +287,608 @@ class _ActiveTrackingScreenState extends State<ActiveTrackingScreen> {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: p.border),
-      ),
+    final profile = widget.request.professionalProfile;
+
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Califica la atención de $profName',
-            style: AppType.titleSmall.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tu opinión ayuda a mantener la calidad y excelencia de Aura.',
-            style: AppType.bodySmall.copyWith(color: p.textMuted),
-          ),
-          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              final starNumber = index + 1;
-              return IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedRating = starNumber;
-                  });
-                },
-                icon: Icon(
-                  starNumber <= _selectedRating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                  size: 32,
+            children: [
+              Container(
+                height: 52,
+                width: 52,
+                decoration: BoxDecoration(
+                  color: p.accentSurface,
+                  shape: BoxShape.circle,
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _ratingFeedbackCtrl,
-            maxLines: 2,
-            decoration: InputDecoration(
-              hintText: 'Comentario u observaciones (opcional)...',
-              filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF1E293B)
-                  : const Color(0xFFF8FAFC),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: p.border),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _submittingRating
-                  ? null
-                  : () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      setState(() {
-                        _submittingRating = true;
-                      });
-                      final error = await widget.state.submitRating(
-                        bookingId: request.id,
-                        rating: _selectedRating,
-                        feedback: _ratingFeedbackCtrl.text.trim(),
-                      );
-                      if (mounted) {
-                        setState(() {
-                          _submittingRating = false;
-                          if (error == null) {
-                            _ratingSubmitted = true;
-                          }
-                        });
-                        if (error != null) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(error),
-                              backgroundColor: const Color(0xFFDC2626),
-                            ),
-                          );
-                        }
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: _submittingRating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      'Enviar calificación',
-                      style: AppType.button.copyWith(fontWeight: FontWeight.bold),
+                child: Center(
+                  child: Text(
+                    prof.name.isNotEmpty ? prof.name[0].toUpperCase() : '?',
+                    style: AppType.titleMedium.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: p.accentText,
                     ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Status header around the live [TrackingMap].
-  Widget _buildTrackingSection(int step, String serviceId) {
-    String statusText = 'Preparando insumos clínicos';
-    if (step == 2) {
-      statusText = 'Vehículo de asistencia en trayecto';
-    } else if (step == 3) {
-      statusText = 'Especialista en su domicilio';
-    } else if (step >= 4) {
-      statusText = 'Atención médica finalizada';
-    }
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header info
-          Padding(
-            padding: const EdgeInsets.all(14.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
+                  ),
+                ),
+              ),
+              const SizedBox(width: AuraSpace.sm),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SEGUIMIENTO EN TIEMPO REAL',
-                      style: AppType.label.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: p.textMuted,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      statusText,
-                      style: AppType.bodySmall.copyWith(
-                        fontWeight: FontWeight.bold,
+                      prof.name,
+                      style: AppType.titleSmall.copyWith(
+                        fontWeight: FontWeight.w700,
                         color: p.textPrimary,
                       ),
                     ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: p.accentSurface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        serviceId == 'ambulancia'
-                            ? Icons.local_shipping
-                            : Icons.directions_run,
-                        color: p.accentText,
-                        size: 11,
-                      ),
-                      const SizedBox(width: 4),
+                    if (prof.specialty.isNotEmpty) ...[
+                      const SizedBox(height: AuraSpace.xxxs),
                       Text(
-                        'GPS ACTIVO',
-                        style: AppType.bodySmall.copyWith(
-                          color: p.accentText,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        prof.specialty,
+                        style: AppType.bodySmall.copyWith(color: p.textMuted),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
 
-          // Real OpenStreetMap tracking: patient home + live professional GPS
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: p.border),
-                bottom: BorderSide(color: p.border),
+          if (profile != null) ...[
+            const SizedBox(height: AuraSpace.xs),
+            AuraButton.tertiary(
+              label: 'Ver su ficha profesional',
+              icon: Icons.badge_outlined,
+              onPressed: () => DoctorProfileScreen.showModal(
+                context,
+                profile,
+                phone: prof.phone.isEmpty ? null : prof.phone,
               ),
             ),
-            child: TrackingMap(
-              addressText: widget.request.addressText,
-              patientLat: widget.request.patientLat,
-              patientLng: widget.request.patientLng,
-              professionalLat: widget.request.professionalLat,
-              professionalLng: widget.request.professionalLng,
-              height: 180,
-            ),
-          ),
+          ],
 
-          // Footer
-          if (step == 2)
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: p.accent,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'El vehículo clínico se desplaza por autopista principal. Tránsito fluido.',
-                      style: AppType.bodySmall.copyWith(
-                        color: p.accent.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          const SizedBox(height: AuraSpace.md),
+          // Escribir es la vía principal: queda registro, sobrevive a que
+          // cierres la app y el contador de no leídos lo cuenta. Llamar es la
+          // alternativa, no la acción de igual peso que era antes.
+          AuraButton(
+            label: 'Escribir un mensaje',
+            icon: Icons.chat_bubble_rounded,
+            kind: AuraButtonKind.primary,
+            size: AuraButtonSize.medium,
+            onPressed: widget.onNavigateToChat,
+          ),
+          if (prof.phone.isNotEmpty) ...[
+            const SizedBox(height: AuraSpace.xs),
+            AuraButton.secondary(
+              label: 'Llamar por teléfono',
+              icon: Icons.call_rounded,
+              onPressed: () => _call(prof.phone),
             ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildActiveServicesSwitcher(AppPalette p) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: p.border),
+  // ------------------------------------------------------------ detalle
+
+  Widget _detailsBlock(ServiceRequest request) {
+    final patientName = widget.dependent?.name ??
+        (widget.state.userName.trim().isEmpty
+            ? 'Tú'
+            : widget.state.userName.trim());
+
+    return AuraCard(
+      outlined: true,
+      padding: const EdgeInsets.symmetric(horizontal: AuraSpace.xs),
+      child: AuraDisclosure(
+        title: 'Detalle de la atención',
+        icon: Icons.receipt_long_rounded,
+        child: Column(
+          children: [
+            AuraSummaryRow(label: 'Paciente', value: patientName),
+            AuraSummaryRow(label: 'Dirección', value: request.addressText),
+            if (request.symptomsDescription != null &&
+                request.symptomsDescription!.isNotEmpty)
+              AuraSummaryRow(
+                label: 'Motivo',
+                value: request.symptomsDescription!,
+              ),
+            AuraSummaryRow(
+              label: 'Total',
+              value: Money.format(request.finalPrice, withCode: true),
+              strong: true,
+            ),
+            // La insignia de pago solo aparece cuando el pago está realmente
+            // aprobado. Antes se pintaba «Pago Confirmado» siempre, incluso
+            // sobre una solicitud que estaba esperando el cobro.
+            if (request.paymentStatus == 'approved') ...[
+              const SizedBox(height: AuraSpace.xs),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: AuraBadge(
+                  label: 'Pago confirmado',
+                  tone: AuraTone.success,
+                  icon: Icons.verified_rounded,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+
+  // ------------------------------------------------------------ cancelar
+
+  Widget _cancelBlock() {
+    return AuraButton.tertiary(
+      label: 'Cancelar esta atención',
+      onPressed: _cancelling ? null : _confirmCancel,
+      expand: true,
+    );
+  }
+
+  Future<void> _confirmCancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cancelar esta atención?'),
+        content: const Text(
+          'El profesional dejará de venir. Si ya pagaste, te contactamos para '
+          'devolverte el dinero.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantenerla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: p.error),
+            child: const Text('Sí, cancelar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() => _cancelling = true);
+    await widget.state.cancelRequest();
+    if (mounted) setState(() => _cancelling = false);
+  }
+
+  // ----------------------------------------------------------- calificación
+
+  Widget _ratingBlock(ServiceRequest request) {
+    if (_ratingSubmitted) {
+      return AuraSuccessState(
+        title: 'Gracias',
+        message: 'Tu opinión nos ayuda a elegir mejor a quién te enviamos.',
+        primaryLabel: 'Volver al inicio',
+        onPrimary: () {
+          widget.state.completeSimulation();
+          widget.state.setTab('home');
+        },
+      );
+    }
+
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 6),
-            child: Row(
-              children: [
-                Icon(Icons.swap_horiz_rounded, size: 14, color: p.accent),
-                const SizedBox(width: 4),
-                Text(
-                  'ATENCIONES EN CURSO (${widget.state.activeRequests.length})',
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.6,
-                    color: p.accent,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
+          Text(
+            '¿Cómo fue la atención?',
+            style: AppType.titleSmall.copyWith(
+              fontWeight: FontWeight.w700,
+              color: p.textPrimary,
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: widget.state.activeRequests.map((req) {
-                final isSelected = req.id == widget.request.id;
-                final profName = req.professionalName ?? _getServiceName(req.serviceId);
-                final specialty = req.professionalSpecialty ?? req.status.label;
-                final icon = _getServiceIcon(req.serviceId);
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () => widget.state.selectChatRequest(req.id),
-                    borderRadius: BorderRadius.circular(14),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isSelected ? p.accentSurface : p.fill,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isSelected ? p.accent : p.border,
-                          width: isSelected ? 1.8 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(icon, size: 14, color: isSelected ? p.accentText : p.textMuted),
-                          const SizedBox(width: 6),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                profName,
-                                style: AppType.label.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected ? p.textPrimary : p.textSecondary,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              Text(
-                                specialty,
-                                style: AppType.label.copyWith(
-                                  color: isSelected ? p.accentText : p.textFaint,
-                                  fontSize: 9,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
+          const SizedBox(height: AuraSpace.sm),
+          Row(
+            children: List.generate(5, (i) {
+              final value = i + 1;
+              final filled = _selectedRating >= value;
+              return AuraIconButton(
+                icon: filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                tooltip: '$value ${value == 1 ? "estrella" : "estrellas"}',
+                color: filled ? p.warning : p.borderStrong,
+                size: AuraIcon.lg,
+                onPressed: () => setState(() => _selectedRating = value),
+              );
+            }),
+          ),
+          const SizedBox(height: AuraSpace.sm),
+          AuraField.multiline(
+            label: 'Cuéntanos algo más (opcional)',
+            hint: 'Lo que quieras contarnos',
+            controller: _ratingFeedbackCtrl,
+            maxLines: 3,
+            maxLength: 300,
+          ),
+          const SizedBox(height: AuraSpace.md),
+          AuraButton.primary(
+            label: 'Enviar mi opinión',
+            size: AuraButtonSize.medium,
+            loading: _submittingRating,
+            // Deshabilitado hasta elegir estrellas: antes arrancaba en 5 y
+            // enviar sin tocar nada registraba un cinco que nadie dio.
+            onPressed: _selectedRating == 0 ? null : () => _submitRating(request),
+          ),
+          const SizedBox(height: AuraSpace.xxs),
+          AuraButton.tertiary(
+            label: 'Ahora no',
+            expand: true,
+            onPressed: () {
+              widget.state.completeSimulation();
+              widget.state.setTab('home');
+            },
           ),
         ],
       ),
     );
   }
 
-  String _getServiceName(String serviceId) {
-    switch (serviceId) {
-      case 'medico':
-        return 'Médico General';
-      case 'kine_motora':
-      case 'kine_respiratoria':
-        return 'Kinesiología';
-      case 'enfermeria':
-        return 'Enfermería';
-      case 'laboratorio':
-        return 'Laboratorio';
-      case 'ambulancia':
-      case 'traslado_simple':
-      case 'traslado_avanzado':
-        return 'Ambulancia';
-      default:
-        return 'Atención Domiciliaria';
+  Future<void> _submitRating(ServiceRequest request) async {
+    setState(() => _submittingRating = true);
+    final error = await widget.state.submitRating(
+      bookingId: request.id,
+      rating: _selectedRating,
+      feedback: _ratingFeedbackCtrl.text.trim().isEmpty
+          ? null
+          : _ratingFeedbackCtrl.text.trim(),
+    );
+    if (!mounted) return;
+    setState(() {
+      _submittingRating = false;
+      _ratingSubmitted = error == null;
+    });
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: p.error,
+        ),
+      );
     }
   }
+}
 
-  IconData _getServiceIcon(String serviceId) {
-    switch (serviceId) {
-      case 'medico':
-        return Icons.local_hospital_rounded;
-      case 'kine_motora':
-      case 'kine_respiratoria':
-        return Icons.accessibility_new_rounded;
-      case 'enfermeria':
-        return Icons.healing_rounded;
-      case 'laboratorio':
-        return Icons.biotech_rounded;
-      case 'ambulancia':
-      case 'traslado_simple':
-      case 'traslado_avanzado':
-        return Icons.local_shipping_rounded;
-      default:
-        return Icons.medical_services_rounded;
+// ====================================================================== piezas
+
+/// La tarjeta que responde «¿qué está pasando y cuándo llega?».
+///
+/// Es lo primero y lo más grande porque es lo único que la persona vino a ver.
+class _StatusCard extends StatelessWidget {
+  final ServiceRequest request;
+  final int? minutesLeft;
+  final DateTime? arrivalAt;
+  final bool showCountdown;
+
+  const _StatusCard({
+    required this.request,
+    required this.minutesLeft,
+    required this.arrivalAt,
+    required this.showCountdown,
+  });
+
+  /// El texto del tiempo, con las tres situaciones posibles resueltas.
+  ///
+  /// Devuelve `null` cuando no hay nada honesto que decir, y entonces la
+  /// tarjeta simplemente no enseña un tiempo.
+  String? _timeText() {
+    if (!showCountdown) return null;
+
+    final left = minutesLeft;
+    if (left == null) {
+      // No se pudo reconstruir la hora de inicio. Se dice la estimación
+      // original y no se finge una cuenta atrás.
+      return request.etaMinutes > 0
+          ? 'Llega en unos ${request.etaMinutes} minutos'
+          : null;
     }
+    if (left <= 0) return 'Está por llegar';
+    if (left < 60) return 'Llega en unos $left minutos';
+
+    final hours = left ~/ 60;
+    final minutes = left % 60;
+    return minutes == 0
+        ? 'Llega en unas $hours ${hours == 1 ? "hora" : "horas"}'
+        : 'Llega en unas $hours h $minutes min';
+  }
+
+  String? _arrivalClock() {
+    final a = arrivalAt;
+    if (a == null || !showCountdown) return null;
+    final hh = a.hour.toString().padLeft(2, '0');
+    final mm = a.minute.toString().padLeft(2, '0');
+    return 'Alrededor de las $hh:$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final time = _timeText();
+    final clock = _arrivalClock();
+
+    return AuraCard(
+      emphasis: true,
+      padding: const EdgeInsets.all(AuraSpace.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                serviceIconFor('', serviceId: request.serviceId),
+                color: p.onBrandDeep,
+                size: AuraIcon.md,
+              ),
+              const SizedBox(width: AuraSpace.xs),
+              Expanded(
+                child: Text(
+                  serviceShortName(request.serviceId, 'Tu atención'),
+                  style: AppType.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: p.onBrandDeep.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AuraSpace.sm),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              request.status.label,
+              style: AppType.titleLarge.copyWith(
+                fontWeight: FontWeight.w800,
+                color: p.onBrandDeep,
+              ),
+            ),
+          ),
+          if (time != null) ...[
+            const SizedBox(height: AuraSpace.xs),
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  size: AuraIcon.sm,
+                  color: p.onBrandDeep.withValues(alpha: 0.85),
+                ),
+                const SizedBox(width: AuraSpace.xxs),
+                Expanded(
+                  child: Text(
+                    time,
+                    style: AppType.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: p.onBrandDeep,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (clock != null) ...[
+              const SizedBox(height: AuraSpace.xxxs),
+              Padding(
+                padding: const EdgeInsets.only(left: AuraIcon.sm + AuraSpace.xxs),
+                child: Text(
+                  clock,
+                  style: AppType.bodySmall.copyWith(
+                    color: p.onBrandDeep.withValues(alpha: 0.75),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Selector entre atenciones simultáneas.
+class _ServiceSwitcher extends StatelessWidget {
+  final AppState state;
+  final List<ServiceRequest> active;
+  final String currentId;
+
+  const _ServiceSwitcher({
+    required this.state,
+    required this.active,
+    required this.currentId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tienes ${active.length} atenciones en curso',
+          style: AppType.bodySmall.copyWith(
+            fontWeight: FontWeight.w700,
+            color: p.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: active.map((r) {
+              final selected = r.id == currentId;
+              final unread = state.unreadFor(r.id);
+              return Padding(
+                padding: const EdgeInsets.only(right: AuraTap.gap),
+                child: Semantics(
+                  button: true,
+                  selected: selected,
+                  label: unread > 0
+                      ? '${serviceShortName(r.serviceId, "Atención")}, $unread mensajes sin leer'
+                      : serviceShortName(r.serviceId, 'Atención'),
+                  child: ExcludeSemantics(
+                    child: Material(
+                      color: selected ? p.accent : p.card,
+                      borderRadius: AuraRadius.allSm,
+                      child: InkWell(
+                        onTap: () => state.selectChatRequest(r.id),
+                        borderRadius: AuraRadius.allSm,
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minHeight: AuraTap.min,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AuraSpace.sm,
+                            vertical: AuraSpace.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: AuraRadius.allSm,
+                            border: Border.all(
+                              color: selected ? p.accent : p.borderStrong,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                serviceIconFor('', serviceId: r.serviceId),
+                                size: AuraIcon.sm,
+                                color: selected
+                                    ? context.scheme.onPrimary
+                                    : p.textSecondary,
+                              ),
+                              const SizedBox(width: AuraSpace.xxs),
+                              Text(
+                                serviceShortName(r.serviceId, 'Atención'),
+                                style: AppType.bodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: selected
+                                      ? context.scheme.onPrimary
+                                      : p.textPrimary,
+                                ),
+                              ),
+                              if (unread > 0) ...[
+                                const SizedBox(width: AuraSpace.xxs),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: p.error,
+                                    borderRadius: AuraRadius.allPill,
+                                  ),
+                                  child: Text(
+                                    '$unread',
+                                    style: AppType.label.copyWith(
+                                      color: context.scheme.onError,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Los cinco pasos de una atención.
+///
+/// El paso actual se ve; los ya pasados quedan marcados y en gris; los que
+/// faltan, apagados. Antes los cinco pesaban igual y había que leerlos todos
+/// para saber en cuál se estaba.
+class _Timeline extends StatelessWidget {
+  final int step;
+  const _Timeline({required this.step});
+
+  static const _steps = [
+    (label: 'Solicitud enviada', icon: Icons.check_rounded),
+    (label: 'Profesional asignado', icon: Icons.person_rounded),
+    (label: 'En camino', icon: Icons.directions_car_rounded),
+    (label: 'En tu domicilio', icon: Icons.home_rounded),
+    (label: 'Atención terminada', icon: Icons.verified_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return AuraCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(_steps.length, (i) {
+          final s = _steps[i];
+          final done = i < step;
+          final current = i == step;
+          final color = done
+              ? p.success
+              : (current ? p.accent : p.borderStrong);
+
+          return Semantics(
+            label: '${s.label}. '
+                '${done ? "Completado" : (current ? "En curso" : "Pendiente")}',
+            child: ExcludeSemantics(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: i == _steps.length - 1 ? 0 : AuraSpace.sm,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      height: 32,
+                      width: 32,
+                      decoration: BoxDecoration(
+                        color: done
+                            ? p.successSurface
+                            : (current ? p.accentSurface : p.fill),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        done ? Icons.check_rounded : s.icon,
+                        size: AuraIcon.sm,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: AuraSpace.sm),
+                    Expanded(
+                      child: Text(
+                        s.label,
+                        style: AppType.bodyMedium.copyWith(
+                          fontWeight:
+                              current ? FontWeight.w700 : FontWeight.w400,
+                          color: current
+                              ? p.textPrimary
+                              : (done ? p.textSecondary : p.textMuted),
+                        ),
+                      ),
+                    ),
+                    // El estado no depende solo del color: el paso en curso lo
+                    // dice con palabras.
+                    if (current)
+                      const AuraBadge(label: 'Ahora', tone: AuraTone.info),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
   }
 }

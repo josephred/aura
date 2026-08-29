@@ -1,12 +1,31 @@
 import 'package:flutter/material.dart';
+
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
+/// Primera pantalla de la app, antes de tener cuenta.
+///
+/// ## Qué cambió y por qué
+///
+/// El párrafo de presentación era una sola frase de treinta y cinco palabras
+/// que enumeraba cuatro especialidades, se elogiaba a sí misma («con un nivel
+/// visual impecable») y usaba tres términos que nadie dice en voz alta: «ETA»,
+/// «generalistas» y el nombre de un organismo regulador. Nada de eso ayuda a
+/// decidir si esta app sirve para lo que la persona necesita hoy.
+///
+/// Junto al logotipo latía un punto en bucle, sin fin y sin nada que anunciar,
+/// pegado a un elemento que no se puede tocar. Un punto que pulsa dice «mira
+/// aquí»; aquí no había nada que mirar, así que se eliminó.
 class OnboardingScreen extends StatefulWidget {
   final AppState state;
   final VoidCallback onStart;
 
-  const OnboardingScreen({super.key, required this.state, required this.onStart});
+  const OnboardingScreen({
+    super.key,
+    required this.state,
+    required this.onStart,
+  });
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -22,22 +41,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
+    _controller = AnimationController(vsync: this, duration: AuraMotion.slow);
 
     _scaleAnimation = Tween<double>(
-      begin: 0.85,
+      begin: 0.92,
       end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    ).animate(CurvedAnimation(parent: _controller, curve: AuraMotion.enter));
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    ).animate(CurvedAnimation(parent: _controller, curve: AuraMotion.enter));
 
-    _controller.forward();
+    // Con «reducir movimiento» activado la pantalla aparece ya montada. Es la
+    // misma pantalla: lo único que se salta es el movimiento de entrada.
+    if (WidgetsBinding.instance.platformDispatcher.accessibilityFeatures
+        .disableAnimations) {
+      _controller.value = 1.0;
+    } else {
+      _controller.forward();
+    }
   }
 
   @override
@@ -48,311 +71,171 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) {
-              return Opacity(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AuraSpace.screenX,
+            vertical: AuraSpace.xl,
+          ),
+          child: AuraReadable(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) => Opacity(
                 opacity: _fadeAnimation.value,
                 child: Transform.scale(
                   scale: _scaleAnimation.value,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Accessibility & Theme controls row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              widget.state.themeMode == ThemeMode.dark
-                                  ? Icons.light_mode_outlined
-                                  : Icons.dark_mode_outlined,
-                              color: const Color(0xFF0F766E),
-                            ),
-                            tooltip: 'Alternar Tema',
-                            onPressed: () {
-                              final nextMode = widget.state.themeMode == ThemeMode.dark
-                                  ? ThemeMode.light
-                                  : ThemeMode.dark;
-                              widget.state.setThemeMode(nextMode);
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.text_fields_rounded,
-                              color: Color(0xFF0F766E),
-                            ),
-                            tooltip: 'Ajustar tamaño de letra',
-                            onPressed: () {
-                              final current = widget.state.textScaleFactor;
-                              final double nextScale;
-                              if (current <= 1.0) {
-                                nextScale = 1.15;
-                              } else if (current <= 1.15) {
-                                nextScale = 1.3;
-                              } else if (current <= 1.3) {
-                                nextScale = 1.5;
-                              } else {
-                                nextScale = 1.0;
-                              }
-                              widget.state.setTextScaleFactor(nextScale);
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      // Animated Logo Emblem
-                      Center(
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              height: 100,
-                              width: 100,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF0F766E),
-                                    Color(0xFF2DD4BF),
-                                  ], // teal-600 to teal-400
-                                  begin: Alignment.bottomLeft,
-                                  end: Alignment.topRight,
-                                ),
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF0F766E,
-                                    ).withValues(alpha: 0.3),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.shield,
-                                color: Colors.white,
-                                size: 48,
-                              ),
-                            ),
-                            Positioned(top: -4, right: -4, child: _PulseDot()),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 36),
-                      // Title
-                      Text(
-                        'Aura Salud',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          color: theme.colorScheme.onSurface, // slate-900
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Cuidado Médico a Domicilio',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF0F766E), // teal-600
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Text(
-                          'Solicita atenciones de enfermería, kinesiología, radiología y médicos generalistas directamente a la puerta de tu hogar, con un nivel visual impecable, seguimiento en vivo y pagos protegidos.',
-                          textAlign: TextAlign.center,
-                          // Este párrafo es lo primero que lee alguien que abre
-                          // Aura por primera vez, y una parte importante de los
-                          // pacientes son adultos mayores. Estaba a 13, por
-                          // debajo del piso de cuerpo de la escala.
-                          style: AppType.bodyMedium.copyWith(
-                            color: p.textMuted,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      // Features Card
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: theme.dividerColor.withValues(alpha: 0.1),
-                          ), // slate-200
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            _buildFeatureRow(
-                              Icons.check_circle_rounded,
-                              Colors.green,
-                              'Equipos acreditados por Superintendencia de Salud.',
-                            ),
-                            Divider(height: 24, color: p.border),
-                            _buildFeatureRow(
-                              Icons.check_circle_rounded,
-                              Colors.green,
-                              'Carga rápida de orden médica o fotografía.',
-                            ),
-                            Divider(height: 24, color: p.border),
-                            _buildFeatureRow(
-                              Icons.check_circle_rounded,
-                              Colors.green,
-                              'Seguimiento de ETA en vivo y chat seguro.',
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 48),
-                      // Action Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: widget.onStart,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F766E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 2,
-                            shadowColor: const Color(
-                              0xFF0F766E,
-                            ).withValues(alpha: 0.4),
-                          ),
-                          // El `const` de este Row se quitó a propósito:
-                          // `AppType.button.copyWith(...)` no es una expresión
-                          // constante, y era el único motivo por el que la
-                          // etiqueta seguía con un tamaño escrito a mano.
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  'INGRESAR A LA PLATAFORMA',
-                                  style: AppType.button.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.chevron_right, size: 18),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: child,
                 ),
-              );
-            },
+              ),
+              // El contenido se construye una vez y no en cada fotograma de la
+              // animación de entrada.
+              child: Column(
+                // `stretch` y no `center`: así la tarjeta y el botón ocupan el
+                // ancho de la columna legible sin depender de su contenido.
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildViewControls(),
+                  const SizedBox(height: AuraSpace.md),
+
+                  Center(
+                    child: Container(
+                      height: 100,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: p.accent,
+                        borderRadius: AuraRadius.allXl,
+                      ),
+                      child: Icon(
+                        Icons.shield_rounded,
+                        color: context.scheme.onPrimary,
+                        size: AuraIcon.display,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AuraSpace.xxl),
+
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Aura Salud',
+                      textAlign: TextAlign.center,
+                      style: AppType.display.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AuraSpace.xxs),
+                  Text(
+                    'Cuidado médico a domicilio',
+                    textAlign: TextAlign.center,
+                    // Era un teal fijo que en modo oscuro quedaba casi negro
+                    // sobre negro. El acento de la paleta ya tiene su versión
+                    // clara y su versión oscura.
+                    style: AppType.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: p.accent,
+                    ),
+                  ),
+                  const SizedBox(height: AuraSpace.md),
+                  Text(
+                    'Pides atención de salud en tu casa y la agendas en unos '
+                    'minutos. Desde el teléfono sigues cuándo llega el '
+                    'profesional que te va a atender.',
+                    textAlign: TextAlign.center,
+                    style: AppType.bodyMedium.copyWith(color: p.textMuted),
+                  ),
+                  const SizedBox(height: AuraSpace.xxl),
+
+                  AuraCard(
+                    padding: const EdgeInsets.all(AuraSpace.lg),
+                    child: Column(
+                      children: [
+                        _buildFeatureRow('Profesionales acreditados.'),
+                        Divider(height: AuraSpace.xl, color: p.border),
+                        _buildFeatureRow(
+                          'Subes la orden médica con una foto.',
+                        ),
+                        Divider(height: AuraSpace.xl, color: p.border),
+                        _buildFeatureRow(
+                          'Sabes cuándo llega y le escribes por el chat.',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AuraSpace.xxxl),
+
+                  // «INGRESAR A LA PLATAFORMA» en versalitas era el rótulo de
+                  // un trámite. Esto es solo el principio de algo.
+                  AuraButton.primary(
+                    label: 'Empezar',
+                    icon: Icons.arrow_forward_rounded,
+                    trailingIcon: true,
+                    onPressed: widget.onStart,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildFeatureRow(IconData icon, Color iconColor, String text) {
+  /// Tema y tamaño de letra.
+  ///
+  /// Los mismos dos controles que la pantalla de acceso, y por el mismo motivo:
+  /// quien necesita la letra más grande la necesita **antes** de entrar. Aquí
+  /// también dicen qué hacen, en vez de ser dos dibujos sin rótulo.
+  Widget _buildViewControls() {
+    final isDark = widget.state.themeMode == ThemeMode.dark;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(icon, color: iconColor, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: AppType.bodySmall.copyWith(
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
+        AuraIconButton(
+          icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          tooltip: isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+          color: p.accent,
+          onPressed: () => widget.state.setThemeMode(
+            isDark ? ThemeMode.light : ThemeMode.dark,
           ),
+        ),
+        AuraIconButton(
+          icon: Icons.text_fields_rounded,
+          tooltip: 'Cambiar el tamaño de la letra',
+          color: p.accent,
+          onPressed: () {
+            final current = widget.state.textScaleFactor;
+            final double nextScale;
+            if (current <= 1.0) {
+              nextScale = 1.15;
+            } else if (current <= 1.15) {
+              nextScale = 1.3;
+            } else if (current <= 1.3) {
+              nextScale = 1.5;
+            } else {
+              nextScale = 1.0;
+            }
+            widget.state.setTextScaleFactor(nextScale);
+          },
         ),
       ],
     );
   }
-}
 
-class _PulseDot extends StatefulWidget {
-  @override
-  State<_PulseDot> createState() => _PulseDotState();
-}
-
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
-
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 2.2,
-    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
+  Widget _buildFeatureRow(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _pulseAnimation.value,
-              child: Opacity(
-                opacity: 1.0 - (_pulseController.value),
-                child: Container(
-                  height: 16,
-                  width: 16,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2DD4BF),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        Container(
-          height: 12,
-          width: 12,
-          decoration: const BoxDecoration(
-            color: Color(0xFF10B981), // emerald-500
-            shape: BoxShape.circle,
+        // Era `Colors.green`, el mismo verde en claro y en oscuro. El verde de
+        // la paleta se aclara en oscuro para seguir contrastando.
+        Icon(Icons.check_circle_rounded, color: p.success, size: AuraIcon.md),
+        const SizedBox(width: AuraSpace.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: AppType.bodyMedium.copyWith(color: p.textSecondary),
           ),
         ),
       ],

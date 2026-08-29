@@ -7,29 +7,30 @@ import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
-/// Voice controls for the symptom descriptor.
+/// Controles de voz del campo de síntomas.
 ///
-/// Two independent capabilities, both optional:
-///  - **Dictado**: on-device speech recognition (Android `SpeechRecognizer`,
-///    iOS `SFSpeechRecognizer`). Transcribed text is appended to the notes
-///    field. No cloud service and no per-minute cost.
-///  - **Nota de voz**: records an audio file that travels with the request so
-///    the clinician can listen to the patient describe the symptoms.
+/// Son dos cosas distintas, las dos opcionales:
+///  - **Dictado**: reconocimiento de voz del propio teléfono (Android
+///    `SpeechRecognizer`, iOS `SFSpeechRecognizer`). Lo que se dicta se añade
+///    al campo de notas. No pasa por ningún servicio de pago.
+///  - **Nota de voz**: graba un audio que viaja con la solicitud, para que el
+///    profesional oiga a la persona describir lo que le pasa.
 ///
-/// Every plugin call is guarded: if permissions are denied or the device has
-/// no recognizer, the widget degrades to text-only and tells the user why.
+/// Toda llamada a un plugin está protegida: si faltan permisos o el teléfono no
+/// trae reconocedor, el widget se queda en modo texto y explica por qué.
 class SymptomVoiceInput extends StatefulWidget {
-  /// Notes field the dictation writes into.
+  /// Campo de notas en el que escribe el dictado.
   final TextEditingController controller;
 
-  /// Called with the recorded file path, or null when the note is discarded.
+  /// Recibe la ruta del audio grabado, o null cuando se descarta la nota.
   final ValueChanged<String?> onAudioChanged;
 
-  /// Called when audio recording starts or stops.
+  /// Avisa cuando empieza o termina una grabación.
   final ValueChanged<bool>? onRecordingChanged;
 
-  /// Called when speech recognition produces new text.
+  /// Avisa cuando el reconocimiento de voz produce texto nuevo.
   final ValueChanged<String>? onTextChanged;
 
   const SymptomVoiceInput({
@@ -52,8 +53,8 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
   bool _listening = false;
   String _partialTranscript = '';
 
-  /// Text already in the field when dictation started, so partial results
-  /// replace only the dictated tail instead of wiping what was typed.
+  /// Lo que ya había escrito cuando empezó el dictado, para que los resultados
+  /// parciales reemplacen solo la parte dictada y no borren lo tecleado.
   String _textBeforeDictation = '';
 
   bool _recording = false;
@@ -63,6 +64,11 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
 
   String? _notice;
 
+  /// Con qué gravedad se pinta el aviso. No todos son lo mismo: que el
+  /// teléfono no traiga reconocedor es un dato; que falte el permiso del
+  /// micrófono es algo que la persona puede arreglar.
+  AuraTone _noticeTone = AuraTone.info;
+
   @override
   void dispose() {
     _recordTimer?.cancel();
@@ -71,7 +77,14 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
     super.dispose();
   }
 
-  // ---------------------------------------------------------------- dictation
+  void _setNotice(String message, AuraTone tone) {
+    setState(() {
+      _notice = message;
+      _noticeTone = tone;
+    });
+  }
+
+  // ----------------------------------------------------------------- dictado
 
   Future<void> _toggleDictation() async {
     if (_listening) {
@@ -91,10 +104,16 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
           },
           onError: (error) {
             if (!mounted) return;
-            setState(() {
-              _listening = false;
-              _notice = 'No se pudo usar el dictado (${error.errorMsg}).';
-            });
+            // El código del plugin («error_speech_timeout») va al registro, no
+            // a la pantalla: no le dice nada a nadie y aparecía en mitad del
+            // formulario, donde parece que se rompió la solicitud entera.
+            debugPrint('speech_to_text error: ${error.errorMsg}');
+            _listening = false;
+            _setNotice(
+              'El dictado se detuvo. Puedes volver a intentarlo o escribir '
+              'los síntomas.',
+              AuraTone.warning,
+            );
           },
         );
       } catch (e) {
@@ -105,10 +124,11 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
 
     if (!_speechReady) {
       if (mounted) {
-        setState(() {
-          _notice = 'Este dispositivo no tiene reconocimiento de voz disponible. '
-              'Puedes escribir los síntomas o enviar una nota de voz.';
-        });
+        _setNotice(
+          'Este teléfono no tiene dictado por voz. Puedes escribir los '
+          'síntomas o grabar una nota de voz.',
+          AuraTone.info,
+        );
       }
       return;
     }
@@ -145,7 +165,7 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
     );
   }
 
-  // ------------------------------------------------------------- voice note
+  // ------------------------------------------------------------ nota de voz
 
   Future<void> _toggleRecording() async {
     if (_recording) {
@@ -164,7 +184,11 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
     try {
       if (!await _recorder.hasPermission()) {
         if (mounted) {
-          setState(() => _notice = 'Necesitamos permiso de micrófono para grabar.');
+          _setNotice(
+            'Necesitamos permiso para usar el micrófono. Actívalo en los '
+            'ajustes del teléfono y vuelve a intentarlo.',
+            AuraTone.warning,
+          );
         }
         return;
       }
@@ -183,7 +207,8 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
       _recordTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (!mounted) return;
         setState(() => _recordedFor += const Duration(seconds: 1));
-        // Hard cap: keeps uploads small and the clinician's queue readable.
+        // Tope duro: mantiene pequeño lo que se sube y legible la cola del
+        // profesional.
         if (_recordedFor.inSeconds >= 120) _toggleRecording();
       });
 
@@ -197,7 +222,8 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
     } catch (e) {
       debugPrint('Audio recording failed: $e');
       if (mounted) {
-        setState(() => _notice = 'No se pudo iniciar la grabación.');
+        _setNotice('No pudimos empezar a grabar. Inténtalo otra vez.',
+            AuraTone.error);
         widget.onRecordingChanged?.call(false);
       }
     }
@@ -229,130 +255,124 @@ class _SymptomVoiceInputState extends State<SymptomVoiceInput> {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _recording ? null : _toggleDictation,
-                icon: Icon(
-                  _listening ? Icons.stop_circle_outlined : Icons.mic_none,
-                  size: 16,
-                ),
-                label: Text(_listening ? 'Detener dictado' : 'Dictar síntomas'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _listening ? const Color(0xFFDC2626) : p.accent,
-                  side: BorderSide(
-                    color: _listening ? const Color(0xFFDC2626) : p.border,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _listening ? null : _toggleRecording,
-                icon: Icon(
-                  _recording ? Icons.stop_circle_outlined : Icons.graphic_eq,
-                  size: 16,
-                ),
-                label: Text(
-                  _recording
-                      ? 'Detener (${_formatDuration(_recordedFor)})'
-                      : 'Nota de voz',
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _recording ? const Color(0xFFDC2626) : p.accent,
-                  side: BorderSide(
-                    color: _recording ? const Color(0xFFDC2626) : p.border,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  textStyle: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        // Uno debajo del otro y con el texto de botón del sistema. Antes iban
+        // en dos columnas y con el rótulo en 13 pt —el tamaño de un metadato—,
+        // y el de la grabación crece con el cronómetro: «Detener (01:12)» no
+        // cabía en media pantalla y se cortaba justo en el número.
+        AuraButton.secondary(
+          label: _listening ? 'Detener el dictado' : 'Dictar los síntomas',
+          icon: _listening ? Icons.stop_circle_outlined : Icons.mic_none_rounded,
+          onPressed: _recording ? null : _toggleDictation,
+        ),
+        const SizedBox(height: AuraTap.gap),
+        AuraButton.secondary(
+          label: _recording
+              ? 'Detener la grabación (${_formatDuration(_recordedFor)})'
+              : 'Grabar una nota de voz',
+          icon: _recording
+              ? Icons.stop_circle_outlined
+              : Icons.graphic_eq_rounded,
+          onPressed: _listening ? null : _toggleRecording,
         ),
 
         if (_listening) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.hearing, size: 13, color: p.accent),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _partialTranscript.isEmpty
-                      ? 'Escuchando… habla con normalidad.'
-                      : _partialTranscript,
-                  style: AppType.label.copyWith(color: p.accent),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: AuraSpace.xs),
+          _listeningStrip(),
         ],
 
         if (_audioPath != null && !_recording) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: p.accentSurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: p.accent.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.audiotrack, size: 15, color: p.accent),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Nota de voz adjunta (${_formatDuration(_recordedFor)})',
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: p.accent,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: _discardAudio,
-                  child: const Icon(
-                    Icons.close_rounded,
-                    size: 16,
-                    color: Color(0xFFDC2626),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: AuraSpace.xs),
+          _attachedNote(),
         ],
 
         if (_notice != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _notice!,
-            style: AppType.label.copyWith(color: const Color(0xFFB45309)),
+          const SizedBox(height: AuraSpace.xs),
+          AuraBanner(
+            message: _notice!,
+            tone: _noticeTone,
+            onDismiss: () => setState(() => _notice = null),
           ),
         ],
       ],
+    );
+  }
+
+  /// Lo que el teléfono va entendiendo mientras se dicta.
+  ///
+  /// Sin `liveRegion` a propósito: el texto cambia palabra a palabra y un
+  /// lector de pantalla estaría interrumpiendo a quien está hablando.
+  Widget _listeningStrip() {
+    final p = context.palette;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AuraSpace.sm),
+      decoration: BoxDecoration(
+        color: p.accentSurface,
+        borderRadius: AuraRadius.allSm,
+        border: Border.all(color: p.accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.hearing_rounded, size: AuraIcon.sm, color: p.accentText),
+          const SizedBox(width: AuraSpace.xs),
+          Expanded(
+            child: Text(
+              _partialTranscript.isEmpty
+                  ? 'Te escuchamos. Habla con normalidad.'
+                  : _partialTranscript,
+              style: AppType.bodySmall.copyWith(color: p.accentText),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _attachedNote() {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.only(
+        left: AuraSpace.sm,
+        top: AuraSpace.xxs,
+        right: AuraSpace.xxs,
+        bottom: AuraSpace.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: p.accentSurface,
+        borderRadius: AuraRadius.allSm,
+        border: Border.all(color: p.accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.audiotrack_rounded, size: AuraIcon.sm, color: p.accentText),
+          const SizedBox(width: AuraSpace.xs),
+          Expanded(
+            child: Text(
+              'Nota de voz lista (${_formatDuration(_recordedFor)})',
+              style: AppType.bodySmall.copyWith(
+                fontWeight: FontWeight.w700,
+                color: p.accentText,
+              ),
+            ),
+          ),
+          // Quitar la nota era una equis de 16 px sin nombre: el objetivo
+          // tocable más pequeño de todo el formulario, y el único que borra
+          // algo que la persona acaba de grabar.
+          AuraIconButton(
+            icon: Icons.close_rounded,
+            tooltip: 'Quitar la nota de voz',
+            color: p.error,
+            size: AuraIcon.sm,
+            onPressed: _discardAudio,
+          ),
+        ],
+      ),
     );
   }
 }

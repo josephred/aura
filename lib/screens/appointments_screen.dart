@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../utils/money.dart';
-import 'package:aura/theme/app_theme.dart';
+
 import '../models/appointment.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
+import '../utils/money.dart';
 import 'book_appointment_screen.dart';
 import 'video_call_screen.dart';
 
@@ -25,6 +27,24 @@ String formatAppointmentDate(DateTime dt) {
 /// importe y dos de ellas lo etiquetaban en la moneda equivocada.
 String formatClp(int amount) => Money.format(amount);
 
+/// Agenda de citas.
+///
+/// ## Qué se arregló
+///
+/// - **Un fallo de red ya no se lee como «no tienes citas».** `_refresh` ponía
+///   `_loading = false` pasara lo que pasara, así que una caída de la conexión
+///   pintaba el mismo vacío amable que una agenda realmente vacía. Ahora el
+///   error tiene su propio estado, con reintento, y si hay citas en memoria se
+///   avisa de que la lista puede estar desactualizada en vez de esconderlas.
+/// - **El diálogo de cancelar se entiende.** Se titulaba «Cancelar cita» y sus
+///   dos botones eran «Cancelar cita» y «Volver»: en ese diálogo, «cancelar»
+///   quería decir dos cosas opuestas.
+/// - **Cancelar solo aparece cuando se puede.** `canCancel` era
+///   `appointment.isUpcoming` a secas.
+/// - **Las acciones tienen pesos distintos.** Eran cuatro botones del mismo
+///   tamaño y ninguno mandaba.
+/// - **Las esperas de red se ven.** Unirse a la videoconsulta y verificar el
+///   pago hacen una petición; la tarjeta ahora marca cuál está ocupada.
 class AppointmentsScreen extends StatefulWidget {
   final AppState state;
 
@@ -37,6 +57,14 @@ class AppointmentsScreen extends StatefulWidget {
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   AppPalette get p => context.palette;
   bool _loading = true;
+
+  /// Qué falló al cargar. Distingue «no pudimos traer la agenda» de «la agenda
+  /// está vacía», que antes se dibujaban igual.
+  String? _error;
+
+  /// Id de la cita que tiene una petición en curso. Es por tarjeta y no global
+  /// porque la lista sigue siendo usable mientras una de ellas trabaja.
+  String? _busyId;
 
   @override
   void initState() {
@@ -56,50 +84,92 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _refresh() async {
-    await widget.state.fetchAppointments();
-    if (mounted) setState(() => _loading = false);
+    try {
+      await widget.state.fetchAppointments();
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      // `fetchAppointments` hoy se traga sus propios fallos y devuelve void;
+      // esto recoge lo que se le escape (y lo que empiece a propagar cuando
+      // deje de tragárselos) para no volver a dibujar un vacío inventado.
+      debugPrint('AppointmentsScreen._refresh failed. Error: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No pudimos cargar tus citas.';
+      });
+    }
+  }
+
+  Future<void> _book() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookAppointmentScreen(state: widget.state),
+      ),
+    );
+    await _refresh();
+  }
+
+  void _notify(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? p.error : null,
+      ),
+    );
   }
 
   Future<void> _cancel(Appointment appointment) async {
+    // El título pregunta y cada botón dice qué hace. Antes el diálogo se
+    // titulaba «Cancelar cita», el botón que cancelaba decía «Cancelar cita» y
+    // el que no hacía nada decía «Volver»: la misma palabra para la acción y
+    // para desistir de ella.
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancelar cita'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Cancelar esta cita?'),
         content: Text(
-          '¿Cancelar tu cita con ${appointment.professionalName ?? 'el profesional'} '
-          'del ${formatAppointmentDate(appointment.scheduledAt)}?',
+          'Se cancela la cita con '
+          '${appointment.professionalName ?? 'el profesional'} del '
+          '${formatAppointmentDate(appointment.scheduledAt)}. '
+          'Si la vuelves a necesitar, tendrás que agendarla otra vez.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Volver'),
+          AuraButton.tertiary(
+            label: 'No, mantenerla',
+            onPressed: () => Navigator.pop(dialogContext, false),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancelar cita'),
+          const SizedBox(width: AuraSpace.xs),
+          AuraButton.danger(
+            label: 'Sí, cancelar la cita',
+            expand: false,
+            onPressed: () => Navigator.pop(dialogContext, true),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
+    setState(() => _busyId = appointment.id);
     final error = await widget.state.cancelAppointment(appointment.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Cita cancelada.')),
-    );
+    setState(() => _busyId = null);
+    _notify(error ?? 'Cita cancelada.', isError: error != null);
   }
 
   Future<void> _joinVideo(Appointment appointment) async {
+    setState(() => _busyId = appointment.id);
     final (iceServers, error) =
         await widget.state.fetchVideoJoinConfig(appointment.id);
     if (!mounted) return;
+    setState(() => _busyId = null);
 
     if (iceServers == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error ?? 'No se pudo abrir la videoconsulta.')),
-      );
+      _notify(error ?? 'No se pudo abrir la videoconsulta.', isError: true);
       return;
     }
 
@@ -116,261 +186,324 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 
   Future<void> _verifyPayment(Appointment appointment) async {
-    final approved = await widget.state.verifyAppointmentPayment(appointment.id);
+    setState(() => _busyId = appointment.id);
+    final approved =
+        await widget.state.verifyAppointmentPayment(appointment.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(approved
-            ? '¡Pago confirmado! Tu cita quedó agendada.'
-            : 'Aún no vemos el pago. Si ya pagaste, espera un momento y reintenta.'),
-      ),
+    setState(() => _busyId = null);
+    _notify(
+      approved
+          ? 'Pago confirmado. Tu cita quedó agendada.'
+          : 'Aún no vemos el pago. Si ya pagaste, espera un momento y reintenta.',
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final upcoming =
-        widget.state.appointments.where((a) => a.isUpcoming).toList().reversed.toList();
-    final past =
-        widget.state.appointments.where((a) => !a.isUpcoming).toList();
+
+    // Orden explícito. `upcoming` salía de invertir el orden en que llegaron
+    // del servidor, que no es ningún orden: la próxima cita podía quedar
+    // tercera. Las próximas van de la más cercana a la más lejana; las
+    // anteriores, de la más reciente hacia atrás.
+    final upcoming = widget.state.appointments.where((a) => a.isUpcoming).toList()
+      ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    final past = widget.state.appointments.where((a) => !a.isUpcoming).toList()
+      ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+    final isEmpty = upcoming.isEmpty && past.isEmpty;
 
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
-        backgroundColor: p.background,
-        elevation: 0,
-        foregroundColor: p.textPrimary,
-        title: const Text(
-          'Mis citas',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Mis citas')),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: p.accent,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.calendar_month),
+        foregroundColor: context.scheme.onPrimary,
+        icon: const Icon(Icons.calendar_month_rounded),
         label: const Text('Agendar cita'),
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BookAppointmentScreen(state: widget.state),
-            ),
-          );
-          _refresh();
-        },
+        onPressed: _book,
       ),
       body: _loading
-          ? Center(
-              child: CircularProgressIndicator(color: p.accent))
+          ? const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AuraSpace.screenX,
+                AuraSpace.md,
+                AuraSpace.screenX,
+                0,
+              ),
+              child: AuraReadable(child: _LoadingList()),
+            )
           : RefreshIndicator(
               color: p.accent,
               onRefresh: _refresh,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                // Sin esto, tirar para refrescar no funciona justo cuando más
+                // falta hace: con el estado de error o el vacío en pantalla la
+                // lista no desborda y no acepta el gesto.
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AuraSpace.screenX,
+                  AuraSpace.xs,
+                  AuraSpace.screenX,
+                  AuraSpace.navClearance,
+                ),
                 children: [
-                  if (upcoming.isEmpty && past.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 80),
-                      child: Column(
-                        children: [
-                          Icon(Icons.event_available,
-                              size: 56, color: Colors.teal.shade200),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Aún no tienes citas agendadas.',
-                            style: AppType.bodyMedium.copyWith(color: p.textMuted),
+                  AuraReadable(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Falló la carga y no hay nada que enseñar: esto es un
+                        // error, no una agenda vacía.
+                        if (_error != null && isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AuraSpace.xxl),
+                            child: AuraErrorState(
+                              title: 'No pudimos cargar tus citas',
+                              message:
+                                  'Revisa tu conexión e inténtalo de nuevo. '
+                                  'Tus citas siguen agendadas.',
+                              onRetry: _refresh,
+                            ),
+                          )
+                        // Falló la carga pero hay citas guardadas: se muestran,
+                        // avisando de que pueden no estar al día. Esconder
+                        // datos que sí tenemos es peor que mostrarlos con una
+                        // advertencia.
+                        else if (_error != null) ...[
+                          const SizedBox(height: AuraSpace.xs),
+                          AuraBanner(
+                            tone: AuraTone.warning,
+                            title: 'Lista sin actualizar',
+                            message:
+                                'No pudimos contactar con el servidor, así que '
+                                'esto es lo último que teníamos guardado.',
+                            actionLabel: 'Reintentar',
+                            onAction: _refresh,
                           ),
                         ],
-                      ),
+
+                        if (_error == null && isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AuraSpace.xxl),
+                            child: AuraEmptyState(
+                              icon: Icons.event_available_rounded,
+                              title: 'Aún no tienes citas',
+                              message:
+                                  'Aquí aparecerán tus consultas con fecha y '
+                                  'hora, presenciales o por videollamada.',
+                              actionLabel: 'Agendar una cita',
+                              onAction: _book,
+                            ),
+                          ),
+
+                        if (upcoming.isNotEmpty) ...[
+                          const SizedBox(height: AuraSpace.md),
+                          const AuraSectionHeader(title: 'Próximas'),
+                          for (final a in upcoming) ...[
+                            _buildCard(a),
+                            const SizedBox(height: AuraSpace.sm),
+                          ],
+                        ],
+                        if (past.isNotEmpty) ...[
+                          const SizedBox(height: AuraSpace.md),
+                          const AuraSectionHeader(title: 'Anteriores'),
+                          for (final a in past) ...[
+                            _buildCard(a),
+                            const SizedBox(height: AuraSpace.sm),
+                          ],
+                        ],
+                      ],
                     ),
-                  if (upcoming.isNotEmpty) ...[
-                    _sectionTitle('Próximas'),
-                    ...upcoming.map(_buildCard),
-                  ],
-                  if (past.isNotEmpty) ...[
-                    _sectionTitle('Anteriores'),
-                    ...past.map(_buildCard),
-                  ],
+                  ),
                 ],
               ),
             ),
     );
   }
 
-  Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-        child: Text(
-          text.toUpperCase(),
-          style: AppType.label.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-            color: p.textMuted,
-          ),
-        ),
-      );
+  /// Estado e insignia de una cita.
+  ///
+  /// Los chips anteriores pintaban el color de estado con `alpha: 0.12` sobre
+  /// la tarjeta: en modo oscuro ese tinte desaparecía y quedaba texto de color
+  /// flotando. [AuraBadge] trae la superficie y el texto ya emparejados en las
+  /// dos paletas.
+  ({String label, AuraTone tone}) _statusBadge(AppointmentStatus status) {
+    return switch (status) {
+      AppointmentStatus.confirmed => (label: 'Confirmada', tone: AuraTone.success),
+      AppointmentStatus.pendingPayment => (
+        label: 'Pago pendiente',
+        tone: AuraTone.warning,
+      ),
+      AppointmentStatus.completed => (
+        label: 'Completada',
+        tone: AuraTone.neutral,
+      ),
+      AppointmentStatus.cancelled => (label: 'Cancelada', tone: AuraTone.error),
+      AppointmentStatus.noShow => (label: 'No asistió', tone: AuraTone.warning),
+      // Antes se dibujaba un guion. Un guion no es un estado: no dice si la
+      // cita está en pie, y deja a quien usa lector de pantalla sin nada.
+      AppointmentStatus.unknown => (
+        label: 'Estado no disponible',
+        tone: AuraTone.neutral,
+      ),
+    };
+  }
 
   Widget _buildCard(Appointment appointment) {
-    final (chipText, chipColor) = switch (appointment.status) {
-      AppointmentStatus.confirmed => ('Confirmada', p.accent),
-      AppointmentStatus.pendingPayment => ('Pago pendiente', const Color(0xFFF59E0B)),
-      AppointmentStatus.completed => ('Completada', const Color(0xFF10B981)),
-      AppointmentStatus.cancelled => ('Cancelada', const Color(0xFFEF4444)),
-      AppointmentStatus.noShow => ('No asistió', const Color(0xFFEF4444)),
-      AppointmentStatus.unknown => ('—', p.textMuted),
-    };
-
+    final badge = _statusBadge(appointment.status);
     final isPendingPayment =
         appointment.status == AppointmentStatus.pendingPayment;
-    final canCancel = appointment.isUpcoming;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: p.border),
-      ),
+    // Cancelar solo tiene sentido en una cita que sigue en pie. Antes la
+    // condición era `isUpcoming` a secas, y por tanto dependía de que la
+    // definición de `isUpcoming` siguiera filtrando por estado: el día que deje
+    // de hacerlo, una cita ya cancelada volvería a ofrecer "Cancelar cita".
+    final canCancel =
+        appointment.isUpcoming &&
+        (appointment.status == AppointmentStatus.confirmed ||
+            appointment.status == AppointmentStatus.pendingPayment);
+
+    final busy = _busyId == appointment.id;
+    final specialty = appointment.specialty?.trim() ?? '';
+
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
                   appointment.professionalName ?? 'Profesional Aura',
-                  style: AppType.bodyMedium.copyWith(
+                  style: AppType.bodyLarge.copyWith(
                     fontWeight: FontWeight.w700,
                     color: p.textPrimary,
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: chipColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  chipText,
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: chipColor,
-                  ),
-                ),
-              ),
+              const SizedBox(width: AuraSpace.xs),
+              // Flexible y no fijo: con la letra al 200 %, "Estado no
+              // disponible" es más ancho que la tarjeta y así se parte en dos
+              // líneas en vez de desbordar sobre el nombre.
+              Flexible(child: AuraBadge(label: badge.label, tone: badge.tone)),
             ],
           ),
-          const SizedBox(height: 4),
+          if (specialty.isNotEmpty) ...[
+            const SizedBox(height: AuraSpace.xxxs),
+            Text(
+              specialty,
+              style: AppType.bodySmall.copyWith(color: p.textMuted),
+            ),
+          ],
+          if (appointment.isVideo) ...[
+            const SizedBox(height: AuraSpace.xs),
+            const AuraBadge(
+              label: 'Videoconsulta',
+              tone: AuraTone.info,
+              icon: Icons.videocam_rounded,
+            ),
+          ],
+          const SizedBox(height: AuraSpace.sm),
           Row(
             children: [
-              if (appointment.isVideo) ...[
-                const Icon(Icons.videocam, size: 14, color: Color(0xFF7C3AED)),
-                const SizedBox(width: 4),
-                Text(
-                  'Videoconsulta',
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF7C3AED),
-                  ),
-                ),
-                Text(
-                  ' · ',
-                  style: AppType.label.copyWith(color: p.textMuted),
-                ),
-              ],
+              Icon(Icons.schedule_rounded, size: AuraIcon.sm, color: p.accent),
+              const SizedBox(width: AuraSpace.xs),
               Expanded(
                 child: Text(
-                  appointment.specialty ?? '',
-                  style: AppType.bodySmall.copyWith(color: p.textMuted),
+                  formatAppointmentDate(appointment.scheduledAt),
+                  style: AppType.bodySmall.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: p.textSecondary,
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.schedule, size: 15, color: p.accent),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                formatAppointmentDate(appointment.scheduledAt),
-                style: AppType.bodySmall.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: p.textSecondary,
-                ),
-              ),
-              ),
-              const Spacer(),
-              Flexible(
-                child: Text(
+              const SizedBox(width: AuraSpace.xs),
+              Text(
                 formatClp(appointment.price),
                 style: AppType.bodyMedium.copyWith(
                   fontWeight: FontWeight.w700,
                   color: p.textPrimary,
                 ),
               ),
-              ),
             ],
           ),
-          if (isPendingPayment || canCancel) const SizedBox(height: 12),
+
+          // Jerarquía de acciones: la videoconsulta o el pago mandan (una sola
+          // primaria, y nunca las dos a la vez: unirse exige la cita
+          // confirmada). «Ya pagué» y «Cancelar» bajan a texto.
           if (appointment.canJoinVideo) ...[
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C3AED),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () => _joinVideo(appointment),
-                icon: const Icon(Icons.videocam, size: 18),
-                label: const Text(
-                  'Unirse a la videoconsulta',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+            const SizedBox(height: AuraSpace.md),
+            AuraButton(
+              label: 'Unirse a la videoconsulta',
+              icon: Icons.videocam_rounded,
+              loading: busy,
+              onPressed: busy ? null : () => _joinVideo(appointment),
             ),
-            const SizedBox(height: 8),
           ],
-          if (isPendingPayment)
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF009EE3), // MP blue
-                    ),
-                    onPressed: appointment.paymentUrl == null
-                        ? null
-                        : () =>
-                            widget.state.openCheckoutUrl(appointment.paymentUrl!),
-                    icon: const Icon(Icons.account_balance_wallet, size: 16),
-                    label: const Text('Pagar'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _verifyPayment(appointment),
-                    child: const Text('Ya pagué'),
-                  ),
-                ),
-              ],
+          if (isPendingPayment) ...[
+            const SizedBox(height: AuraSpace.md),
+            AuraButton(
+              label: 'Pagar',
+              icon: Icons.account_balance_wallet_rounded,
+              onPressed: appointment.paymentUrl == null || busy
+                  ? null
+                  : () =>
+                      widget.state.openCheckoutUrl(appointment.paymentUrl!),
             ),
-          if (canCancel)
+            if (appointment.paymentUrl == null) ...[
+              const SizedBox(height: AuraSpace.xs),
+              // Un botón inhabilitado sin explicación es un callejón: se dice
+              // por qué no se puede pagar todavía.
+              Text(
+                'El enlace de pago todavía no está disponible. Desliza hacia '
+                'abajo para actualizar.',
+                style: AppType.bodySmall.copyWith(color: p.textMuted),
+              ),
+            ],
+            const SizedBox(height: AuraTap.gap),
+            AuraButton(
+              label: 'Ya pagué',
+              kind: AuraButtonKind.tertiary,
+              size: AuraButtonSize.small,
+              loading: busy,
+              expand: true,
+              onPressed: busy ? null : () => _verifyPayment(appointment),
+            ),
+          ],
+          if (canCancel) ...[
+            const SizedBox(height: AuraSpace.xs),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFEF4444)),
-                onPressed: () => _cancel(appointment),
-                child: const Text('Cancelar cita'),
+              child: AuraButton(
+                label: 'Cancelar cita',
+                // Entrada discreta, confirmación contundente: el rojo vive en
+                // el botón del diálogo, que es donde la acción es irreversible.
+                kind: AuraButtonKind.tertiary,
+                size: AuraButtonSize.small,
+                expand: false,
+                onPressed: busy ? null : () => _cancel(appointment),
               ),
             ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Siluetas mientras llega la agenda: conservan la forma de la lista, así que
+/// la pantalla no salta cuando entran los datos.
+class _LoadingList extends StatelessWidget {
+  const _LoadingList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AuraSpace.md),
+        AuraSkeleton.list(count: 3, height: 128),
+      ],
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
 /// A.3 — guía de ayuda paso a paso para el primer ingreso.
 ///
@@ -27,9 +29,12 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
 
   /// Pasos de la guía. `video` queda vacío hasta que existan los tutoriales
   /// grabados; poner ahí la URL es todo lo que hace falta para activarlos.
+  ///
+  /// Los títulos ya no llevan «1.», «2.»: el pie del diálogo dice en qué paso
+  /// estás, y numerarlo dos veces solo alargaba el titular.
   static const List<Map<String, String>> _tutorials = [
     {
-      'title': '1. Cómo solicitar médico a domicilio',
+      'title': 'Cómo pedir un médico a domicilio',
       'description':
           'Elige "Médico a domicilio" en el catálogo, describe al menos dos '
           'síntomas (por ejemplo "fiebre y dolor de cabeza") y confirma tu '
@@ -38,7 +43,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
       'video': '',
     },
     {
-      'title': '2. Seguimiento y mapa en tiempo real',
+      'title': 'Seguimiento y mapa en tiempo real',
       'description':
           'Una vez que un profesional toma tu solicitud verás quién es, podrás '
           'abrir su ficha con su registro y experiencia, y seguir su llegada '
@@ -47,7 +52,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
       'video': '',
     },
     {
-      'title': '3. Toma de muestras y exámenes',
+      'title': 'Toma de muestras y exámenes',
       'description':
           'El laboratorio no es un servicio de urgencia: eliges un bloque de '
           'horario que el laboratorista publicó, indicas los exámenes y '
@@ -56,7 +61,7 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
       'video': '',
     },
     {
-      'title': '4. Videoconsultas y resultados',
+      'title': 'Videoconsultas y resultados',
       'description':
           'Puedes agendar una consulta por videollamada, y descargar tus '
           'informes de laboratorio desde "Mis exámenes". También te llegan '
@@ -66,144 +71,187 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
     },
   ];
 
+  bool get _isLast => _currentStep == _tutorials.length - 1;
+
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     final tutorial = _tutorials[_currentStep];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.play_circle_fill_rounded,
-                        color: Color(0xFF0F766E),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Primeros pasos en Aura',
-                      style: AppType.titleMedium.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  tooltip: 'Cerrar la guía',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              height: 140,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F766E), Color(0xFF0F766E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: p.card,
+      elevation: 0,
+      shape: const RoundedRectangleBorder(borderRadius: AuraRadius.allXl),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AuraSpace.md,
+        vertical: AuraSpace.xl,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Padding(
+          padding: const EdgeInsets.all(AuraSpace.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _titleBar(p),
+              const SizedBox(height: AuraSpace.md),
+              // El cuerpo se desplaza en vez de recortarse: con la letra
+              // grande, la descripción de un paso no cabe en el alto del
+              // diálogo y antes salía la franja de desbordamiento.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _getIconData(tutorial['icon']!),
-                        size: 44,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(height: 8),
-                      _buildStepBadge(tutorial),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              tutorial['title']!,
-              style: AppType.titleSmall.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              tutorial['description']!,
-              style: AppType.bodySmall.copyWith(
-                color: isDark ? Colors.grey[300] : Colors.grey[700],
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Text(
-                    'Paso ${_currentStep + 1} de ${_tutorials.length}',
-                    style: AppType.label.copyWith(color: Colors.grey),
-                  ),
-                ),
-                Row(
-                  children: [
-                    if (_currentStep > 0)
-                      TextButton(
-                        onPressed: () => setState(() => _currentStep--),
-                        child: const Text('Anterior'),
-                      ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F766E),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                      _hero(p, tutorial),
+                      const SizedBox(height: AuraSpace.md),
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          tutorial['title']!,
+                          style: AppType.titleSmall.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: p.textPrimary,
+                          ),
                         ),
                       ),
-                      onPressed: () {
-                        if (_currentStep < _tutorials.length - 1) {
-                          setState(() => _currentStep++);
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(
-                        _currentStep == _tutorials.length - 1
-                            ? 'Entendido'
-                            : 'Siguiente',
+                      const SizedBox(height: AuraSpace.xs),
+                      Text(
+                        tutorial['description']!,
+                        style: AppType.bodySmall.copyWith(
+                          color: p.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
+              const SizedBox(height: AuraSpace.lg),
+              _footer(p),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _titleBar(AppPalette p) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AuraSpace.xs),
+          decoration: BoxDecoration(
+            color: p.accentSurface,
+            borderRadius: AuraRadius.allSm,
+          ),
+          child: Icon(
+            Icons.play_circle_fill_rounded,
+            color: p.accentText,
+            size: AuraIcon.md,
+          ),
+        ),
+        const SizedBox(width: AuraSpace.sm),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              'Primeros pasos en Aura',
+              style: AppType.titleMedium.copyWith(
+                fontWeight: FontWeight.w700,
+                color: p.textPrimary,
+              ),
+            ),
+          ),
+        ),
+        AuraIconButton(
+          icon: Icons.close_rounded,
+          tooltip: 'Cerrar la guía',
+          color: p.textMuted,
+          onPressed: () => Navigator.pop(context),
+        ),
+      ],
+    );
+  }
+
+  /// Banda de color con el icono del paso.
+  ///
+  /// Antes era un `LinearGradient` entre dos veces el mismo verde —es decir,
+  /// un relleno plano con el coste de un degradado— y el alto estaba clavado
+  /// en 140 px: el bloque no crecía con la letra, tenía que caber a la fuerza.
+  Widget _hero(AppPalette p, Map<String, String> tutorial) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 140),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AuraSpace.md,
+        vertical: AuraSpace.lg,
+      ),
+      decoration: BoxDecoration(
+        color: p.brandDeep,
+        borderRadius: AuraRadius.allMd,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _getIconData(tutorial['icon']!),
+            size: AuraIcon.display,
+            color: p.onBrandDeep,
+          ),
+          const SizedBox(height: AuraSpace.xs),
+          _buildStepBadge(tutorial),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer(AppPalette p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            'Paso ${_currentStep + 1} de ${_tutorials.length}',
+            style: AppType.bodySmall.copyWith(color: p.textMuted),
+          ),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        Row(
+          children: [
+            if (_currentStep > 0) ...[
+              Expanded(
+                child: AuraButton.secondary(
+                  label: 'Anterior',
+                  icon: Icons.arrow_back_rounded,
+                  onPressed: () => setState(() => _currentStep--),
+                ),
+              ),
+              const SizedBox(width: AuraTap.gap),
+            ],
+            Expanded(
+              flex: 2,
+              child: AuraButton.primary(
+                label: _isLast ? 'Entendido' : 'Siguiente',
+                size: AuraButtonSize.medium,
+                icon: _isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
+                trailingIcon: true,
+                onPressed: () {
+                  if (_isLast) {
+                    Navigator.pop(context);
+                  } else {
+                    setState(() => _currentStep++);
+                  }
+                },
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 
@@ -213,32 +261,38 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
   /// de paso. Anunciar "Reproducir video guía (0:45)" sobre un contenedor
   /// inerte hace que la ayuda parezca rota, que es peor que no ofrecerla.
   Widget _buildStepBadge(Map<String, String> tutorial) {
+    final p = context.palette;
     final video = tutorial['video'] ?? '';
     final hasVideo = video.isNotEmpty;
+    final label = hasVideo
+        ? 'Ver el video'
+        : 'Paso ${_currentStep + 1} de ${_tutorials.length}';
 
     final badge = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      constraints: BoxConstraints(minHeight: hasVideo ? AuraTap.min : 0),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AuraSpace.sm,
+        vertical: AuraSpace.xxs,
+      ),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(20),
+        color: p.onBrandDeep.withValues(alpha: 0.16),
+        borderRadius: AuraRadius.allPill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             hasVideo ? Icons.play_arrow_rounded : Icons.menu_book_rounded,
-            color: Colors.white,
-            size: 14,
+            color: p.onBrandDeep,
+            size: AuraIcon.sm,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AuraSpace.xxs),
           Flexible(
             child: Text(
-              hasVideo
-                  ? 'Ver video'
-                  : 'Paso ${_currentStep + 1} de ${_tutorials.length}',
+              label,
               style: AppType.label.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+                color: p.onBrandDeep,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -248,12 +302,26 @@ class _VideoOnboardingDialogState extends State<VideoOnboardingDialog> {
 
     if (!hasVideo) return badge;
 
-    return GestureDetector(
-      onTap: () => launchUrl(
-        Uri.parse(video),
-        mode: LaunchMode.externalApplication,
+    // Cuando el distintivo abre algo, es un botón: 44 px de alto y anunciado
+    // como tal. Antes era un `GestureDetector` de unos 25 px sobre un
+    // contenedor que un lector de pantalla leía como texto suelto.
+    return Semantics(
+      button: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: AuraRadius.allPill,
+          child: InkWell(
+            borderRadius: AuraRadius.allPill,
+            onTap: () => launchUrl(
+              Uri.parse(video),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: badge,
+          ),
+        ),
       ),
-      child: badge,
     );
   }
 

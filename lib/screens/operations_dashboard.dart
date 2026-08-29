@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/staff_models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
 /// Operations panel for coordinators, mirroring the web `/admin` panel.
 ///
@@ -57,8 +58,8 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E293B), Color(0xFF475569)],
+              gradient: LinearGradient(
+                colors: [p.brandDeep, p.brandDeep],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -66,10 +67,10 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
             ),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 28,
-                  backgroundColor: Color(0xFFF1F5F9),
-                  child: Icon(Icons.tune, color: Color(0xFF0F172A), size: 28),
+                  backgroundColor: p.onBrandDeep,
+                  child: Icon(Icons.tune, color: p.brandDeep, size: AuraIcon.lg),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -79,14 +80,14 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                       Text(
                         state.staffProfile?.name ?? 'Panel de Operaciones',
                         style: AppType.titleMedium.copyWith(
-                          color: Colors.white,
+                          color: p.onBrandDeep,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Coordinación · sin área clínica',
-                        style: AppType.label.copyWith(color: const Color(0xFFCBD5E1)),
+                        style: AppType.bodySmall.copyWith(color: p.onBrandDeep.withValues(alpha: 0.85)),
                       ),
                     ],
                   ),
@@ -137,25 +138,25 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
           'Prestadores en turno',
           '${m.professionalsOnDuty} / ${m.professionalsTotal}',
           Icons.people,
-          const Color(0xFF0F766E),
+          p.accent,
         ),
         _metricCard(
           'Solicitudes abiertas',
           '${m.openRequests}',
           Icons.assignment_turned_in,
-          const Color(0xFF3B82F6),
+          p.info,
         ),
         _metricCard(
           'Demora promedio',
           '${m.averageEtaMinutes} min',
           Icons.timer,
-          const Color(0xFFF59E0B),
+          p.warning,
         ),
         _metricCard(
           'Completadas hoy',
           '${m.completedToday}',
           Icons.check_circle_outline,
-          const Color(0xFF10B981),
+          p.success,
         ),
       ],
     );
@@ -216,10 +217,10 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
       child: Column(
         children: zones.map((zone) {
           final (Color color, String label) = zone.uncovered
-              ? (const Color(0xFFEF4444), 'SIN COBERTURA')
+              ? (p.error, 'Sin cobertura')
               : zone.saturated
-                  ? (const Color(0xFFF59E0B), 'SATURADA')
-                  : (const Color(0xFF10B981), 'AL DÍA');
+                  ? (p.warning, 'SATURADA')
+                  : (p.success, 'AL DÍA');
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -280,11 +281,11 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
       ),
       child: Column(
         children: providers.map((provider) {
-          Color statusColor = const Color(0xFF10B981);
+          Color statusColor = p.success;
           if (provider.dutyStatus == 'ocupado') {
-            statusColor = const Color(0xFFF59E0B);
+            statusColor = p.warning;
           } else if (provider.dutyStatus == 'desconectado') {
-            statusColor = const Color(0xFFEF4444);
+            statusColor = p.error;
           }
 
           return Padding(
@@ -347,8 +348,8 @@ class _OperationsDashboardState extends State<OperationsDashboard> {
                           error ?? '${provider.name} cambiado a "$value".',
                         ),
                         backgroundColor: error == null
-                            ? const Color(0xFF0F766E)
-                            : const Color(0xFFDC2626),
+                            ? p.accent
+                            : p.error,
                         duration: const Duration(seconds: 2),
                       ),
                     );

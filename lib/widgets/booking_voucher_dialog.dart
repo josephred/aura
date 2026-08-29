@@ -7,9 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 import '../utils/money.dart';
 
-/// Datos que alimentan el voucher / comprobante de atención.
+/// Datos que alimentan el comprobante de la atención.
 class BookingVoucherData {
   final String folio;
   final String serviceTitle;
@@ -45,6 +46,12 @@ class BookingVoucherData {
     this.paymentStatus,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  /// Texto que se comparte por WhatsApp o correo.
+  ///
+  /// El formato está cubierto por pruebas y se envía fuera de la app, donde no
+  /// hay tipografía ni color que ordenen la información: por eso aquí sí se
+  /// usan mayúsculas y emojis, y por eso este método no cambia al migrar la
+  /// pantalla.
   String toShareableText() {
     final dateStr = DateFormat("dd/MM/yyyy 'a las' HH:mm").format(createdAt);
     final buffer = StringBuffer();
@@ -76,7 +83,8 @@ class BookingVoucherData {
   }
 }
 
-/// Muestra el modal de voucher de confirmación con opciones de compartir, descargar y continuar.
+/// Muestra el comprobante de la solicitud confirmada, con las opciones de
+/// compartirlo, guardarlo y pasar al seguimiento.
 Future<void> showBookingVoucherDialog({
   required BuildContext context,
   required BookingVoucherData voucher,
@@ -116,7 +124,7 @@ class _BookingVoucherDialogState extends State<BookingVoucherDialog> {
     await SharePlus.instance.share(
       ShareParams(
         text: text,
-        subject: 'Comprobante de Atención AURA #${widget.voucher.folio}',
+        subject: 'Comprobante de atención Aura #${widget.voucher.folio}',
       ),
     );
   }
@@ -126,47 +134,30 @@ class _BookingVoucherDialogState extends State<BookingVoucherDialog> {
     try {
       final text = widget.voucher.toShareableText();
 
-      // Guardar también en el portapapeles para acceso inmediato
+      // También al portapapeles: es la vía más rápida para pegarlo en un chat.
       await Clipboard.setData(ClipboardData(text: text));
 
-      // Guardar archivo físico en el directorio de documentos o temporal
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/Comprobante_AURA_${widget.voucher.folio}.txt');
       await file.writeAsString(text);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF0F766E),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '¡Comprobante guardado y copiado al portapapeles!',
-                    style: AppType.bodySmall.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        _showNotice(
+          tone: AuraTone.success,
+          icon: Icons.check_circle_outline_rounded,
+          message: 'Guardamos el comprobante y lo copiamos para que puedas pegarlo.',
         );
       }
     } catch (e) {
+      // El texto de la excepción se queda en el registro. Antes se le mostraba
+      // tal cual a la persona: «No se pudo guardar el archivo: FileSystemException…»
+      // no dice qué hacer y, en una pantalla de confirmación, asusta.
+      debugPrint('No se pudo guardar el comprobante: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFFDC2626),
-            content: Text('No se pudo guardar el archivo: $e'),
-          ),
+        _showNotice(
+          tone: AuraTone.error,
+          icon: Icons.error_outline_rounded,
+          message: 'No pudimos guardar el archivo. Prueba a compartirlo.',
         );
       }
     } finally {
@@ -174,400 +165,91 @@ class _BookingVoucherDialogState extends State<BookingVoucherDialog> {
     }
   }
 
+  void _showNotice({
+    required String message,
+    required AuraTone tone,
+    required IconData icon,
+  }) {
+    final c = auraToneColors(context, tone);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: c.surface,
+        content: Row(
+          children: [
+            Icon(icon, color: c.onSurface, size: AuraIcon.md),
+            const SizedBox(width: AuraSpace.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: AppType.bodySmall.copyWith(
+                  color: c.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final isDark = context.isDark;
     final v = widget.voucher;
-    String dateStr;
-    try {
-      dateStr = DateFormat("dd 'de' MMMM, HH:mm 'hrs'", 'es').format(v.createdAt);
-    } catch (_) {
-      dateStr = DateFormat("dd/MM/yyyy, HH:mm 'hrs'").format(v.createdAt);
-    }
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AuraSpace.md,
+        vertical: AuraSpace.xl,
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: Container(
           decoration: BoxDecoration(
             color: p.card,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.2),
-                blurRadius: 24,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            borderRadius: AuraRadius.allXl,
+            boxShadow: AuraShadow.overlay(context.isDark),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: AuraRadius.allXl,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header con degradado médico y checkmark
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF0F766E), // teal-700
-                        Color(0xFF14B8A6), // teal-500
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check_circle_rounded,
-                          color: Colors.white,
-                          size: 42,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        '¡Solicitud Confirmada!',
-                        textAlign: TextAlign.center,
-                        style: AppType.titleMedium.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Comprobante Digital de Atención',
-                        textAlign: TextAlign.center,
-                        style: AppType.bodySmall.copyWith(
-                          color: const Color(0xFFCCFBF1),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.tag_rounded,
-                              color: Color(0xFF5EEAD4),
-                              size: 15,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'FOLIO: #${v.folio}',
-                              style: AppType.label.copyWith(
-                                color: const Color(0xFFF0FDFA),
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Contenido del Ticket / Voucher con Scroll si es necesario
+                _header(p, v),
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AuraSpace.lg,
+                      vertical: AuraSpace.md,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Servicio + ETA
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: p.accentSurface.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: p.accentSurface),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: p.accent,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  v.serviceIcon,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      v.serviceTitle,
-                                      style: AppType.bodyMedium.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: p.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.access_time_rounded,
-                                          size: 13,
-                                          color: p.accentText,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Arribo estimado: ${v.etaMinutes} min',
-                                          style: AppType.bodySmall.copyWith(
-                                            color: p.accentText,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        _serviceBlock(p, v),
+                        const SizedBox(height: AuraSpace.sm),
+                        ..._detailRows(v),
+                        _ticketDivider(p),
+                        AuraSummaryRow(
+                          label: 'Total',
+                          value: Money.format(v.finalPrice, withCode: true),
+                          strong: true,
                         ),
-                        const SizedBox(height: 14),
-
-                        // Fila Fecha y Hora
-                        _buildInfoRow(
-                          p: p,
-                          icon: Icons.calendar_today_rounded,
-                          label: 'Fecha y Hora',
-                          value: dateStr,
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Fila Paciente
-                        _buildInfoRow(
-                          p: p,
-                          icon: Icons.person_rounded,
-                          label: 'Paciente Beneficiario',
-                          value: v.patientName + (v.relationship != null ? ' (${v.relationship})' : ''),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Fila Dirección / Ruta
-                        if (v.originAddress != null && v.originAddress!.isNotEmpty) ...[
-                          _buildInfoRow(
-                            p: p,
-                            icon: Icons.trip_origin_rounded,
-                            label: 'Origen del Traslado',
-                            value: v.originAddress!,
+                        // Mismo motivo que el arribo: sin traslado, la frase
+                        // cobraba por algo que nadie hace.
+                        if (v.etaMinutes > 0)
+                          Text(
+                            'El monto incluye los insumos y el traslado.',
+                            style: AppType.bodySmall.copyWith(color: p.textMuted),
                           ),
-                          const SizedBox(height: 8),
-                          if (v.destinationAddress != null && v.destinationAddress!.isNotEmpty)
-                            _buildInfoRow(
-                              p: p,
-                              icon: Icons.flag_rounded,
-                              label: 'Destino del Traslado',
-                              value: v.destinationAddress!,
-                            ),
-                        ] else ...[
-                          _buildInfoRow(
-                            p: p,
-                            icon: Icons.location_on_rounded,
-                            label: 'Dirección de Atención',
-                            value: v.address,
-                          ),
-                        ],
-                        const SizedBox(height: 10),
-
-                        // Fila Síntomas / Motivo
-                        if (v.symptomsOrReason != null && v.symptomsOrReason!.trim().isNotEmpty) ...[
-                          _buildInfoRow(
-                            p: p,
-                            icon: Icons.healing_rounded,
-                            label: 'Síntomas / Motivo Clínico',
-                            value: v.symptomsOrReason!,
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-
-                        // Línea divisoria tipo Ticket
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: List.generate(
-                              24,
-                              (i) => Expanded(
-                                child: Container(
-                                  color: i.isEven ? p.border : Colors.transparent,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Fila Tarifa Total
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total Cotizado',
-                              style: AppType.bodySmall.copyWith(
-                                color: p.textMuted,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            RichText(
-                              text: TextSpan(
-                                text: '${Money.format(v.finalPrice)} ',
-                                style: AppType.titleMedium.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                  color: p.textPrimary,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: Money.code,
-                                    style: AppType.label.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: p.accent,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Center(
-                          child: Text(
-                            'Incluye insumos médicos clínicos y traslado',
-                            style: AppType.label.copyWith(
-                              color: p.textFaint,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                 ),
-
-                // Divisor inferior
-                Divider(height: 1, color: p.fill),
-
-                // Barra de Acciones (Compartir, Descargar, Continuar)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _shareVoucher,
-                              icon: const Icon(Icons.share_rounded, size: 16),
-                              label: Text(
-                                'Compartir',
-                                style: AppType.bodySmall.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                foregroundColor: p.accent,
-                                side: BorderSide(color: p.accent),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isSaving ? null : _downloadAndSaveVoucher,
-                              icon: _isSaving
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.download_rounded, size: 16),
-                              label: Text(
-                                'Guardar',
-                                style: AppType.bodySmall.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                foregroundColor: p.textPrimary,
-                                side: BorderSide(color: p.border),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 46,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context, rootNavigator: true).pop();
-                            if (widget.onTrack != null) {
-                              widget.onTrack!();
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: p.accent,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.radar_rounded, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Ver Seguimiento en Vivo',
-                                style: AppType.button.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                Divider(height: 1, color: p.border),
+                _actions(),
               ],
             ),
           ),
@@ -576,43 +258,275 @@ class _BookingVoucherDialogState extends State<BookingVoucherDialog> {
     );
   }
 
-  Widget _buildInfoRow({
-    required AppPalette p,
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 15, color: p.textMuted),
+  Widget _header(AppPalette p, BookingVoucherData v) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        AuraSpace.lg,
+        AuraSpace.xl,
+        AuraSpace.lg,
+        AuraSpace.lg,
+      ),
+      color: p.brandDeep,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AuraSpace.sm),
+            decoration: BoxDecoration(
+              color: p.onBrandDeep.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_circle_rounded,
+              color: p.onBrandDeep,
+              size: AuraIcon.display,
+            ),
+          ),
+          const SizedBox(height: AuraSpace.sm),
+          Semantics(
+            header: true,
+            child: Text(
+              'Solicitud confirmada',
+              textAlign: TextAlign.center,
+              style: AppType.titleMedium.copyWith(
+                color: p.onBrandDeep,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: AuraSpace.xxs),
+          Text(
+            'Este es tu comprobante. Puedes guardarlo o enviarlo.',
+            textAlign: TextAlign.center,
+            style: AppType.bodySmall.copyWith(
+              color: p.onBrandDeep.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: AuraSpace.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AuraSpace.sm,
+              vertical: AuraSpace.xxs + 1,
+            ),
+            decoration: BoxDecoration(
+              color: p.onBrandDeep.withValues(alpha: 0.16),
+              borderRadius: AuraRadius.allPill,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tag_rounded, color: p.onBrandDeep, size: AuraIcon.sm),
+                const SizedBox(width: AuraSpace.xxs),
+                Flexible(
+                  child: Text(
+                    'Folio #${v.folio}',
+                    style: AppType.label.copyWith(
+                      color: p.onBrandDeep,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _serviceBlock(AppPalette p, BookingVoucherData v) {
+    return Container(
+      padding: const EdgeInsets.all(AuraSpace.sm),
+      decoration: BoxDecoration(
+        color: p.accentSurface,
+        borderRadius: AuraRadius.allMd,
+        border: Border.all(color: p.accent.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: p.accent,
+              borderRadius: AuraRadius.allSm,
+            ),
+            child: Icon(
+              v.serviceIcon,
+              color: context.scheme.onPrimary,
+              size: AuraIcon.md,
+            ),
+          ),
+          const SizedBox(width: AuraSpace.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  v.serviceTitle,
+                  style: AppType.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
+                ),
+                // El comprobante del laboratorio y el de la videoconsulta se
+                // crean con `etaMinutes: 0` porque ahí nadie va en camino:
+                // «Llega en unos 0 min» anunciaba una atención inmediata que
+                // no existe.
+                if (v.etaMinutes > 0) ...[
+                  const SizedBox(height: AuraSpace.xxxs),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: AuraIcon.sm,
+                        color: p.accentText,
+                      ),
+                      const SizedBox(width: AuraSpace.xxs),
+                      Flexible(
+                        child: Text(
+                          'Llega en unos ${v.etaMinutes} min',
+                          style: AppType.bodySmall.copyWith(
+                            color: p.accentText,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _detailRows(BookingVoucherData v) {
+    String dateStr;
+    try {
+      dateStr = DateFormat("dd 'de' MMMM, HH:mm", 'es').format(v.createdAt);
+    } catch (_) {
+      dateStr = DateFormat('dd/MM/yyyy, HH:mm').format(v.createdAt);
+    }
+
+    final hasRoute = v.originAddress != null && v.originAddress!.isNotEmpty;
+
+    return [
+      AuraSummaryRow(
+        icon: Icons.calendar_today_rounded,
+        label: 'Fecha y hora',
+        value: dateStr,
+      ),
+      AuraSummaryRow(
+        icon: Icons.person_rounded,
+        label: 'Paciente',
+        value: v.patientName +
+            (v.relationship != null ? ' (${v.relationship})' : ''),
+      ),
+      if (v.ambulanceType != null && v.ambulanceType!.isNotEmpty)
+        AuraSummaryRow(
+          icon: Icons.local_hospital_rounded,
+          label: 'Tipo de traslado',
+          value: v.ambulanceType!,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      if (hasRoute) ...[
+        AuraSummaryRow(
+          icon: Icons.trip_origin_rounded,
+          label: 'Desde',
+          value: v.originAddress!,
+        ),
+        if (v.destinationAddress != null && v.destinationAddress!.isNotEmpty)
+          AuraSummaryRow(
+            icon: Icons.flag_rounded,
+            label: 'Hasta',
+            value: v.destinationAddress!,
+          ),
+      ] else
+        AuraSummaryRow(
+          icon: Icons.location_on_rounded,
+          label: 'Dirección',
+          value: v.address,
+        ),
+      if (v.symptomsOrReason != null && v.symptomsOrReason!.trim().isNotEmpty)
+        AuraSummaryRow(
+          icon: Icons.healing_rounded,
+          label: 'Motivo',
+          value: v.symptomsOrReason!,
+        ),
+    ];
+  }
+
+  /// El borde troquelado que separa el detalle del importe. Es lo único de la
+  /// tarjeta que sigue siendo decorativo, y por eso queda fuera de semántica.
+  Widget _ticketDivider(AppPalette p) {
+    return ExcludeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AuraSpace.xs),
+        child: Row(
+          children: List.generate(
+            24,
+            (i) => Expanded(
+              child: Container(
+                color: i.isEven ? p.border : Colors.transparent,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actions() {
+    final canTrack = widget.onTrack != null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AuraSpace.md,
+        AuraSpace.sm,
+        AuraSpace.md,
+        AuraSpace.md,
+      ),
+      child: Column(
+        children: [
+          Row(
             children: [
-              Text(
-                label,
-                style: AppType.label.copyWith(
-                  color: p.textMuted,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: AuraButton.secondary(
+                  label: 'Compartir',
+                  icon: Icons.share_rounded,
+                  size: AuraButtonSize.small,
+                  onPressed: _shareVoucher,
                 ),
               ),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                style: AppType.bodySmall.copyWith(
-                  color: p.textPrimary,
-                  fontWeight: FontWeight.w700,
+              const SizedBox(width: AuraTap.gap),
+              Expanded(
+                child: AuraButton.secondary(
+                  label: 'Guardar',
+                  icon: Icons.download_rounded,
+                  size: AuraButtonSize.small,
+                  loading: _isSaving,
+                  onPressed: _downloadAndSaveVoucher,
                 ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: AuraSpace.xs),
+          AuraButton.primary(
+            // Sin `onTrack` este botón solo cierra el comprobante, así que
+            // prometer un seguimiento sería mentir sobre lo que hace.
+            label: canTrack ? 'Ver el seguimiento en vivo' : 'Listo',
+            icon: canTrack ? Icons.radar_rounded : Icons.check_rounded,
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).pop();
+              widget.onTrack?.call();
+            },
+          ),
+        ],
+      ),
     );
   }
 }

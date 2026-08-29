@@ -1,14 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:aura/theme/app_theme.dart';
+
 import '../models/appointment.dart';
 import '../models/professional.dart';
 import '../state/app_state.dart';
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 import '../utils/symptom_validation.dart';
 import '../utils/text_search.dart';
 import '../widgets/booking_voucher_dialog.dart';
 import 'appointments_screen.dart' show formatAppointmentDate, formatClp;
 import 'doctor_profile_screen.dart';
 
+/// Agendar una cita con un profesional.
+///
+/// ## Qué se arregló
+///
+/// - **La numeración mentía.** «Tipo de consulta» no llevaba número, luego
+///   venían «1 · Profesional», «2 · Fecha» y «3 · Horario», y «Motivo» tampoco
+///   llevaba: cuatro pasos anunciados como tres. Los números se van; los pasos
+///   se leen por su nombre.
+/// - **La pantalla ya no crece en silencio.** Los pasos siguen apareciendo a
+///   medida que se elige —enseñarlos todos de golpe alarga la página sin que
+///   sirvan de nada—, pero ahora una línea arriba dice qué va a pedirse.
+/// - **Lo que falta se dice junto al botón.** El único sitio que lo contaba era
+///   el rótulo del propio botón, al fondo y lejos del campo sin rellenar.
+/// - **El respaldo del filtro de especialidad deja de ser invisible.** Cuando
+///   no hay nadie de la disciplina pedida se sigue ofreciendo la lista
+///   completa, pero diciéndolo: quien entraba por «Agendar con kinesiología»
+///   veía a todo el mundo y daba por hecho que eran kinesiólogos.
+/// - **Un fallo de red ya no deja una lista vacía sin explicación.**
+/// - **Hay un resumen antes de confirmar**, con quién, cuándo y cuánto.
+/// - **El diálogo de pago dice qué hace cada botón.** «Cancelar reserva» estaba
+///   al lado de «Aceptar y pagar» y se leía como «cerrar esto», cuando lo que
+///   hacía era deshacer la cita recién creada.
 class BookAppointmentScreen extends StatefulWidget {
   final AppState state;
 
@@ -44,6 +68,10 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   /// Inline error when the reason does not name two symptoms.
   String? _reasonError;
 
+  /// Qué falló al traer los profesionales. Sin esto, una caída de la conexión
+  /// dejaba que la rueda de carga diera paso a una lista vacía y a nada más.
+  String? _professionalsError;
+
   bool _loadingProfessionals = true;
   bool _loadingSlots = false;
   bool _submitting = false;
@@ -67,8 +95,26 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   }
 
   Future<void> _loadProfessionals() async {
-    setState(() => _loadingProfessionals = true);
-    await widget.state.fetchProfessionals();
+    setState(() {
+      _loadingProfessionals = true;
+      _professionalsError = null;
+    });
+
+    try {
+      await widget.state.fetchProfessionals();
+    } catch (e) {
+      // `fetchProfessionals` hoy se traga sus propios fallos y devuelve void;
+      // esto recoge lo que se le escape (y lo que empiece a propagar cuando
+      // deje de tragárselos) para no dibujar «no hay profesionales» cuando lo
+      // que pasó es que no pudimos preguntar.
+      debugPrint('BookAppointmentScreen._loadProfessionals failed. Error: $e');
+      if (!mounted) return;
+      setState(() {
+        _loadingProfessionals = false;
+        _professionalsError = 'No pudimos cargar los profesionales.';
+      });
+      return;
+    }
     if (!mounted) return;
 
     final available = _visibleProfessionals;
@@ -90,20 +136,53 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     }
   }
 
-  /// Professionals visible given the specialty filter.
-  List<Professional> get _visibleProfessionals {
+  /// Professionals matching the specialty filter, or null when there is none.
+  List<Professional>? get _specialtyMatches {
     final filter = widget.specialtyFilter;
-    if (filter == null || filter.isEmpty) return widget.state.professionals;
+    if (filter == null || filter.isEmpty) return null;
 
-    final matches = widget.state.professionals.where((professional) {
+    return widget.state.professionals.where((professional) {
       final haystack =
           normalizeForSearch('${professional.specialty} ${professional.name}');
       return filter.any(
         (term) => haystack.contains(normalizeForSearch(term)),
       );
-    });
+    }).toList();
+  }
 
-    return matches.isEmpty ? widget.state.professionals : matches.toList();
+  /// Professionals visible given the specialty filter.
+  ///
+  /// Cuando el filtro no encuentra a nadie se sigue cayendo a la lista
+  /// completa: dejar la pantalla sin nada que elegir sería peor. Lo que cambia
+  /// es que el respaldo se anuncia —ver [_showingEveryoneInstead]—, porque
+  /// antes la persona creía estar eligiendo dentro de la especialidad que pidió.
+  List<Professional> get _visibleProfessionals {
+    final matches = _specialtyMatches;
+    if (matches == null || matches.isEmpty) return widget.state.professionals;
+    return matches;
+  }
+
+  /// True cuando se está enseñando la lista completa porque no hay nadie de la
+  /// especialidad pedida.
+  bool get _showingEveryoneInstead {
+    final matches = _specialtyMatches;
+    return matches != null &&
+        matches.isEmpty &&
+        widget.state.professionals.isNotEmpty;
+  }
+
+  /// Qué falta para poder confirmar, o null cuando ya se puede.
+  String? get _blockedReason {
+    if (_professionalsError != null) {
+      return 'No pudimos cargar los profesionales. Reinténtalo arriba.';
+    }
+    if (_professional == null) {
+      return _visibleProfessionals.isEmpty
+          ? 'Ahora mismo no hay profesionales con agenda abierta.'
+          : 'Elige un profesional para ver sus horas disponibles.';
+    }
+    if (_slot == null) return 'Elige una hora del día que seleccionaste.';
+    return null;
   }
 
   Future<void> _selectProfessional(Professional prof) async {
@@ -140,13 +219,9 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     final reason = _reasonController.text.trim();
     final reasonError = validateSymptoms(reason);
     if (reasonError != null) {
+      // Solo bajo el campo. Antes el mismo texto salía además en un aviso rojo
+      // flotante que tapaba justo el campo que había que corregir.
       setState(() => _reasonError = reasonError);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(reasonError),
-          backgroundColor: const Color(0xFFDC2626),
-        ),
-      );
       return;
     }
     setState(() => _reasonError = null);
@@ -165,7 +240,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error ?? 'No se pudo agendar la cita.'),
-          backgroundColor: const Color(0xFFDC2626),
+          backgroundColor: p.error,
         ),
       );
       if (error != null && error.contains('horario') && _professional != null) {
@@ -176,44 +251,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
     if (appointment.status == AppointmentStatus.pendingPayment &&
         appointment.paymentUrl != null) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(
-            'Confirma el monto',
-            style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
-          ),
-          content: Text(
-            'Tu hora del ${formatAppointmentDate(appointment.scheduledAt)} con '
-            '${_professional!.name} quedó reservada por '
-            '${formatClp(_professional!.consultationPrice)}.\n\n'
-            'Al aceptar te llevaremos a Mercado Pago. Si prefieres, puedes '
-            'cancelar la reserva ahora sin costo.',
-            style: AppType.bodyMedium,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await widget.state.cancelAppointment(appointment.id);
-              },
-              child: Text(
-                'Cancelar reserva',
-                style: AppType.button.copyWith(color: const Color(0xFFDC2626)),
-              ),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF009EE3)),
-              onPressed: () {
-                Navigator.pop(context);
-                widget.state.openCheckoutUrl(appointment.paymentUrl!);
-              },
-              child: Text('Aceptar y pagar', style: AppType.button),
-            ),
-          ],
-        ),
-      );
+      await _showPaymentDialog(appointment);
     } else {
       final voucherData = BookingVoucherData(
         folio: appointment.id.toUpperCase().replaceAll('-', ''),
@@ -243,351 +281,391 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
     if (mounted) Navigator.pop(context);
   }
 
+  /// La hora quedó reservada pero sin pagar: hay que ir a Mercado Pago.
+  ///
+  /// Los dos botones eran «Cancelar reserva» y «Aceptar y pagar», uno al lado
+  /// del otro. En esa posición «Cancelar» se lee como «cerrar esto sin hacer
+  /// nada», y lo que hacía era deshacer la cita que se acababa de crear. Ahora
+  /// pagar es la acción principal y deshacer la reserva lo dice entero, en rojo
+  /// y aparte.
+  Future<void> _showPaymentDialog(Appointment appointment) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Pagas ahora tu hora?'),
+        content: Text(
+          'Tu hora del ${formatAppointmentDate(appointment.scheduledAt)} con '
+          '${_professional!.name} está reservada por '
+          '${formatClp(_professional!.consultationPrice)}. '
+          'Te llevamos a Mercado Pago para pagarla.\n\n'
+          'Si prefieres no pagarla ahora, soltamos la reserva y el horario '
+          'queda libre. No se te cobra nada.',
+          style: AppType.bodyMedium,
+        ),
+        // `expand: false` en los dos: `AlertDialog` mide sus acciones con
+        // `IntrinsicWidth`, y un botón que pide ancho infinito ahí dentro no
+        // tiene ancho intrínseco que medir.
+        actions: [
+          AuraButton.danger(
+            label: 'Cancelar la reserva',
+            size: AuraButtonSize.small,
+            expand: false,
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await widget.state.cancelAppointment(appointment.id);
+            },
+          ),
+          const SizedBox(width: AuraSpace.xs),
+          AuraButton.primary(
+            label: 'Pagar ahora',
+            size: AuraButtonSize.medium,
+            expand: false,
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              widget.state.openCheckoutUrl(appointment.paymentUrl!);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final blocked = _blockedReason;
+
     return Scaffold(
       backgroundColor: p.background,
-      appBar: AppBar(
-        backgroundColor: p.background,
-        elevation: 0,
-        foregroundColor: p.textPrimary,
-        title: Text(
-          widget.headerTitle ?? 'Agendar cita',
-          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.w800),
+      appBar: AppBar(title: Text(widget.headerTitle ?? 'Agendar cita')),
+      // La franja pinta hasta el borde inferior y el `SafeArea` va dentro: con
+      // el `SafeArea` fuera, el fondo de la barra se cortaba antes del
+      // indicador de inicio y dejaba una banda del color de la página.
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: p.card,
+          border: Border(top: BorderSide(color: p.border)),
+          boxShadow: AuraShadow.lifted(context.isDark),
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: p.accent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AuraSpace.screenX,
+              AuraSpace.sm,
+              AuraSpace.screenX,
+              AuraSpace.sm,
             ),
-            onPressed: _slot == null || _submitting ? null : _confirm,
-            child: Text(
-              _submitting
-                  ? 'Agendando…'
-                  : _professional == null
-                      ? 'Elige un profesional'
-                      : _slot == null
-                          ? 'Elige un horario'
-                          : 'Confirmar cita · ${formatClp(_professional!.consultationPrice)}',
-              style: AppType.button.copyWith(fontWeight: FontWeight.w700),
+            child: AuraReadable(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Mismo patrón que `AuraFlowStep`: lo que falta se dice al
+                  // lado del botón apagado, no escondido dentro de su rótulo,
+                  // al fondo de la pantalla y lejos del campo sin rellenar.
+                  if (blocked != null && !_loadingProfessionals) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: AuraIcon.sm,
+                            color: p.textMuted,
+                          ),
+                          const SizedBox(width: AuraSpace.xs),
+                          Expanded(
+                            child: Text(
+                              blocked,
+                              style: AppType.bodySmall.copyWith(
+                                color: p.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AuraSpace.xs),
+                  ],
+                  AuraButton.primary(
+                    label: _professional == null
+                        ? 'Confirmar la cita'
+                        : 'Confirmar · '
+                            '${formatClp(_professional!.consultationPrice)}',
+                    loading: _submitting,
+                    onPressed: blocked != null || _submitting ? null : _confirm,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
       body: _loadingProfessionals
-          ? Center(
-              child: CircularProgressIndicator(color: p.accent))
+          ? const AuraLoading(message: 'Buscando profesionales…')
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(
+                AuraSpace.screenX,
+                AuraSpace.xs,
+                AuraSpace.screenX,
+                AuraSpace.xl,
+              ),
               children: [
-                _sectionTitle('Tipo de consulta'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTypeOption(
-                        'presencial',
-                        Icons.home_filled,
-                        'Presencial',
-                        'En tu domicilio o consulta',
+                AuraReadable(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Los pasos siguen apareciendo a medida que se elige, así
+                      // que sin esta línea la página crecía sin avisar y no
+                      // había forma de saber cuánto quedaba.
+                      Text(
+                        'Elige profesional, día y hora.',
+                        style: AppType.bodyMedium.copyWith(color: p.textMuted),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildTypeOption(
-                        'video',
-                        Icons.videocam,
-                        'Videoconsulta',
-                        'Por videollamada segura',
-                      ),
-                    ),
-                  ],
+                      const SizedBox(height: AuraSpace.lg),
+
+                      const AuraSectionHeader(title: 'Tipo de consulta'),
+                      _buildTypeOptions(),
+
+                      const SizedBox(height: AuraSpace.xl),
+                      const AuraSectionHeader(title: 'Profesional'),
+                      _buildProfessionals(),
+
+                      if (_professional != null) ...[
+                        const SizedBox(height: AuraSpace.xl),
+                        const AuraSectionHeader(title: 'Día'),
+                        _buildDatePicker(),
+
+                        const SizedBox(height: AuraSpace.xl),
+                        const AuraSectionHeader(title: 'Hora'),
+                        _buildSlots(),
+
+                        const SizedBox(height: AuraSpace.xl),
+                        const AuraSectionHeader(
+                          title: 'Motivo de la consulta',
+                        ),
+                        AuraField.multiline(
+                          label: 'Cuéntanos qué te pasa',
+                          controller: _reasonController,
+                          hint: 'Ej: dolor de cabeza y fiebre',
+                          help:
+                              'Indica al menos dos síntomas, separados por '
+                              'coma o «y».',
+                          errorText: _reasonError,
+                          maxLines: 3,
+                          maxLength: 500,
+                          onChanged: (value) {
+                            if (_reasonError != null && hasTwoSymptoms(value)) {
+                              setState(() => _reasonError = null);
+                            }
+                          },
+                        ),
+
+                        _buildSummary(),
+                      ],
+                    ],
+                  ),
                 ),
-                _sectionTitle('1 · Profesional'),
-                ..._visibleProfessionals.map(_buildProfessionalCard),
-                if (_visibleProfessionals.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'No hay profesionales disponibles por ahora.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: p.textMuted),
-                    ),
-                  ),
-                if (_professional != null) ...[
-                  _sectionTitle('2 · Fecha'),
-                  _buildDatePicker(),
-                  _sectionTitle('3 · Horario'),
-                  _buildSlots(),
-                  _sectionTitle('Motivo de la consulta'),
-                  TextField(
-                    controller: _reasonController,
-                    maxLength: 500,
-                    maxLines: 2,
-                    keyboardType: TextInputType.multiline,
-                    textCapitalization: TextCapitalization.sentences,
-                    enableSuggestions: true,
-                    autocorrect: true,
-                    onChanged: (value) {
-                      if (_reasonError != null && hasTwoSymptoms(value)) {
-                        setState(() => _reasonError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Ej: dolor de cabeza y fiebre',
-                      filled: true,
-                      fillColor: p.card,
-                      counterText: '',
-                      errorText: _reasonError,
-                      helperText: _reasonError == null
-                          ? 'Indica al menos dos síntomas, separados por coma o «y».'
-                          : null,
-                      helperMaxLines: 2,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            BorderSide(color: p.border),
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
     );
   }
 
-  Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 18, 4, 10),
-        child: Text(
-          text.toUpperCase(),
-          style: AppType.label.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
-            color: p.textMuted,
-          ),
-        ),
-      );
+  // ------------------------------------------------------ tipo de consulta
 
-  Widget _buildTypeOption(
-      String value, IconData icon, String title, String subtitle) {
-    final selected = _type == value;
-    return GestureDetector(
-      onTap: () => setState(() => _type = value),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selected ? p.accent : p.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? p.accent : p.border,
-            width: selected ? 2 : 1,
+  Widget _buildTypeOptions() {
+    // En columna y no en dos columnas: aquí la opción entera es el objetivo
+    // táctil, y a media pantalla el subtítulo caía a dos palabras por línea.
+    return Column(
+      children: [
+        AuraChoiceTile(
+          title: 'Presencial',
+          subtitle: 'En tu domicilio o en la consulta',
+          icon: Icons.home_rounded,
+          selected: _type == 'presencial',
+          onTap: () => setState(() => _type = 'presencial'),
+        ),
+        const SizedBox(height: AuraTap.gap),
+        AuraChoiceTile(
+          title: 'Videoconsulta',
+          subtitle: 'Por videollamada segura',
+          icon: Icons.videocam_rounded,
+          selected: _type == 'video',
+          onTap: () => setState(() => _type = 'video'),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------- profesional
+
+  Widget _buildProfessionals() {
+    if (_professionalsError != null) {
+      return AuraErrorState(
+        title: 'No pudimos cargar los profesionales',
+        message: 'Revisa tu conexión e inténtalo de nuevo.',
+        onRetry: _loadProfessionals,
+        compact: true,
+      );
+    }
+
+    final visible = _visibleProfessionals;
+    if (visible.isEmpty) {
+      return const AuraEmptyState(
+        icon: Icons.person_search_rounded,
+        compact: true,
+        title: 'No hay profesionales disponibles',
+        message:
+            'Ahora mismo nadie tiene la agenda abierta. Vuelve a intentarlo '
+            'más tarde.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_showingEveryoneInstead) ...[
+          const AuraBanner(
+            tone: AuraTone.info,
+            message:
+                'Ahora mismo no hay profesionales de esa especialidad con '
+                'agenda abierta. Estos son todos los que sí tienen horas.',
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon,
-                size: 22,
-                color: selected ? Colors.white : p.accent),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: AppType.bodySmall.copyWith(
-                fontWeight: FontWeight.w800,
-                color: selected ? Colors.white : p.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: AppType.label.copyWith(
-                color:
-                    selected ? Colors.white.withValues(alpha: 0.85) : p.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
+          const SizedBox(height: AuraSpace.md),
+        ],
+        for (final professional in visible) ...[
+          _buildProfessionalCard(professional),
+          const SizedBox(height: AuraSpace.sm),
+        ],
+      ],
     );
   }
 
   Widget _buildProfessionalCard(Professional professional) {
-    final selected = _professional?.id == professional.id;
-    return GestureDetector(
-      onTap: () => _selectProfessional(professional),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? p.accent : p.border,
-            width: selected ? 2 : 1,
+    // La evaluación va escrita y no como una estrella dorada de 12 px: la
+    // estrella no se leía, y su color era el único fijo de la tarjeta.
+    final subtitle = professional.hasRating
+        ? '${professional.specialty} · ${professional.ratingAvg!.toStringAsFixed(1)} de 5'
+        : professional.specialty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AuraChoiceTile(
+          title: professional.name,
+          subtitle: subtitle,
+          icon: Icons.person_rounded,
+          selected: _professional?.id == professional.id,
+          trailingText:
+              '${formatClp(professional.consultationPrice)}\n'
+              '${professional.consultationDurationMinutes} min',
+          onTap: () => _selectProfessional(professional),
+        ),
+        // B.3 — conocer al profesional antes de agendar con él. Abre la ficha
+        // sin seleccionar la tarjeta: mirar un currículum no debería
+        // comprometer una reserva. Era una fila de 16 px de alto.
+        AuraButton.tertiary(
+          label: 'Ver ficha',
+          icon: Icons.badge_outlined,
+          size: AuraButtonSize.small,
+          semanticLabel: 'Ver la ficha de ${professional.name}',
+          onPressed: () => DoctorProfileScreen.showModal(
+            context,
+            professional,
           ),
         ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: p.accent.withValues(alpha: 0.12),
-              child: Text(
-                professional.name.isNotEmpty
-                    ? professional.name
-                        .replaceAll(RegExp(r'^(Dr[a]?|Klg[oa]|Enf)\.\s*'), '')
-                        .substring(0, 1)
-                    : '?',
-                style: AppType.titleMedium.copyWith(
-                  color: p.accent,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    professional.name,
-                    style: AppType.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: p.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    professional.specialty,
-                    style: AppType.bodySmall.copyWith(color: p.textMuted),
-                  ),
-                  const SizedBox(height: 4),
-                  // B.3 — conocer al profesional antes de agendar con él.
-                  // El toque abre la ficha sin seleccionar la tarjeta: mirar
-                  // un currículum no debería comprometer una reserva.
-                  GestureDetector(
-                    onTap: () => DoctorProfileScreen.showModal(
-                      context,
-                      professional,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.badge_outlined, size: 12, color: p.accent),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                          'Ver ficha',
-                          style: AppType.label.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: p.accent,
-                          ),
-                        ),
-                        ),
-                        if (professional.hasRating) ...[
-                          const SizedBox(width: 8),
-                          const Icon(Icons.star_rounded,
-                              size: 12, color: Colors.amber),
-                          const SizedBox(width: 2),
-                          Text(
-                            professional.ratingAvg!.toStringAsFixed(1),
-                            style: AppType.label.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: p.textMuted,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  formatClp(professional.consultationPrice),
-                  style: AppType.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: p.textPrimary,
-                  ),
-                ),
-                Text(
-                  '${professional.consultationDurationMinutes} min',
-                  style: AppType.label.copyWith(color: p.textMuted),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
+  // ----------------------------------------------------------- día y hora
+
   Widget _buildDatePicker() {
     final today = DateTime.now();
-    // Igual que el selector de laboratorio: el alto sigue al escalado de
-    // fuente, o el calendario recorta el día al subir la letra.
+    // El alto sigue al escalado de fuente, o el calendario recorta el día al
+    // subir la letra. Los 24 px fijos son el relleno y el borde, que no
+    // escalan: multiplicarlo todo dejaba la celda corta con la letra pequeña.
     final scale = MediaQuery.textScalerOf(context).scale(1.0);
 
     return SizedBox(
-      height: 76 * scale,
+      height: 24 + 64 * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: 14,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: AuraTap.gap),
         itemBuilder: (context, index) {
           final date = DateTime(today.year, today.month, today.day)
               .add(Duration(days: index));
           final selected = date.year == _date.year &&
               date.month == _date.month &&
               date.day == _date.day;
-          return GestureDetector(
-            onTap: () => _selectDate(date),
-            child: Container(
-              width: 64,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
+          final onAccent = context.scheme.onPrimary;
+
+          return Semantics(
+            inMutuallyExclusiveGroup: true,
+            selected: selected,
+            button: true,
+            label:
+                '${_daysEs[date.weekday - 1]} ${date.day} de ${_monthsEs[date.month - 1]}',
+            child: ExcludeSemantics(
+              child: Material(
                 color: selected ? p.accent : p.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: selected
-                      ? p.accent
-                      : p.border,
+                borderRadius: AuraRadius.allSm,
+                child: InkWell(
+                  onTap: () => _selectDate(date),
+                  borderRadius: AuraRadius.allSm,
+                  focusColor: p.textPrimary.withValues(alpha: 0.20),
+                  child: Container(
+                    width: 64,
+                    // El día era una caja de 64 × 76 sin mínimo propio: al
+                    // reducir el escalado de fuente se quedaba por debajo del
+                    // objetivo táctil.
+                    constraints: const BoxConstraints(
+                      minWidth: AuraTap.min,
+                      minHeight: AuraTap.min,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AuraSpace.xxs,
+                      vertical: AuraSpace.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: AuraRadius.allSm,
+                      border: Border.all(
+                        color: selected ? p.accent : p.borderStrong,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _daysEs[date.weekday - 1],
+                          style: AppType.label.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: selected
+                                ? onAccent.withValues(alpha: 0.85)
+                                : p.textMuted,
+                          ),
+                        ),
+                        Text(
+                          '${date.day}',
+                          style: AppType.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: selected ? onAccent : p.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          _monthsEs[date.month - 1],
+                          style: AppType.label.copyWith(
+                            color: selected
+                                ? onAccent.withValues(alpha: 0.85)
+                                : p.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _daysEs[date.weekday - 1],
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white70 : p.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${date.day}',
-                    style: AppType.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: selected ? Colors.white : p.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    _monthsEs[date.month - 1],
-                    style: AppType.label.copyWith(
-                      color: selected ? Colors.white70 : p.textFaint,
-                    ),
-                  ),
-                ],
               ),
             ),
           );
@@ -598,53 +676,90 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Widget _buildSlots() {
     if (_loadingSlots) {
-      return Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: SizedBox(
-            height: 22,
-            width: 22,
-            child: CircularProgressIndicator(
-                strokeWidth: 2.5, color: p.accent),
-          ),
-        ),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AuraSpace.lg),
+        child: AuraLoading(message: 'Buscando horas libres…'),
       );
     }
+
     if (_slots.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 16),
-        child: Text(
-          'No hay horarios disponibles para este día. Prueba otra fecha.',
-          style: AppType.bodySmall.copyWith(color: p.textMuted),
-        ),
+      return const AuraBanner(
+        tone: AuraTone.info,
+        icon: Icons.event_busy_rounded,
+        message: 'No hay horas disponibles ese día. Prueba con otra fecha.',
       );
     }
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _slots.map((slot) {
-        final selected = _slot == slot;
-        final label =
-            '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}';
-        return ChoiceChip(
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => setState(() => _slot = slot),
-          selectedColor: p.accent,
-          backgroundColor: p.card,
-          labelStyle: AppType.bodySmall.copyWith(
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : p.textSecondary,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: selected ? p.accent : p.border,
+
+    // `AuraOptionGroup` en vez de `ChoiceChip`: los chips medían 27 px de alto
+    // y quedaban pegados unos a otros, así que fallar el toque elegía la hora
+    // de al lado.
+    final options = <({DateTime value, String label, IconData? icon})>[
+      for (final slot in _slots)
+        (
+          value: slot,
+          label: '${slot.hour.toString().padLeft(2, '0')}:'
+              '${slot.minute.toString().padLeft(2, '0')}',
+          icon: null,
+        ),
+    ];
+
+    return AuraOptionGroup<DateTime>(
+      options: options,
+      selected: _slot,
+      onSelect: (slot) => setState(() => _slot = slot),
+    );
+  }
+
+  // -------------------------------------------------------------- resumen
+
+  /// Lo que se va a agendar, justo antes de confirmarlo.
+  ///
+  /// No había ninguno: se confirmaba desde un botón al fondo mientras el
+  /// profesional elegido podía haber quedado tres pantallazos más arriba.
+  Widget _buildSummary() {
+    final professional = _professional;
+    final slot = _slot;
+    if (professional == null || slot == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AuraSpace.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AuraSectionHeader(title: 'Resumen'),
+          AuraCard(
+            child: Column(
+              children: [
+                AuraSummaryRow(
+                  label: 'Profesional',
+                  value: professional.name,
+                  icon: Icons.person_rounded,
+                ),
+                AuraSummaryRow(
+                  label: 'Tipo',
+                  value: _type == 'presencial'
+                      ? 'Presencial'
+                      : 'Videoconsulta',
+                  icon: _type == 'presencial'
+                      ? Icons.home_rounded
+                      : Icons.videocam_rounded,
+                ),
+                AuraSummaryRow(
+                  label: 'Cuándo',
+                  value: formatAppointmentDate(slot),
+                  icon: Icons.schedule_rounded,
+                ),
+                AuraSummaryRow(
+                  label: 'Total',
+                  value: formatClp(professional.consultationPrice),
+                  icon: Icons.payments_outlined,
+                  strong: true,
+                ),
+              ],
             ),
           ),
-          showCheckmark: false,
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 }

@@ -1,8 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
-/// Seeded QA accounts, one per role (see `TestUsersSeeder` in the backend).
+/// Cuentas QA sembradas en el backend (ver `TestUsersSeeder`).
+///
+/// Solo se usan desde el panel de depuración de más abajo, que no se compila
+/// en release. La contraseña vive aquí, junto a los correos, porque separarla
+/// no la haría menos visible: lo que la protege es que el panel no exista
+/// fuera de `kDebugMode`.
 const String _testAccountPassword = 'aura1234';
 const Map<String, String> _testAccounts = {
   '👤 Paciente': 'paciente@aura.cl',
@@ -16,6 +24,18 @@ const Map<String, String> _testAccounts = {
   '🛡️ Operador / Admin': 'operador@aura.cl',
 };
 
+/// Entrada a la app: iniciar sesión o crear una cuenta.
+///
+/// ## Qué cambió y por qué
+///
+/// Había **cinco** formas de entrar compitiendo con el mismo peso visual:
+/// correo, Google, Facebook, modo demo y nueve chips de cuentas QA. Ninguna
+/// mandaba, así que la pantalla no respondía a la pregunta con la que se llega
+/// aquí, que es «¿por dónde entro yo?».
+///
+/// El orden pasa a ser el del uso real: el formulario y su botón primero, un
+/// solo «o continúa con», las dos cuentas de terceros después, y el modo demo
+/// al final como texto. Las cuentas de prueba desaparecen del build de release.
 class AuthScreen extends StatefulWidget {
   final AppState state;
 
@@ -27,7 +47,20 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   AppPalette get p => context.palette;
-  final _formKey = GlobalKey<FormState>();
+
+  /// Marcas de terceros, no colores del tema.
+  ///
+  /// Son el único color de estas pantallas que no sale de la paleta: identifican
+  /// al proveedor y cambiarlo sería representar mal su marca. Se usan como color
+  /// del icono y del nombre de la marca —lo que WCAG 1.4.3 exceptúa del
+  /// contraste mínimo, por ser un logotipo—, nunca como relleno con texto
+  /// corriente encima.
+  static const Color _googleBrand = Color(0xFFEA4335);
+  static const Color _facebookBrand = Color(0xFF1877F2);
+
+  /// Único canal para recuperar la contraseña. Ver [_showPasswordHelp].
+  static const String _supportEmail = 'soporte@aura.cl';
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -36,6 +69,9 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -45,8 +81,36 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  /// Los errores se guardan por campo y se pintan bajo el campo que los causa.
+  /// Antes vivían dentro del `Form`, que los dibujaba igual, pero el de la
+  /// contraseña era además la **única** vez que aparecía la regla de los 8
+  /// caracteres: se enteraba después de fallar. Ahora esa regla es texto de
+  /// ayuda del campo desde el principio.
+  bool _validate() {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    setState(() {
+      _nameError =
+          _isRegistering && name.isEmpty ? 'Escribe tu nombre.' : null;
+      _emailError = email.isEmpty
+          ? 'Escribe tu correo.'
+          : (!email.contains('@') || !email.contains('.')
+              ? 'Revisa el correo: parece que le falta algo.'
+              : null);
+      _passwordError = password.isEmpty
+          ? 'Escribe tu contraseña.'
+          : (_isRegistering && password.length < 8
+              ? 'Necesita al menos 8 caracteres.'
+              : null);
+    });
+
+    return _nameError == null && _emailError == null && _passwordError == null;
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_validate()) return;
 
     setState(() {
       _isSubmitting = true;
@@ -74,349 +138,277 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
+  void _toggleMode() {
+    setState(() {
+      _isRegistering = !_isRegistering;
+      _errorMessage = null;
+      _nameError = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.state.loginWithGoogle();
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
+  }
+
+  Future<void> _handleFacebookLogin() async {
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await widget.state.loginWithFacebook();
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
+  }
+
+  /// Qué hacer si olvidaste la contraseña.
+  ///
+  /// `AppState` no tiene ningún método de restablecimiento y el backend no
+  /// expone un endpoint para eso, así que aquí no se puede ofrecer un
+  /// formulario que envíe a alguna parte. Antes esto se resolvía no ofreciendo
+  /// nada, que deja sin salida a quien no recuerda su clave. Lo que sí es
+  /// cierto es que soporte puede ayudar, y eso es lo único que dice esta hoja.
+  void _showPasswordHelp() {
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AuraSpace.lg,
+            AuraSpace.xs,
+            AuraSpace.lg,
+            AuraSpace.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  '¿Olvidaste tu contraseña?',
+                  style: AppType.titleMedium.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AuraSpace.xs),
+              Text(
+                'Todavía no se puede cambiar desde la app: escríbenos a '
+                '$_supportEmail y te ayudamos a recuperarla.',
+                style: AppType.bodyMedium.copyWith(color: p.textSecondary),
+              ),
+              const SizedBox(height: AuraSpace.lg),
+              AuraButton.secondary(
+                label: 'Entendido',
+                onPressed: () => Navigator.pop(sheetContext),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 36.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Accessibility & Theme controls row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        widget.state.themeMode == ThemeMode.dark
-                            ? Icons.light_mode_outlined
-                            : Icons.dark_mode_outlined,
-                        color: const Color(0xFF0F766E),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AuraSpace.screenX,
+              vertical: AuraSpace.xl,
+            ),
+            child: AuraReadable(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildViewControls(),
+                  const SizedBox(height: AuraSpace.xs),
+                  _buildEmblem(),
+                  const SizedBox(height: AuraSpace.xl),
+
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      _isRegistering ? 'Crea tu cuenta' : 'Hola de nuevo',
+                      textAlign: TextAlign.center,
+                      style: AppType.titleLarge.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: p.textPrimary,
                       ),
-                      tooltip: 'Alternar Tema',
-                      onPressed: () {
-                        final nextMode = widget.state.themeMode == ThemeMode.dark
-                            ? ThemeMode.light
-                            : ThemeMode.dark;
-                        widget.state.setThemeMode(nextMode);
-                      },
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.text_fields_rounded,
-                        color: Color(0xFF0F766E),
+                  ),
+                  const SizedBox(height: AuraSpace.xs),
+                  Text(
+                    _isRegistering
+                        ? 'Con una cuenta pides atención en casa y sigues cómo va.'
+                        : 'Entra para pedir atención o ver la que tienes en curso.',
+                    textAlign: TextAlign.center,
+                    style: AppType.bodyMedium.copyWith(color: p.textMuted),
+                  ),
+                  const SizedBox(height: AuraSpace.xl),
+
+                  // 1 · El formulario. Es la forma de entrar que usa casi todo
+                  //     el mundo, así que va primero y sin nada que la rodee.
+                  if (_isRegistering) ...[
+                    AuraField(
+                      label: 'Tu nombre',
+                      hint: 'Ej. María Pérez',
+                      controller: _nameController,
+                      errorText: _nameError,
+                      enabled: !_isSubmitting,
+                      icon: Icons.person_outline_rounded,
+                      capitalization: TextCapitalization.words,
+                      autofillHint: AutofillHints.name,
+                    ),
+                    const SizedBox(height: AuraSpace.md),
+                  ],
+                  AuraField.email(
+                    label: 'Correo',
+                    hint: 'tucorreo@ejemplo.cl',
+                    controller: _emailController,
+                    errorText: _emailError,
+                    enabled: !_isSubmitting,
+                  ),
+                  const SizedBox(height: AuraSpace.md),
+                  AuraField(
+                    label: 'Contraseña',
+                    controller: _passwordController,
+                    errorText: _passwordError,
+                    // La regla se dice antes de escribir, no después de fallar.
+                    help: _isRegistering ? 'Al menos 8 caracteres.' : null,
+                    enabled: !_isSubmitting,
+                    obscureText: _obscurePassword,
+                    icon: Icons.lock_outline_rounded,
+                    capitalization: TextCapitalization.none,
+                    autofillHint: _isRegistering
+                        ? AutofillHints.newPassword
+                        : AutofillHints.password,
+                    suffix: AuraIconButton(
+                      icon: _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      tooltip: _obscurePassword
+                          ? 'Mostrar la contraseña'
+                          : 'Ocultar la contraseña',
+                      size: AuraIcon.sm,
+                      onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword,
                       ),
-                      tooltip: 'Ajustar tamaño de letra',
-                      onPressed: () {
-                        final current = widget.state.textScaleFactor;
-                        final double nextScale;
-                        if (current <= 1.0) {
-                          nextScale = 1.15;
-                        } else if (current <= 1.15) {
-                          nextScale = 1.3;
-                        } else if (current <= 1.3) {
-                          nextScale = 1.5;
-                        } else {
-                          nextScale = 1.0;
-                        }
-                        widget.state.setTextScaleFactor(nextScale);
-                      },
+                    ),
+                  ),
+
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: AuraSpace.md),
+                    // El aviso anterior estaba escrito con rojos claros fijos:
+                    // en modo oscuro era texto rojo sobre un rectángulo casi
+                    // blanco. El tono del sistema trae su par ya verificado.
+                    AuraBanner(
+                      tone: AuraTone.error,
+                      title: _isRegistering
+                          ? 'No pudimos crear tu cuenta'
+                          : 'No pudimos entrar',
+                      message: _errorMessage!,
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                // Logo emblem
-                Center(
-                  child: Container(
-                    height: 84,
-                    width: 84,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0F766E), Color(0xFF2DD4BF)],
-                        begin: Alignment.bottomLeft,
-                        end: Alignment.topRight,
+
+                  const SizedBox(height: AuraSpace.xl),
+                  AuraButton.primary(
+                    label: _isRegistering ? 'Crear cuenta' : 'Entrar',
+                    loading: _isSubmitting,
+                    onPressed: _isSubmitting ? null : _submit,
+                  ),
+                  if (!_isRegistering) ...[
+                    const SizedBox(height: AuraSpace.xs),
+                    Center(
+                      child: AuraButton.tertiary(
+                        label: '¿Olvidaste tu contraseña?',
+                        onPressed: _isSubmitting ? null : _showPasswordHelp,
                       ),
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0F766E).withValues(alpha: 0.3),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
                     ),
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                      color: Colors.white,
-                      size: 40,
+                  ],
+                  const SizedBox(height: AuraSpace.xxs),
+                  Center(
+                    child: AuraButton.tertiary(
+                      label: _isRegistering
+                          ? 'Ya tengo cuenta'
+                          : 'Crear una cuenta nueva',
+                      onPressed: _isSubmitting ? null : _toggleMode,
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  _isRegistering ? 'Crea tu cuenta' : 'Bienvenido de vuelta',
-                  textAlign: TextAlign.center,
-                  style: AppType.titleLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isRegistering
-                      ? 'Regístrate para solicitar atención clínica a domicilio.'
-                      : 'Inicia sesión para continuar con tu atención de salud.',
-                  textAlign: TextAlign.center,
-                  style: AppType.bodyMedium.copyWith(color: p.textMuted),
-                ),
-                const SizedBox(height: 32),
-                Form(
-                  key: _formKey,
-                  child: Column(
+
+                  // 2 · Un solo separador, y debajo lo que sí es una
+                  //     alternativa de entrada.
+                  const SizedBox(height: AuraSpace.lg),
+                  _buildDivider(),
+                  const SizedBox(height: AuraSpace.md),
+                  Row(
                     children: [
-                      if (_isRegistering) ...[
-                        _buildField(
-                          controller: _nameController,
-                          label: 'Nombre completo',
-                          icon: Icons.person_outline_rounded,
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Ingresa tu nombre'
-                              : null,
+                      Expanded(
+                        child: _socialButton(
+                          label: 'Google',
+                          semanticLabel: 'Continuar con Google',
+                          icon: Icons.account_circle_rounded,
+                          brand: _googleBrand,
+                          onPressed: _handleGoogleLogin,
                         ),
-                        const SizedBox(height: 16),
-                      ],
-                      _buildField(
-                        controller: _emailController,
-                        label: 'Correo electrónico',
-                        icon: Icons.mail_outline_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Ingresa tu correo';
-                          }
-                          if (!v.contains('@') || !v.contains('.')) {
-                            return 'Correo inválido';
-                          }
-                          return null;
-                        },
                       ),
-                      const SizedBox(height: 16),
-                      _buildField(
-                        controller: _passwordController,
-                        label: 'Contraseña',
-                        icon: Icons.lock_outline_rounded,
-                        obscureText: _obscurePassword,
-                        suffix: IconButton(
-                          tooltip: _obscurePassword
-                              ? 'Mostrar contraseña'
-                              : 'Ocultar contraseña',
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: p.textFaint,
-                            size: 20,
-                          ),
-                          onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
-                          ),
+                      const SizedBox(width: AuraTap.gap),
+                      Expanded(
+                        child: _socialButton(
+                          label: 'Facebook',
+                          semanticLabel: 'Continuar con Facebook',
+                          icon: Icons.facebook_rounded,
+                          brand: _facebookBrand,
+                          onPressed: _handleFacebookLogin,
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return 'Ingresa tu contraseña';
-                          }
-                          if (_isRegistering && v.length < 8) {
-                            return 'Debe tener al menos 8 caracteres';
-                          }
-                          return null;
-                        },
                       ),
                     ],
                   ),
-                ),
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFFECACA)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: Color(0xFFDC2626),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: AppType.bodySmall.copyWith(
-                              color: const Color(0xFFB91C1C),
-                            ),
-                          ),
-                        ),
-                      ],
+
+                  // 3 · Mirar sin cuenta no es una forma de entrar: es una
+                  //     salida lateral, y baja al último nivel.
+                  const SizedBox(height: AuraSpace.lg),
+                  Center(
+                    child: AuraButton.tertiary(
+                      label: 'Mirar la app sin cuenta',
+                      icon: Icons.visibility_outlined,
+                      onPressed:
+                          _isSubmitting ? null : widget.state.enterDemoMode,
                     ),
                   ),
-                ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Text(
-                            _isRegistering ? 'Crear cuenta' : 'Iniciar sesión',
-                            style: AppType.button.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _isSubmitting
-                      ? null
-                      : () => setState(() {
-                            _isRegistering = !_isRegistering;
-                            _errorMessage = null;
-                          }),
-                  child: Text.rich(
-                    TextSpan(
-                      text: _isRegistering
-                          ? '¿Ya tienes cuenta? '
-                          : '¿No tienes cuenta? ',
-                      style: AppType.bodyMedium.copyWith(
-                        color: p.textMuted,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: _isRegistering ? 'Inicia sesión' : 'Regístrate',
-                          style: AppType.bodyMedium.copyWith(
-                            color: const Color(0xFF0F766E),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: p.border)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'o',
-                        style: AppType.label.copyWith(
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: p.border)),
+
+                  // El panel de cuentas QA imprime una contraseña compartida en
+                  // claro y añade nueve accesos directos de inicio de sesión.
+                  // Estaba compilándose en release, a la vista de cualquiera que
+                  // instalara la app. Se queda para QA, pero solo en debug.
+                  if (kDebugMode) ...[
+                    const SizedBox(height: AuraSpace.xl),
+                    _buildTestAccountsPanel(),
                   ],
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: _isSubmitting ? null : _handleGoogleLogin,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: p.card,
-                      side: BorderSide(color: p.border),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    icon: const Text(
-                      'G',
-                      style: TextStyle(
-                        color: Color(0xFFEA4335),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                      ),
-                    ),
-                    label: Text(
-                      'Continuar con Google',
-                      style: AppType.button.copyWith(
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: _isSubmitting ? null : _handleFacebookLogin,
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1877F2),
-                      side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    icon: const Text(
-                      'f',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 22,
-                      ),
-                    ),
-                    label: Text(
-                      'Continuar con Facebook',
-                      style: AppType.button.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                TextButton.icon(
-                  onPressed: _isSubmitting ? null : widget.state.enterDemoMode,
-                  icon: Icon(
-                    Icons.play_circle_outline_rounded,
-                    size: 18,
-                    color: p.textMuted,
-                  ),
-                  label: Text(
-                    'Explorar en modo demo (sin cuenta)',
-                    style: AppType.button.copyWith(
-                      color: p.textMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildTestAccountsPanel(),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -424,13 +416,121 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  /// Acceso rápido a cuentas QA sembradas en el backend (disponible para pruebas y revisiones).
+  /// Tema y tamaño de letra.
+  ///
+  /// Eran dos `IconButton` sin rótulo accesible; ahora los dos dicen qué hacen,
+  /// y el del tema dice a qué modo lleva en vez de «alternar».
+  Widget _buildViewControls() {
+    final isDark = widget.state.themeMode == ThemeMode.dark;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        AuraIconButton(
+          icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+          tooltip: isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+          color: p.accent,
+          onPressed: () => widget.state.setThemeMode(
+            isDark ? ThemeMode.light : ThemeMode.dark,
+          ),
+        ),
+        AuraIconButton(
+          icon: Icons.text_fields_rounded,
+          tooltip: 'Cambiar el tamaño de la letra',
+          color: p.accent,
+          onPressed: () {
+            final current = widget.state.textScaleFactor;
+            final double nextScale;
+            if (current <= 1.0) {
+              nextScale = 1.15;
+            } else if (current <= 1.15) {
+              nextScale = 1.3;
+            } else if (current <= 1.3) {
+              nextScale = 1.5;
+            } else {
+              nextScale = 1.0;
+            }
+            widget.state.setTextScaleFactor(nextScale);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmblem() {
+    return Center(
+      child: Container(
+        height: 84,
+        width: 84,
+        decoration: BoxDecoration(
+          color: p.accent,
+          borderRadius: AuraRadius.allXl,
+        ),
+        child: Icon(
+          Icons.favorite_rounded,
+          color: context.scheme.onPrimary,
+          size: AuraIcon.xl,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: p.border)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AuraSpace.sm),
+          child: Text(
+            'o continúa con',
+            style: AppType.bodySmall.copyWith(color: p.textMuted),
+          ),
+        ),
+        Expanded(child: Divider(color: p.border)),
+      ],
+    );
+  }
+
+  /// Botón de una cuenta de terceros.
+  ///
+  /// El color de marca entra como `accent` de una paleta local, en lugar de
+  /// pintarse a mano: así el botón sigue siendo el del sistema —altura, radio,
+  /// anillo de foco, estado inhabilitado— y lo único que cambia es el color que
+  /// identifica al proveedor. Antes el icono era la letra «G» y una «f» en
+  /// negrita con tamaños escritos a mano, y el de Facebook era un rectángulo
+  /// azul relleno con texto blanco, que no llega al contraste mínimo.
+  ///
+  /// El rótulo visible es solo el nombre de la marca; la frase completa se la
+  /// queda el lector de pantalla.
+  Widget _socialButton({
+    required String label,
+    required String semanticLabel,
+    required IconData icon,
+    required Color brand,
+    required VoidCallback onPressed,
+  }) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        extensions: <ThemeExtension<dynamic>>[p.copyWith(accent: brand)],
+      ),
+      child: AuraButton.secondary(
+        label: label,
+        semanticLabel: semanticLabel,
+        icon: icon,
+        onPressed: _isSubmitting ? null : onPressed,
+      ),
+    );
+  }
+
+  /// Acceso rápido a las cuentas QA sembradas en el backend.
+  ///
+  /// Solo se llama dentro de `kDebugMode`. No añadir aquí nada que no pueda
+  /// verse en una revisión interna.
   Widget _buildTestAccountsPanel() {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(AuraSpace.sm),
       decoration: BoxDecoration(
         color: p.fill,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AuraRadius.allMd,
         border: Border.all(color: p.border),
       ),
       child: Column(
@@ -438,29 +538,28 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.science_outlined, size: 16, color: p.textMuted),
-              const SizedBox(width: 6),
+              Icon(Icons.science_outlined, size: AuraIcon.sm, color: p.textMuted),
+              const SizedBox(width: AuraSpace.xxs),
               Flexible(
                 child: Text(
-                'CUENTAS DE PRUEBA',
-                style: AppType.label.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                  color: p.textMuted,
+                  'Cuentas de prueba (solo en debug)',
+                  style: AppType.label.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.textMuted,
+                  ),
                 ),
-              ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AuraSpace.xxs),
           Text(
             'Contraseña común: $_testAccountPassword',
-            style: AppType.label.copyWith(color: p.textFaint),
+            style: AppType.label.copyWith(color: p.textMuted),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AuraSpace.xs),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: AuraSpace.xs,
+            runSpacing: AuraSpace.xs,
             children: _testAccounts.entries
                 .map(
                   (entry) => ActionChip(
@@ -489,89 +588,12 @@ class _AuthScreenState extends State<AuthScreen> {
       _isRegistering = false;
       _isSubmitting = true;
       _errorMessage = null;
+      _nameError = null;
+      _emailError = null;
+      _passwordError = null;
     });
 
     final error = await widget.state.login(email, _testAccountPassword);
-
-    if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      _errorMessage = error;
-    });
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    Widget? suffix,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      validator: validator,
-      style: AppType.bodyMedium.copyWith(color: p.textPrimary),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: AppType.bodySmall.copyWith(color: p.textFaint),
-        prefixIcon: Icon(icon, color: p.textFaint, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: p.card,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: p.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: p.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFDC2626)),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFDC2626), width: 2),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleGoogleLogin() async {
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final error = await widget.state.loginWithGoogle();
-
-    if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      _errorMessage = error;
-    });
-  }
-
-  Future<void> _handleFacebookLogin() async {
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-
-    final error = await widget.state.loginWithFacebook();
 
     if (!mounted) return;
     setState(() {

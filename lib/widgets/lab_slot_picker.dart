@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/lab_models.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
 /// E.1 — selector de día y bloque para la toma de muestras.
 ///
@@ -64,24 +65,38 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
     setState(() {
       _availableDates = dates;
       _loadingDates = false;
+      _slots = const [];
+      _selectedSlot = null;
     });
 
-    if (dates.isNotEmpty) {
-      _selectDate(dates.first);
+    if (dates.isEmpty) {
+      // Al cambiar de sector puede desaparecer toda la agenda. El cupo que la
+      // persona había elegido en el sector anterior seguía viajando con el
+      // formulario, que se enviaba con una hora de otra comuna.
+      widget.onSlotSelected(null);
+      return;
     }
+
+    _selectDate(dates.first);
   }
 
   Future<void> _selectDate(DateTime date) async {
     setState(() {
       _selectedDate = date;
       _loadingSlots = true;
-      _slots = [];
+      _slots = const [];
       _selectedSlot = null;
     });
     widget.onSlotSelected(null);
 
     final slots = await widget.state.fetchLabSlots(date, zone: widget.zone);
     if (!mounted) return;
+
+    // Dos toques seguidos en dos días distintos dejan dos peticiones en vuelo.
+    // Sin esta comprobación, la que contesta última pinta sus bloques debajo
+    // del día que ya no está elegido.
+    final current = _selectedDate;
+    if (current == null || !_sameDay(current, date)) return;
 
     setState(() {
       _slots = slots;
@@ -108,218 +123,196 @@ class _LabSlotPickerState extends State<LabSlotPicker> {
 
   String _dayLabel(DateTime date) {
     final today = DateTime.now();
-    if (_sameDay(date, today)) return 'Hoy';
-    if (_sameDay(date, today.add(const Duration(days: 1)))) return 'Mañana';
+    final day = '${date.day} ${_months[date.month - 1]}';
+    if (_sameDay(date, today)) return 'Hoy $day';
+    if (_sameDay(date, today.add(const Duration(days: 1)))) return 'Mañana $day';
 
-    return _weekdays[date.weekday - 1];
+    return '${_weekdays[date.weekday - 1]} $day';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-      ),
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.event_available_outlined, color: p.accent, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Agenda tu toma de muestras',
-                      style: AppType.titleSmall.copyWith(
-                        color: p.textPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Elige el día y el bloque horario que te acomode',
-                      style: AppType.label.copyWith(color: p.textFaint),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+          _header(),
+          const SizedBox(height: AuraSpace.md),
           if (_loadingDates)
-            _buildLoading('Buscando disponibilidad…')
+            _loadingDays()
           else if (_availableDates.isEmpty)
-            _buildEmpty()
+            _noAgenda()
           else ...[
-            _buildDateStrip(),
-            const SizedBox(height: 14),
-            if (_loadingSlots)
-              _buildLoading('Cargando bloques…')
-            else if (_slots.isEmpty)
-              Text(
-                'No quedan bloques libres ese día. Prueba con otra fecha.',
-                style: AppType.label.copyWith(color: p.textMuted, height: 1.5),
-              )
-            else
-              _buildSlotGrid(),
+            // `AuraOptionGroup` en vez de la tira horizontal: aquellas
+            // tarjetas eran un `GestureDetector` sobre una `Column`, así que un
+            // lector de pantalla leía «Jue», «14» y «ago» como tres textos
+            // sueltos, nunca como una opción que se puede elegir. De paso
+            // desaparece el alto calculado a mano —`64 * escala del texto`—:
+            // al envolver en varias filas, el grupo crece solo.
+            AuraOptionGroup<DateTime>(
+              label: 'Elige el día',
+              options: [
+                for (final date in _availableDates)
+                  (value: date, label: _dayLabel(date), icon: null),
+              ],
+              selected: _selectedDate,
+              onSelect: _selectDate,
+            ),
+            const SizedBox(height: AuraSpace.md),
+            _slotSection(),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildLoading(String message) {
+  Widget _header() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+        Icon(
+          Icons.event_available_outlined,
+          color: p.accent,
+          size: AuraIcon.md,
         ),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(message, style: AppType.label.copyWith(color: p.textMuted)),
+        const SizedBox(width: AuraSpace.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  'Agenda tu toma de muestras',
+                  style: AppType.titleSmall.copyWith(
+                    color: p.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AuraSpace.xxxs),
+              Text(
+                'Elige el día y el bloque que te acomoden.',
+                style: AppType.bodySmall.copyWith(color: p.textMuted),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildEmpty() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFDE68A)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, color: Colors.amber, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Por ahora no hay horarios publicados para toma de muestras. '
-              'Vuelve a intentarlo más tarde o comunícate con nosotros para coordinar.',
-              style: AppType.label.copyWith(color: const Color(0xFF92400E), height: 1.4),
+  Widget _slotSection() {
+    if (_loadingSlots) {
+      return Semantics(
+        liveRegion: true,
+        label: 'Cargando los bloques del día',
+        child: ExcludeSemantics(
+          child: AuraSkeleton.list(count: 3, height: AuraTap.large),
+        ),
+      );
+    }
+
+    final date = _selectedDate;
+    if (_slots.isEmpty) {
+      return AuraBanner(
+        tone: AuraTone.info,
+        icon: Icons.event_busy_rounded,
+        message: 'No quedan bloques libres ese día, o no pudimos consultarlos. '
+            'Prueba con otra fecha o vuelve a intentarlo.',
+        actionLabel: date == null ? null : 'Reintentar',
+        onAction: date == null ? null : () => _selectDate(date),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Elige el bloque',
+          style: AppType.bodySmall.copyWith(
+            fontWeight: FontWeight.w700,
+            color: p.textSecondary,
+          ),
+        ),
+        const SizedBox(height: AuraSpace.xs),
+        // El chip anterior marcaba el bloque elegido solo con el color de
+        // fondo. `AuraChoiceTile` añade el borde grueso y la marca de
+        // verificación, que es lo que hace visible la elección para quien no
+        // separa el verde del gris.
+        for (final slot in _slots)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AuraTap.gap),
+            child: AuraChoiceTile(
+              title: slot.label,
+              subtitle: slot.professionalName,
+              icon: Icons.schedule_rounded,
+              selected: _selectedSlot?.scheduleId == slot.scheduleId &&
+                  _selectedSlot?.startsAt == slot.startsAt,
+              trailingText: slot.remaining <= 3
+                  ? (slot.remaining == 1
+                      ? 'Queda 1 cupo'
+                      : 'Quedan ${slot.remaining} cupos')
+                  : null,
+              onTap: () => _selectSlot(slot),
             ),
           ),
-          TextButton(
-            onPressed: _loadAvailability,
-            style: TextButton.styleFrom(
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ],
+    );
+  }
+
+  Widget _loadingDays() {
+    return Semantics(
+      liveRegion: true,
+      label: 'Buscando la disponibilidad del laboratorio',
+      child: ExcludeSemantics(
+        child: Wrap(
+          spacing: AuraTap.gap,
+          runSpacing: AuraTap.gap,
+          children: const [
+            AuraSkeleton(
+              height: AuraTap.min,
+              width: 112,
+              radius: AuraRadius.allSm,
             ),
-            child: Text('Reintentar', style: AppType.label),
-          ),
-        ],
+            AuraSkeleton(
+              height: AuraTap.min,
+              width: 128,
+              radius: AuraRadius.allSm,
+            ),
+            AuraSkeleton(
+              height: AuraTap.min,
+              width: 104,
+              radius: AuraRadius.allSm,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDateStrip() {
-    // El alto acompaña al escalado de fuente. Con un valor fijo, subir la letra
-    // al doble recorta el número del día justo en el control que la persona con
-    // problemas de vista necesita leer.
-    final scale = MediaQuery.textScalerOf(context).scale(1.0);
-
-    return SizedBox(
-      height: 64 * scale,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _availableDates.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final date = _availableDates[index];
-          final selected = _selectedDate != null && _sameDay(_selectedDate!, date);
-
-          return GestureDetector(
-            onTap: () => _selectDate(date),
-            child: Container(
-              width: 62,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: selected ? p.accent : p.background,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: selected ? p.accent : p.border),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _dayLabel(date),
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : p.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${date.day}',
-                    style: AppType.titleMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: selected ? Colors.white : p.textPrimary,
-                    ),
-                  ),
-                  Text(
-                    _months[date.month - 1],
-                    style: AppType.label.copyWith(
-                      color: selected ? Colors.white70 : p.textFaint,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSlotGrid() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _slots.map((slot) {
-        final selected = _selectedSlot?.scheduleId == slot.scheduleId &&
-            _selectedSlot?.startsAt == slot.startsAt;
-
-        return GestureDetector(
-          onTap: () => _selectSlot(slot),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: selected ? p.accent : p.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: selected ? p.accent : p.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  slot.label,
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: selected ? Colors.white : p.textPrimary,
-                  ),
-                ),
-                Text(
-                  slot.professionalName,
-                  style: AppType.label.copyWith(
-                    color: selected ? Colors.white70 : p.textFaint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+  /// Sin agenda publicada.
+  ///
+  /// `fetchLabAvailability` devuelve la lista vacía en dos casos que desde aquí
+  /// no se distinguen: que el laboratorio no haya publicado horarios y que la
+  /// consulta al servidor haya fallado. Por eso el texto nombra las dos
+  /// posibilidades y siempre deja el reintento a mano, en vez de afirmar que no
+  /// hay horas cuando lo que hubo fue un corte de red.
+  ///
+  /// El «Reintentar» de antes llevaba `minimumSize: Size.zero` y
+  /// `shrinkWrap`: 21 px de alto, el control más pequeño de la pantalla y a la
+  /// vez el único que permitía salir de este estado.
+  Widget _noAgenda() {
+    return AuraEmptyState(
+      compact: true,
+      icon: Icons.event_busy_rounded,
+      title: 'Todavía no hay horas publicadas',
+      message: 'Puede que el laboratorio aún no haya publicado su agenda para '
+          'tu sector, o que no hayamos podido consultarla. Inténtalo de nuevo '
+          'en un momento.',
+      actionLabel: 'Reintentar',
+      onAction: _loadAvailability,
     );
   }
 }

@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../models/appointment.dart';
 import '../state/app_state.dart';
@@ -26,6 +29,16 @@ class VideoCallScreen extends StatefulWidget {
 }
 
 class _VideoCallScreenState extends State<VideoCallScreen> {
+  /// Cromo sobre vídeo.
+  ///
+  /// Es la única pantalla de la app que no sigue el tema, y con razón: lo que
+  /// hay detrás de estos controles es la imagen de la cámara, no una superficie
+  /// de la app, así que el fondo es negro y los controles blancos tanto en
+  /// claro como en oscuro. Viven aquí con nombre en lugar de repetirse como
+  /// literales sueltos por el archivo.
+  static const _videoBackdrop = Color(0xFF05070D);
+  static const _onVideo = Colors.white;
+
   final _localRenderer = RTCVideoRenderer();
   final _remoteRenderer = RTCVideoRenderer();
 
@@ -331,8 +344,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFF05070D),
+      backgroundColor: _videoBackdrop,
       body: SafeArea(
         child: Stack(
           children: [
@@ -350,15 +364,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const CircularProgressIndicator(
-                                color: Color(0xFF2DD4BF), strokeWidth: 3),
+                            CircularProgressIndicator(
+                                color: p.accent, strokeWidth: 3),
                             const SizedBox(height: 22),
                             Text(
                               widget.appointment.professionalName ??
                                   'Profesional Aura',
                               style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
+                                color: _onVideo,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -369,8 +382,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               // Esta pantalla tiene fondo casi negro propio, no
                               // el del tema: aquí el gris claro es el que
                               // contrasta (7.86:1 contra 4.23:1).
-                              style: const TextStyle(
-                                  color: Color(0xFF94A3B8), fontSize: 13),
+                              style: TextStyle(
+                                  color: _onVideo.withValues(alpha: 0.7)),
                             ),
                           ],
                         ),
@@ -426,12 +439,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                     child: Container(
                       width: 62,
                       height: 62,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
+                      decoration: BoxDecoration(
+                        color: p.error,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.call_end,
-                          color: Colors.white, size: 28),
+                          color: _onVideo, size: AuraIcon.lg),
                     ),
                   ),
                 ],
@@ -455,11 +468,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         height: 54,
         decoration: BoxDecoration(
           color: active
-              ? Colors.white.withValues(alpha: 0.14)
-              : const Color(0xFF475569),
+              ? _onVideo.withValues(alpha: 0.14)
+              : _onVideo.withValues(alpha: 0.28),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Icon(icon, color: _onVideo, size: AuraIcon.md),
       ),
     );
   }

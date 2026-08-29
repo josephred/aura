@@ -1,25 +1,30 @@
 import 'dart:async';
-import 'package:aura/theme/app_theme.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
-/// Interactive OpenStreetMap location picker that replaces the old
-/// `MockMapPainter` canvas. The user pans the real map beneath a fixed centre
-/// pin (or taps "Mi ubicación" to jump to their device GPS); the map centre is
-/// the selected coordinate and is reverse-geocoded into a human address.
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
+
+/// Selector de ubicación sobre OpenStreetMap, en lugar del antiguo lienzo
+/// `MockMapPainter`.
+///
+/// La persona mueve el mapa bajo una chincheta fija —o toca «Mi ubicación» para
+/// saltar al GPS del teléfono—: el centro del mapa es el punto elegido, y se
+/// traduce a una dirección legible por geocodificación inversa.
 class MapLocationPicker extends StatefulWidget {
   final LatLng initialCenter;
   final double height;
   final Color? accentColor;
 
-  /// Whether to try centring on the device GPS as soon as the map loads.
+  /// Si se intenta centrar en el GPS del teléfono en cuanto carga el mapa.
   final bool autoLocateOnInit;
 
-  /// Fired (debounced) whenever the selected point settles, with the reverse
-  /// geocoded address when one could be resolved.
+  /// Se dispara (con retardo) cuando el punto elegido se asienta, con la
+  /// dirección resuelta si se pudo obtener.
   final void Function(LatLng point, String? address) onLocationChanged;
 
   const MapLocationPicker({
@@ -46,7 +51,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
   void initState() {
     super.initState();
     if (widget.autoLocateOnInit) {
-      // Only jumps if permission is already granted; never prompts on load.
+      // Solo salta si el permiso ya estaba concedido; al cargar no pregunta.
       WidgetsBinding.instance.addPostFrameCallback((_) => _locateMe(silent: true));
     }
   }
@@ -91,18 +96,23 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (silent) return;
-        _showMessage('Active el GPS del dispositivo para usar su ubicación.');
+        _showMessage('Activa el GPS del teléfono para usar tu ubicación.');
         return;
       }
 
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        if (silent) return; // Don't prompt on silent auto-locate
+        if (silent) return; // En el intento silencioso no se pregunta nada.
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        if (!silent) _showMessage('Permiso de ubicación denegado.');
+        if (!silent) {
+          _showMessage(
+            'No tenemos permiso para usar tu ubicación. Puedes mover el mapa '
+            'para marcar el punto.',
+          );
+        }
         return;
       }
 
@@ -116,7 +126,11 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       _onCenterSettled(target);
     } catch (e) {
       debugPrint('Geolocation failed: $e');
-      if (!silent) _showMessage('No se pudo obtener la ubicación.');
+      if (!silent) {
+        _showMessage(
+          'No pudimos obtener tu ubicación. Mueve el mapa para marcar el punto.',
+        );
+      }
     } finally {
       if (mounted && !silent) setState(() => _locating = false);
     }
@@ -129,10 +143,10 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final accentColor = widget.accentColor ?? p.accent;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: AuraRadius.allMd,
       child: SizedBox(
         height: widget.height,
         width: double.infinity,
@@ -160,54 +174,98 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
               ],
             ),
 
-            // Fixed centre pin: its tip marks the selected coordinate.
+            // Chincheta fija: su punta marca la coordenada elegida.
             Padding(
               padding: const EdgeInsets.only(bottom: 28),
-              child: Icon(Icons.location_on, color: accentColor, size: 40),
-            ),
-
-            // "My location" button
-            Positioned(
-              right: 10,
-              bottom: 10,
-              child: Material(
-                color: p.card,
-                shape: const CircleBorder(),
-                elevation: 2,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _locating ? null : () => _locateMe(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: _locating
-                        ? SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: accentColor,
-                            ),
-                          )
-                        : Icon(Icons.my_location, color: accentColor, size: 18),
-                  ),
+              child: Semantics(
+                image: true,
+                label: 'El punto elegido es el centro del mapa.',
+                child: Icon(
+                  Icons.location_on_rounded,
+                  color: accentColor,
+                  size: 40,
                 ),
               ),
             ),
 
-            // OSM attribution (required by the tile usage policy)
             Positioned(
-              left: 6,
-              bottom: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                color: Colors.white70,
-                child: Text(
-                  '© OpenStreetMap',
-                  style: AppType.label.copyWith(color: const Color(0xFF475569)),
-                ),
-              ),
+              right: AuraSpace.xs,
+              bottom: AuraSpace.xs,
+              child: _locateButton(accentColor),
             ),
+
+            _attribution(),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Botón de «mi ubicación».
+  ///
+  /// Mide 44 px. Antes era un icono de 18 con 8 px de relleno: 34 px de lado,
+  /// flotando sobre un mapa que se arrastra con el dedo, así que fallar el
+  /// toque no hacía nada o movía el mapa y cambiaba la dirección elegida.
+  Widget _locateButton(Color accentColor) {
+    return Material(
+      color: p.card,
+      shape: const CircleBorder(),
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: Tooltip(
+        message: 'Usar mi ubicación',
+        child: Semantics(
+          button: true,
+          enabled: !_locating,
+          label: 'Usar mi ubicación',
+          child: ExcludeSemantics(
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _locating ? null : () => _locateMe(),
+              child: SizedBox(
+                width: AuraTap.min,
+                height: AuraTap.min,
+                child: Center(
+                  child: _locating
+                      ? SizedBox(
+                          height: AuraIcon.sm,
+                          width: AuraIcon.sm,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: accentColor,
+                          ),
+                        )
+                      : Icon(
+                          Icons.my_location_rounded,
+                          color: accentColor,
+                          size: AuraIcon.md,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Atribución obligatoria por la política de uso de las teselas.
+  Widget _attribution() {
+    return Positioned(
+      left: AuraSpace.xxs,
+      bottom: AuraSpace.xxxs,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AuraSpace.xxs,
+          vertical: AuraSpace.xxxs,
+        ),
+        decoration: BoxDecoration(
+          color: p.card.withValues(alpha: 0.88),
+          borderRadius: AuraRadius.allXs,
+        ),
+        child: Text(
+          '© OpenStreetMap',
+          style: AppType.label.copyWith(color: p.textSecondary),
         ),
       ),
     );

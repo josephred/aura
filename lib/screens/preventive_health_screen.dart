@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/dependent.dart';
 import '../state/app_state.dart';
-import '../theme/app_typography.dart';
+import '../theme/app_theme.dart';
+import '../ui/aura.dart';
 
 /// D.2 — salud preventiva:
-/// - Calendario de vacunación pediátrica según la edad real del niño.
-/// - Alertas de chequeo para adultos según su rango etario.
+/// - Qué vacunas le tocan a cada hijo según su edad real.
+/// - Qué chequeo le toca a la persona adulta según la suya.
 ///
 /// Una advertencia que gobierna toda esta pantalla: **Aura no tiene el registro
 /// de vacunas de nadie**. Puede decir qué corresponde a una edad, nunca qué se
-/// administró. Marcar una dosis como "completada" sin haberla registrado sería
+/// administró. Marcar una dosis como «puesta» sin haberla registrado sería
 /// darle a un padre una tranquilidad que no le consta a nadie.
 class PreventiveHealthScreen extends StatefulWidget {
   final AppState state;
@@ -46,7 +47,8 @@ class _AdultCheckup {
     required this.serviceId,
   });
 
-  String get bracket => toAge == null ? '$fromAge+ años' : '$fromAge - $toAge años';
+  String get bracket =>
+      toAge == null ? 'Desde los $fromAge años' : 'De $fromAge a $toAge años';
 
   bool covers(int age) {
     if (age < fromAge) return false;
@@ -59,12 +61,13 @@ class _AdultCheckup {
   }
 }
 
+/// En qué punto del calendario cae un hito respecto de la edad de quien mira.
+enum _Timing { due, past, upcoming }
+
 class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? _selectedDependentId;
-
-  static const _accent = Color(0xFF0F766E);
 
   /// Calendario Nacional de Inmunización (Minsal Chile).
   static const List<_VaccineMilestone> _calendar = [
@@ -106,27 +109,27 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     _AdultCheckup(
       fromAge: 30,
       toAge: 39,
-      title: 'Chequeo preventivo inicial',
+      title: 'Tu primer chequeo general',
       description:
-          'Perfil lipídico, glicemia en ayunas, hemograma completo y una '
-          'evaluación médica general de base.',
+          'Un análisis de sangre completo —colesterol, azúcar y hemograma— y '
+          'una consulta médica para revisarlo contigo.',
       serviceId: 'laboratorio',
     ),
     _AdultCheckup(
       fromAge: 40,
       toAge: 49,
-      title: 'Salud cardiovascular y metabólica',
+      title: 'Control del corazón y del azúcar',
       description:
-          'Electrocardiograma de reposo, control de presión arterial, fondo '
-          'de ojo para diabéticos y exámenes de función renal.',
+          'Electrocardiograma en reposo, control de la presión, revisión de '
+          'cómo trabajan tus riñones y, si tienes diabetes, fondo de ojo.',
       serviceId: 'electrocardiograma',
     ),
     _AdultCheckup(
       fromAge: 50,
-      title: 'Control integral senior',
+      title: 'Control completo desde los 50',
       description:
-          'Evaluación geriátrica preventiva, tamizaje de riesgo de caídas, '
-          'densitometría ósea y revisión periódica de polifarmacia.',
+          'Una revisión general, riesgo de caídas, densidad de los huesos y un '
+          'repaso de todos los medicamentos que tomas.',
       serviceId: 'medico',
     ),
   ];
@@ -159,139 +162,139 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final p = context.palette;
 
     return Scaffold(
+      backgroundColor: p.background,
       appBar: AppBar(
-        title: Text(
-          'Salud Preventiva',
-          style: AppType.titleMedium.copyWith(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Salud preventiva'),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: _accent,
-          labelColor: _accent,
-          labelStyle: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-          unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
+          indicatorColor: p.accent,
+          labelColor: p.accent,
+          unselectedLabelColor: p.textMuted,
+          labelStyle: AppType.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: AppType.bodyMedium,
           tabs: const [
-            Tab(text: 'Vacunación infantil'),
-            Tab(text: 'Chequeos adultos'),
+            Tab(text: 'Vacunas'),
+            Tab(text: 'Chequeos'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildChildrenTab(isDark),
-          _buildAdultTab(isDark),
+          _childrenTab(context),
+          _adultTab(context),
         ],
       ),
     );
   }
 
+  static const _listPadding = EdgeInsets.fromLTRB(
+    AuraSpace.screenX,
+    AuraSpace.md,
+    AuraSpace.screenX,
+    AuraSpace.xxl,
+  );
+
   // --------------------------------------------------------------- infantil
 
-  Widget _buildChildrenTab(bool isDark) {
+  Widget _childrenTab(BuildContext context) {
+    final children = _children;
     final child = _selectedChild;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPadding,
       children: [
-        _buildHeaderCard(
-          icon: Icons.shield_rounded,
-          title: 'Calendario de vacunación infantil',
-          subtitle: 'Guía oficial Minsal según la edad de tus hijos.',
+        AuraReadable(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Lo más importante de la pantalla: qué sabe Aura y qué no.
+              const AuraBanner(
+                tone: AuraTone.warning,
+                title: 'Aura no sabe qué vacunas ya le pusieron',
+                message:
+                    'Esto es el calendario del Ministerio de Salud según su '
+                    'edad, no un comprobante de lo que ya recibió. Comprueba '
+                    'las dosis puestas en su carné o en su centro de salud.',
+              ),
+              const SizedBox(height: AuraSpace.xl),
+
+              if (child == null)
+                _noChildrenState()
+              else ...[
+                if (children.length > 1) ...[
+                  const AuraSectionHeader(title: '¿De quién quieres verlo?'),
+                  for (final d in children) ...[
+                    AuraChoiceTile(
+                      title: d.name,
+                      subtitle: _dependentAgeLabel(d),
+                      icon: Icons.child_care_rounded,
+                      selected: d.id == child.id,
+                      onTap: () =>
+                          setState(() => _selectedDependentId = d.id),
+                    ),
+                    const SizedBox(height: AuraTap.gap),
+                  ],
+                  const SizedBox(height: AuraSpace.lg),
+                ],
+
+                AuraSectionHeader(title: 'Calendario de ${child.name}'),
+
+                if (_currentMilestone(child.calculatedAgeMonths) == null) ...[
+                  AuraBanner(
+                    tone: AuraTone.info,
+                    icon: Icons.done_all_rounded,
+                    message:
+                        '${child.name} ya pasó todas las edades de este '
+                        'calendario. Las vacunas que vienen después se ponen '
+                        'en el consultorio o en el vacunatorio.',
+                  ),
+                  const SizedBox(height: AuraSpace.md),
+                ],
+
+                for (final milestone in _calendar) ...[
+                  _milestoneCard(context, milestone, child),
+                  const SizedBox(height: AuraSpace.sm),
+                ],
+              ],
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        if (_children.isNotEmpty) ...[
-          _buildChildSelector(isDark),
-          const SizedBox(height: 12),
-        ],
-        _buildRecordDisclaimer(isDark),
-        const SizedBox(height: 16),
-        if (child == null)
-          _buildEmptyState(
-            isDark,
-            'No hay niños registrados',
-            'Registra a tus hijos en Mi Cuenta › Grupo familiar y aquí verás '
-                'qué vacunas les corresponden según su edad.',
-          )
-        else
-          ..._calendar.map((m) => _buildMilestoneCard(m, child, isDark)),
       ],
     );
   }
 
-  Widget _buildChildSelector(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: _selectedChild?.id,
-          items: _children
-              .map((d) => DropdownMenuItem(
-                    value: d.id,
-                    child: Text(
-                      '${d.name} · ${_dependentAgeLabel(d)}',
-                      style: AppType.bodyMedium,
-                    ),
-                  ))
-              .toList(),
-          onChanged: (value) => setState(() => _selectedDependentId = value),
-        ),
-      ),
+  /// Dos vacíos distintos con causas distintas: no haber añadido a nadie, o
+  /// tener familiares guardados pero ninguno en edad de este calendario. El
+  /// mensaje anterior («No hay niños registrados») era falso en el segundo caso
+  /// y dejaba a la persona buscando un formulario que ya había rellenado.
+  Widget _noChildrenState() {
+    final hasFamily = widget.state.dependents.isNotEmpty;
+
+    return AuraEmptyState(
+      icon: Icons.family_restroom_rounded,
+      title: hasFamily
+          ? 'Ninguno de tus familiares es menor de edad'
+          : 'Todavía no has añadido a tu familia',
+      message: hasFamily
+          ? 'Este calendario es para menores de 18 años. Si falta alguien, '
+              'añádelo en Mi cuenta › Familiares.'
+          : 'Añade a tus hijos en Mi cuenta › Familiares y aquí verás qué '
+              'vacunas les tocan según su edad.',
     );
   }
 
-  /// Lo más importante de la pantalla: qué sabe Aura y qué no.
-  Widget _buildRecordDisclaimer(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF78350F).withValues(alpha: 0.2)
-            : const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 16, color: Colors.amber),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Aura no tiene el registro de vacunas de tu hijo: esto es el '
-              'calendario oficial según su edad, no un comprobante de lo que '
-              'ya recibió. Confirma las dosis puestas con su carné o su centro '
-              'de salud.',
-              style: AppType.bodySmall.copyWith(
-                height: 1.4,
-                color: isDark
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF92400E),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMilestoneCard(
+  Widget _milestoneCard(
+    BuildContext context,
     _VaccineMilestone milestone,
     Dependent child,
-    bool isDark,
   ) {
-    // Calculamos la edad precisa en meses desde birth_date o age_months
+    final p = context.palette;
+
+    // Edad precisa en meses, desde birth_date o age_months.
     final ageMonths = child.calculatedAgeMonths;
     final current = _currentMilestone(ageMonths);
 
@@ -299,88 +302,71 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     final isPast = current == null
         ? milestone.months <= ageMonths
         : milestone.months < current.months;
-    final isUpcoming = !isDue && !isPast;
 
-    final (label, color) = isDue
-        ? ('Corresponde ahora', _accent)
+    final timing = isDue
+        ? _Timing.due
         : isPast
-            ? ('Ya correspondió', Colors.grey)
-            : ('Más adelante', Colors.blueGrey);
+            ? _Timing.past
+            : _Timing.upcoming;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDue ? _accent : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
-          width: isDue ? 2 : 1,
-        ),
-      ),
+    final (String label, AuraTone tone, IconData icon) = switch (timing) {
+      _Timing.due => ('Le toca ahora', AuraTone.warning, Icons.event_available_rounded),
+      _Timing.past => ('Ya le tocó', AuraTone.neutral, Icons.history_rounded),
+      _Timing.upcoming => ('Más adelante', AuraTone.info, Icons.schedule_rounded),
+    };
+
+    final c = auraToneColors(context, tone);
+
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
+              Expanded(
                 child: Text(
-                milestone.label,
-                style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-              ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  label,
-                  style: AppType.label.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
+                  milestone.label,
+                  style: AppType.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
                   ),
                 ),
               ),
+              const SizedBox(width: AuraSpace.xs),
+              AuraBadge(label: label, tone: tone, icon: icon),
             ],
           ),
-          const SizedBox(height: 8),
-          ...milestone.vaccines.map(
-            (v) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+          const SizedBox(height: AuraSpace.xs),
+          for (final vaccine in milestone.vaccines)
+            Padding(
+              padding: const EdgeInsets.only(top: AuraSpace.xxs),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isUpcoming
-                        ? Icons.schedule_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    size: 14,
-                    color: color,
-                  ),
-                  const SizedBox(width: 8),
+                  // Cada vacuna llevaba antes un `radio_button_unchecked`: el
+                  // dibujo de una casilla por marcar. Aura no tiene el registro
+                  // de dosis de nadie, así que ese icono ofrecía justo lo que
+                  // el aviso de arriba acaba de advertir que no puede hacer.
+                  Icon(icon, size: AuraIcon.sm, color: c.fg),
+                  const SizedBox(width: AuraSpace.xs),
                   Expanded(
                     child: Text(
-                      v,
-                      style: AppType.bodySmall.copyWith(
-                        color: isDark ? Colors.grey[300] : Colors.grey[800],
-                      ),
+                      vaccine,
+                      style: AppType.bodySmall.copyWith(color: p.textSecondary),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
   /// Hito activo que corresponde actualmente según la edad precisa.
-  /// Si el dependiente superó la edad del último hito por más de 12 meses, se considera que
-  /// completó el calendario de hitos infantiles y retorna null.
+  /// Si el dependiente superó la edad del último hito por más de 12 meses, se
+  /// considera que completó el calendario de hitos infantiles y retorna null.
   _VaccineMilestone? _currentMilestone(int ageMonths) {
     if (ageMonths > _calendar.last.months + 12) {
       return null;
@@ -396,67 +382,89 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
 
   // ---------------------------------------------------------------- adultos
 
-  Widget _buildAdultTab(bool isDark) {
+  Widget _adultTab(BuildContext context) {
+    final p = context.palette;
     final age = widget.state.userAge;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPadding,
       children: [
-        _buildHeaderCard(
-          icon: Icons.favorite_rounded,
-          title: 'Chequeos preventivos por edad',
-          subtitle: age == null
-              ? 'Indícanos tu edad para señalarte cuál te corresponde.'
-              : 'Tienes $age años: destacamos el control que te corresponde.',
-        ),
-        const SizedBox(height: 12),
-        _buildAgeSelector(isDark, age),
-        const SizedBox(height: 16),
-        ..._checkups.map((c) => _buildCheckupCard(c, age, isDark)),
-        const SizedBox(height: 12),
-        Text(
-          'Estas son recomendaciones generales por rango etario. Tu médico '
-          'puede indicarte otros exámenes según tus antecedentes.',
-          style: AppType.bodySmall.copyWith(
-            height: 1.5,
-            color: isDark ? Colors.grey[500] : Colors.grey[600],
+        AuraReadable(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (age == null) ...[
+                const AuraBanner(
+                  tone: AuraTone.info,
+                  icon: Icons.cake_outlined,
+                  message:
+                      'Dinos tu edad y te marcamos cuál de estos controles te '
+                      'toca ahora.',
+                ),
+                const SizedBox(height: AuraSpace.md),
+              ],
+              _ageSelector(context, age),
+
+              const SizedBox(height: AuraSpace.xl),
+              const AuraSectionHeader(title: 'Controles según tu edad'),
+              for (final checkup in _checkups) ...[
+                _checkupCard(context, checkup, age),
+                const SizedBox(height: AuraSpace.sm),
+              ],
+
+              const SizedBox(height: AuraSpace.md),
+              Text(
+                'Son recomendaciones generales por edad. Tu médico puede '
+                'pedirte otros exámenes según lo que ya sepa de ti.',
+                style: AppType.bodySmall.copyWith(color: p.textMuted),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildAgeSelector(bool isDark, int? age) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+  Widget _ageSelector(BuildContext context, int? age) {
+    final p = context.palette;
+
+    return AuraCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AuraSpace.md,
+        vertical: AuraSpace.xs,
       ),
       child: Row(
         children: [
-          const Icon(Icons.cake_outlined, size: 18, color: _accent),
-          const SizedBox(width: 10),
+          Icon(Icons.cake_outlined, size: AuraIcon.md, color: p.accent),
+          const SizedBox(width: AuraSpace.sm),
           Expanded(
-            child: Text('Mi edad', style: AppType.bodyMedium),
+            child: Text(
+              'Tu edad',
+              style: AppType.bodyMedium.copyWith(
+                fontWeight: FontWeight.w600,
+                color: p.textPrimary,
+              ),
+            ),
           ),
           DropdownButtonHideUnderline(
             child: DropdownButton<int?>(
               value: age,
-              hint: Text('Elegir', style: AppType.bodyMedium),
+              borderRadius: AuraRadius.allSm,
+              dropdownColor: p.card,
+              // Son 85 edades: sin techo, el menú se abre del alto de la
+              // pantalla y tapa la pregunta que lo motivó.
+              menuMaxHeight: 320,
+              iconEnabledColor: p.textSecondary,
+              style: AppType.bodyMedium.copyWith(color: p.textPrimary),
+              // Sin `hint`: la lista ya trae «Sin indicar» como opción real,
+              // y con esa opción presente el `hint` nunca llegaba a pintarse.
               items: [
-                DropdownMenuItem<int?>(
+                const DropdownMenuItem<int?>(
                   value: null,
-                  child: Text('Sin indicar', style: AppType.bodyMedium),
+                  child: Text('Sin indicar'),
                 ),
-                ...List.generate(
-                  85,
-                  (i) => DropdownMenuItem<int?>(
-                    value: i + 18,
-                    child: Text('${i + 18}', style: AppType.bodyMedium),
-                  ),
-                ),
+                for (var i = 18; i <= 102; i++)
+                  DropdownMenuItem<int?>(value: i, child: Text('$i años')),
               ],
               onChanged: (value) async {
                 await widget.state.setUserAge(value);
@@ -469,87 +477,74 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     );
   }
 
-  Widget _buildCheckupCard(_AdultCheckup checkup, int? age, bool isDark) {
+  Widget _checkupCard(
+    BuildContext context,
+    _AdultCheckup checkup,
+    int? age,
+  ) {
+    final p = context.palette;
     final applies = age != null && checkup.covers(age);
     final overdue = age != null && checkup.toAge != null && age > checkup.toAge!;
+    final upcoming = age != null && age < checkup.fromAge;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: applies ? _accent : (isDark ? Colors.grey[800]! : Colors.grey[200]!),
-          width: applies ? 2 : 1,
-        ),
-      ),
+    return AuraCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Flexible(
+              Expanded(
                 child: Text(
-                checkup.bracket,
-                style: AppType.bodySmall.copyWith(fontWeight: FontWeight.bold),
+                  checkup.bracket,
+                  style: AppType.bodySmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: p.textMuted,
+                  ),
+                ),
               ),
-              ),
+              const SizedBox(width: AuraSpace.xs),
               if (applies)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Te corresponde',
-                    style: AppType.label.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: _accent,
-                    ),
-                  ),
+                const AuraBadge(
+                  label: 'Te toca ahora',
+                  tone: AuraTone.warning,
+                  icon: Icons.event_available_rounded,
                 )
               else if (overdue)
-                Text(
-                  'Rango ya cumplido',
-                  style: AppType.label.copyWith(color: Colors.grey[600]),
+                const AuraBadge(
+                  label: 'Ya lo pasaste',
+                  tone: AuraTone.neutral,
+                  icon: Icons.history_rounded,
+                )
+              else if (upcoming)
+                const AuraBadge(
+                  label: 'Más adelante',
+                  tone: AuraTone.info,
+                  icon: Icons.schedule_rounded,
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AuraSpace.xs),
           Text(
             checkup.title,
-            style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            checkup.description,
-            style: AppType.bodySmall.copyWith(
-              height: 1.4,
-              color: isDark ? Colors.grey[400] : Colors.grey[700],
+            style: AppType.bodyLarge.copyWith(
+              fontWeight: FontWeight.w700,
+              color: p.textPrimary,
             ),
           ),
+          const SizedBox(height: AuraSpace.xxs),
+          Text(
+            checkup.description,
+            style: AppType.bodySmall.copyWith(color: p.textSecondary),
+          ),
           if (applies) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _requestService(checkup.serviceId),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 15),
-                label: const Text('Solicitar este control'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _accent,
-                  side: const BorderSide(color: _accent),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: AppType.button.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            const SizedBox(height: AuraSpace.md),
+            AuraButton.secondary(
+              label: 'Pedir este control',
+              icon: Icons.arrow_forward_rounded,
+              trailingIcon: true,
+              size: AuraButtonSize.small,
+              onPressed: () => _requestService(checkup.serviceId),
             ),
           ],
         ],
@@ -563,9 +558,12 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
     final match = widget.state.services.where((s) => s.id == serviceId);
     if (match.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ese servicio no está disponible en este momento.'),
-          backgroundColor: Color(0xFFF59E0B),
+        SnackBar(
+          content: const Text(
+            'Ese servicio no está disponible ahora mismo. Inténtalo de nuevo '
+            'en un rato.',
+          ),
+          backgroundColor: context.palette.error,
         ),
       );
       return;
@@ -576,74 +574,6 @@ class _PreventiveHealthScreenState extends State<PreventiveHealthScreen>
   }
 
   // ----------------------------------------------------------------- común
-
-  Widget _buildHeaderCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _accent.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: _accent, size: 30),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppType.bodySmall.copyWith(color: Colors.grey, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isDark, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.vaccines_outlined,
-              size: 36, color: _accent.withValues(alpha: 0.3)),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: AppType.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: AppType.bodySmall.copyWith(
-              height: 1.4,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _dependentAgeLabel(Dependent child) {
     final months = child.calculatedAgeMonths;

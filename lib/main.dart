@@ -15,6 +15,7 @@ import 'state/app_state.dart';
 import 'models/service_request.dart';
 import 'data/mock_data.dart';
 import 'theme/app_theme.dart';
+import 'ui/aura.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -147,52 +148,40 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // While restoring a saved session, show a lightweight splash
     if (_appState.isRestoringSession) {
+      final p = context.palette;
       return Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: p.background,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                height: 84,
-                width: 84,
+                height: 88,
+                width: 88,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F766E), Color(0xFF2DD4BF)],
-                    begin: Alignment.bottomLeft,
-                    end: Alignment.topRight,
-                  ),
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0F766E).withValues(alpha: 0.25),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  color: p.accentSurface,
+                  borderRadius: AuraRadius.allXl,
                 ),
-                child: const Icon(
-                  Icons.shield,
-                  color: Colors.white,
-                  size: 44,
+                child: Icon(
+                  Icons.health_and_safety_rounded,
+                  color: p.accentText,
+                  size: AuraIcon.display,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AuraSpace.lg),
               Text(
-                'AURA Salud',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  color: context.palette.textPrimary,
-                  letterSpacing: -0.5,
+                'Aura Salud',
+                style: AppType.titleLarge.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: p.textPrimary,
                 ),
               ),
-              const SizedBox(height: 40),
-              const SizedBox(
+              const SizedBox(height: AuraSpace.xxl),
+              SizedBox(
                 height: 24,
                 width: 24,
                 child: CircularProgressIndicator(
-                  color: Color(0xFF0F766E),
+                  color: p.accent,
                   strokeWidth: 2.5,
                 ),
               ),
@@ -353,174 +342,75 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           ),
           // Searching Doctor full-screen overlay matching web
           if (_appState.isSearchingDoctor)
-            _SearchingOverlay(serviceTitle: selectedService?.title ?? 'Médico'),
+            const _SearchingOverlay(),
         ],
       ),
     );
   }
 }
 
-class _SearchingOverlay extends StatefulWidget {
-  final String serviceTitle;
-
-  const _SearchingOverlay({required this.serviceTitle});
-
-  @override
-  State<_SearchingOverlay> createState() => _SearchingOverlayState();
-}
-
-class _SearchingOverlayState extends State<_SearchingOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 0.9, end: 1.1).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
+/// Lo que se ve mientras se busca a un profesional.
+///
+/// La versión anterior pintaba, sobre un fondo casi negro, una lista de tres
+/// tareas **todas marcadas como completadas**, siempre, desde el primer
+/// milisegundo: «Orden Médica validada», «Ingresando a la cola de tu zona»,
+/// «Notificando a los prestadores en turno del área…», en tipografía monoespaciada
+/// como si fuera el registro de un sistema. Nada de eso venía de ningún estado
+/// real —la primera línea aparecía incluso en servicios que no piden orden
+/// médica— y el conjunto imitaba la estética de una consola para dar sensación
+/// de maquinaria trabajando.
+///
+/// Es teatro, y de un tipo caro: la persona a la que se lo enseñamos acaba de
+/// pagar y está esperando a alguien que vaya a su casa. Lo que hay ahora dice lo
+/// único que se sabe con certeza —que se está avisando a los profesionales de su
+/// zona— con calma y sin fingir progreso.
+class _SearchingOverlay extends StatelessWidget {
+  const _SearchingOverlay();
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
-      color: const Color(
-        0xFF0F172A,
-      ).withValues(alpha: 0.95), // brand-dark / 95% opacity
+      color: p.background.withValues(alpha: 0.97),
       width: double.infinity,
       height: double.infinity,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Glowing heart pulse spinner mockup
-              ScaleTransition(
-                scale: _pulseAnimation,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      height: 110,
-                      width: 110,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    Container(
-                      height: 90,
-                      width: 90,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 76,
-                      width: 76,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF2DD4BF),
-                        ),
-                        strokeWidth: 4,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.favorite_rounded,
-                      color: Color(0xFF2DD4BF),
-                      size: 32,
-                    ),
-                  ],
+          padding: const EdgeInsets.symmetric(horizontal: AuraSpace.xxl),
+          child: Semantics(
+            liveRegion: true,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  height: 56,
+                  width: 56,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3.5,
+                    color: p.accent,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Conectando Guardia Aura',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.2,
+                const SizedBox(height: AuraSpace.xl),
+                Text(
+                  'Buscando quién te atienda',
+                  textAlign: TextAlign.center,
+                  style: AppType.titleMedium.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: p.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'ASIGNANDO SEGÚN LA DEMANDA DE TU ZONA...',
-                style: TextStyle(
-                  color: Color(0xFF2DD4BF),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
+                const SizedBox(height: AuraSpace.xs),
+                Text(
+                  'Estamos avisando a los profesionales de tu zona. '
+                  'En cuanto alguien tome tu solicitud te lo decimos aquí.',
+                  textAlign: TextAlign.center,
+                  style: AppType.bodyMedium.copyWith(color: p.textMuted),
                 ),
-              ),
-              const SizedBox(height: 32),
-              // Logs checklist
-              Container(
-                padding: const EdgeInsets.all(16),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF090D16).withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF1E293B)),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _LogCheckRow(text: 'Orden Médica validada'),
-                    SizedBox(height: 8),
-                    _LogCheckRow(text: 'Ingresando a la cola de tu zona'),
-                    SizedBox(height: 8),
-                    _LogCheckRow(
-                      text: 'Notificando a los prestadores en turno del área...',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LogCheckRow extends StatelessWidget {
-  final String text;
-
-  const _LogCheckRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.check, color: Color(0xFF2DD4BF), size: 14),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFFCCFBF1),
-              fontFamily: 'monospace',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
