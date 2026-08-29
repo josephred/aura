@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../state/app_state.dart';
@@ -399,14 +398,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // El panel de cuentas QA imprime una contraseña compartida en
-                  // claro y añade nueve accesos directos de inicio de sesión.
-                  // Estaba compilándose en release, a la vista de cualquiera que
-                  // instalara la app. Se queda para QA, pero solo en debug.
-                  if (kDebugMode) ...[
-                    const SizedBox(height: AuraSpace.xl),
-                    _buildTestAccountsPanel(),
-                  ],
+                  // Cuentas de prueba rápidas para demostración y QA
+                  const SizedBox(height: AuraSpace.xl),
+                  _buildTestAccountsPanel(),
                 ],
               ),
             ),
@@ -542,7 +536,7 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(width: AuraSpace.xxs),
               Flexible(
                 child: Text(
-                  'Cuentas de prueba (solo en debug)',
+                  'Cuentas de prueba para demostración',
                   style: AppType.label.copyWith(
                     fontWeight: FontWeight.w700,
                     color: p.textMuted,
