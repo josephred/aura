@@ -64,6 +64,9 @@ class _LabResultsScreenState extends State<LabResultsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.state.labResults.isNotEmpty || widget.state.labRequests.isNotEmpty) {
+      _loading = false;
+    }
     _load();
   }
 

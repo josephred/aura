@@ -220,7 +220,7 @@ class AuraServiceTile extends StatelessWidget {
             borderRadius: AuraRadius.allLg,
             focusColor: p.accent.withValues(alpha: 0.20),
             child: Container(
-              padding: const EdgeInsets.all(AuraSpace.md),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 borderRadius: AuraRadius.allLg,
                 gradient: LinearGradient(
@@ -307,7 +307,12 @@ class AuraServiceTile extends StatelessWidget {
                       if (badge != null)
                         Flexible(child: badge!)
                       else if (emphasis)
-                        const AuraBadge(label: 'Urgente', tone: AuraTone.warning)
+                        const Flexible(
+                          child: AuraBadge(
+                            label: 'Urgente',
+                            tone: AuraTone.warning,
+                          ),
+                        )
                       else
                         Container(
                           padding: const EdgeInsets.all(5),

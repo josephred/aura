@@ -69,6 +69,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.state.appointments.isNotEmpty) {
+      _loading = false;
+    }
     widget.state.addListener(_onStateChange);
     _refresh();
   }

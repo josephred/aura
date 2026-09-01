@@ -505,9 +505,9 @@ class _ServiceGrid extends StatelessWidget {
 
   double _aspectFor(BuildContext context, int columns) {
     final scale = MediaQuery.textScalerOf(context).scale(1.0);
-    final base = columns >= 4 ? 1.35 : (columns == 3 ? 1.25 : 1.18);
+    final base = columns >= 4 ? 1.25 : (columns == 3 ? 1.15 : 1.06);
     // Al agrandar la letra el azulejo necesita más alto, no más ancho.
-    return (base / scale.clamp(1.0, 1.6)).clamp(0.68, 1.4);
+    return (base / scale.clamp(1.0, 1.6)).clamp(0.65, 1.3);
   }
 }
 

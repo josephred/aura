@@ -520,6 +520,251 @@ class AppState extends ChangeNotifier {
       ..clear()
       ..addAll(pastServicesHistory);
 
+    _professionals = const [
+      Professional(
+        id: 'prof_camila',
+        name: 'Dra. Camila Rivera N.',
+        specialty: 'Médico Internista',
+        consultationPrice: 40000,
+        consultationDurationMinutes: 45,
+        registrationNumber: 'SIS-784129',
+        yearsOfExperience: 9,
+        bio: 'Especialista en medicina interna, geriatría y atención domiciliaria.',
+        ratingAvg: 4.9,
+        ratingCount: 42,
+      ),
+      Professional(
+        id: 'prof_sebastian',
+        name: 'Dr. Sebastián Leyton',
+        specialty: 'Medicina General',
+        consultationPrice: 35000,
+        consultationDurationMinutes: 30,
+        registrationNumber: 'SIS-552190',
+        yearsOfExperience: 7,
+        bio: 'Atención ambulatoria de urgencia, controles preventivos y salud familiar.',
+        ratingAvg: 4.8,
+        ratingCount: 38,
+      ),
+      Professional(
+        id: 'prof_maria_jose',
+        name: 'Klga. María José Díaz',
+        specialty: 'Kinesiología Respiratoria',
+        consultationPrice: 28000,
+        consultationDurationMinutes: 45,
+        registrationNumber: 'SIS-661201',
+        yearsOfExperience: 6,
+        bio: 'Rehabilitación motora, terapia respiratoria infantil y del adulto mayor.',
+        ratingAvg: 5.0,
+        ratingCount: 29,
+      ),
+    ];
+
+    _appointments = [
+      Appointment(
+        id: 'apt_1',
+        professionalId: 'prof_camila',
+        professionalName: 'Dra. Camila Rivera N.',
+        specialty: 'Médico Internista',
+        scheduledAt: DateTime.now().add(const Duration(days: 2, hours: 4)),
+        durationMinutes: 45,
+        reason: 'Control hipertensión arterial y ajuste farmacológico',
+        status: AppointmentStatus.confirmed,
+        price: 40000,
+        type: 'home',
+      ),
+      Appointment(
+        id: 'apt_2',
+        professionalId: 'prof_sebastian',
+        professionalName: 'Dr. Sebastián Leyton',
+        specialty: 'Medicina General',
+        scheduledAt: DateTime.now().add(const Duration(days: 4, hours: 1)),
+        durationMinutes: 30,
+        reason: 'Telemedicina: Evaluación de exámenes preventivos',
+        status: AppointmentStatus.confirmed,
+        price: 25000,
+        type: 'video',
+      ),
+    ];
+
+    _subscriptionPlans = const [
+      SubscriptionPlan(
+        id: 'plan_familiar',
+        name: 'Plan Familiar Aura',
+        description: 'Cobertura médica y telemedicina 24/7 para tu grupo familiar.',
+        monthlyPrice: 19990,
+        includedConsultations: 3,
+        discountPercentage: 25,
+        features: [
+          '3 atenciones a domicilio mensuales incluidas',
+          '25% de descuento en exámenes de laboratorio',
+          'Telemedicina ilimitada 24/7',
+          'Atención preferente en despachos de urgencia',
+        ],
+        active: true,
+      ),
+      SubscriptionPlan(
+        id: 'plan_senior',
+        name: 'Plan Senior Plus',
+        description: 'Monitoreo geriátrico continuo y kinesiología preventiva en el hogar.',
+        monthlyPrice: 29990,
+        includedConsultations: 5,
+        discountPercentage: 35,
+        features: [
+          '5 atenciones médicas o de enfermería al mes',
+          '35% descuento en insumos y curaciones',
+          'Botón de asistencia preferencial SOS',
+          'Informe clínico mensual para familiares',
+        ],
+        active: true,
+      ),
+    ];
+
+    _subscriptionInfo = UserSubscriptionInfo(
+      hasSubscription: true,
+      status: 'active',
+      plan: _subscriptionPlans.first,
+      includedConsultations: 3,
+      usedConsultations: 1,
+      remainingConsultations: 2,
+      discountPercentage: 25,
+      nextBillingDate: DateTime.now().add(const Duration(days: 18)),
+    );
+
+    _labRequests = [
+      LabRequest(
+        id: 'lab_req_1',
+        status: 'scheduled',
+        scheduledAt: DateTime.now().add(const Duration(days: 1, hours: 3)),
+        scheduledLabel: 'Mañana a las 08:30',
+        addressText: 'Av. Providencia 2045, Providencia',
+        zone: 'Providencia',
+        examRequired: 'Perfil Lipídico + Glicemia en Ayuno',
+        clinicalNotes: 'Paciente requiere ayuno de 8 horas.',
+        professionalName: 'Klga. María José Díaz',
+        finalPrice: 18000,
+        paymentStatus: 'paid',
+        resultsCount: 0,
+      ),
+    ];
+
+    _labResults = [
+      LabResult(
+        id: 'res_1',
+        serviceRequestId: 'req_prev_1',
+        title: 'Hemograma Completo y Perfil Bioquímico',
+        fileName: 'informe_laboratorio_hemograma.pdf',
+        downloadUrl: 'https://aurasalud.cl/informes/lab_1.pdf',
+        fileSize: 245000,
+        issuedAt: DateTime.now().subtract(const Duration(days: 4)),
+        notes: 'Valores de referencia dentro de los rangos normales para la edad.',
+      ),
+      LabResult(
+        id: 'res_2',
+        serviceRequestId: 'req_prev_2',
+        title: 'Examen de Orina Completa y Urocultivo',
+        fileName: 'informe_urocultivo.pdf',
+        downloadUrl: 'https://aurasalud.cl/informes/lab_2.pdf',
+        fileSize: 180000,
+        issuedAt: DateTime.now().subtract(const Duration(days: 12)),
+        notes: 'Sin desarrollo bacteriano significativo tras 48 hrs.',
+      ),
+    ];
+
+    _staffProfile = const StaffProfile(
+      name: 'Dra. Camila Rivera N.',
+      role: 'doctor_provider',
+      isOperator: false,
+      dutyStatus: 'disponible',
+      coverageZones: ['Providencia', 'Las Condes'],
+      completedToday: 3,
+      openNow: 1,
+      specialty: 'Medicina Interna',
+      professionalId: 'prof_camila',
+      phone: '+56 9 8812 3410',
+      ratingAvg: 4.9,
+      ratingCount: 42,
+    );
+
+    _staffBookings = [
+      StaffBooking(
+        id: 'req_st_1',
+        serviceId: 'medico',
+        serviceTitle: 'Consulta Médica General',
+        status: 'en_camino',
+        currentStep: 2,
+        patientName: 'Gonzalo Morales V.',
+        addressText: 'Av. Providencia 2045, Depto 402',
+        zone: 'Providencia',
+        outsideZone: false,
+        finalPrice: 40000,
+        etaMinutes: 14,
+        startTime: '14:20',
+        professionalId: 'prof_camila',
+        symptomsDescription: 'Cuadro febril 38.5°C y malestar general desde hace 24 hrs.',
+        escalationLevel: 0,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 25)),
+      ),
+      StaffBooking(
+        id: 'req_st_2',
+        serviceId: 'enfermeria',
+        serviceTitle: 'Enfermería a Domicilio',
+        status: 'pendiente',
+        currentStep: 1,
+        patientName: 'Elena Carrasco L.',
+        addressText: 'Los Conquistadores 1840, Providencia',
+        zone: 'Providencia',
+        outsideZone: false,
+        finalPrice: 25000,
+        etaMinutes: 28,
+        startTime: '14:45',
+        professionalId: null,
+        symptomsDescription: 'Curación de herida operatoria y retiro de puntos.',
+        escalationLevel: 0,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 10)),
+      ),
+    ];
+
+    _opsMetrics = const OperationsMetrics(
+      professionalsOnDuty: 8,
+      professionalsTotal: 12,
+      openRequests: 14,
+      completedToday: 26,
+      averageEtaMinutes: 22,
+    );
+
+    _opsZones = const [
+      ZoneLoad(zone: 'Santiago Centro', openRequests: 5, professionalsOnDuty: 3),
+      ZoneLoad(zone: 'Providencia / Las Condes', openRequests: 6, professionalsOnDuty: 4),
+      ZoneLoad(zone: 'Ñuñoa / La Reina', openRequests: 3, professionalsOnDuty: 2),
+    ];
+
+    _opsProfessionals = const [
+      ManagedProfessional(
+        id: 'prof_camila',
+        name: 'Dra. Camila Rivera',
+        specialty: 'Medicina Interna',
+        dutyStatus: 'disponible',
+        coverageZones: 'Providencia, Las Condes',
+        active: true,
+      ),
+      ManagedProfessional(
+        id: 'prof_sebastian',
+        name: 'Dr. Sebastián Leyton',
+        specialty: 'Medicina General',
+        dutyStatus: 'ocupado',
+        coverageZones: 'Santiago Centro',
+        active: true,
+      ),
+      ManagedProfessional(
+        id: 'prof_maria_jose',
+        name: 'Klga. María José Díaz',
+        specialty: 'Kinesiología',
+        dutyStatus: 'disponible',
+        coverageZones: 'Las Condes, Vitacura',
+        active: true,
+      ),
+    ];
+
     notifyListeners();
   }
 
@@ -1730,6 +1975,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> refreshStaffArea() async {
+    if (_isDemoMode && _staffProfile != null) {
+      _staffLoading = false;
+      notifyListeners();
+      return;
+    }
     _staffLoading = true;
     _staffError = null;
     notifyListeners();
@@ -1980,6 +2230,11 @@ class AppState extends ChangeNotifier {
   bool get opsLoading => _opsLoading;
 
   Future<void> refreshOperations() async {
+    if (_isDemoMode && _opsMetrics != null) {
+      _opsLoading = false;
+      notifyListeners();
+      return;
+    }
     _opsLoading = true;
     notifyListeners();
 
@@ -2343,6 +2598,7 @@ class AppState extends ChangeNotifier {
   List<Appointment> get appointments => _appointments;
 
   Future<void> fetchProfessionals() async {
+    if (_isDemoMode && _professionals.isNotEmpty) return;
     try {
       final response = await _apiService.get('/professionals');
       if (response.statusCode == 200) {
@@ -2380,6 +2636,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> fetchAppointments() async {
+    if (_isDemoMode && _appointments.isNotEmpty) return;
     try {
       final response = await _apiService.get('/appointments');
       if (response.statusCode == 200) {
@@ -2625,6 +2882,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> fetchLabRequests() async {
+    if (_isDemoMode && _labRequests.isNotEmpty) return;
     try {
       final response = await _apiService.get('/lab/requests', timeout: const Duration(seconds: 8));
       if (response.statusCode == 200) {
@@ -2680,6 +2938,7 @@ class AppState extends ChangeNotifier {
 
   /// "Mis Exámenes": histórico de informes descargables.
   Future<void> fetchLabResults() async {
+    if (_isDemoMode && _labResults.isNotEmpty) return;
     try {
       final response = await _apiService.get('/lab/results', timeout: const Duration(seconds: 8));
       if (response.statusCode == 200) {
@@ -3166,6 +3425,7 @@ class AppState extends ChangeNotifier {
   // =========================================================================
 
   Future<void> fetchSubscriptionPlans() async {
+    if (_isDemoMode && _subscriptionPlans.isNotEmpty) return;
     try {
       final res = await _apiService.get('/subscriptions/plans');
       if (res.statusCode == 200) {
@@ -3179,6 +3439,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> fetchCurrentSubscription() async {
+    if (_isDemoMode && _subscriptionInfo != null) return;
     if (!isAuthenticated) return;
     try {
       _isLoadingSubscription = true;

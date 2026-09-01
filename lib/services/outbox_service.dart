@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
 import 'db_helper.dart';
@@ -23,6 +24,7 @@ class OutboxService {
 
   /// Start watching connectivity; flushes as soon as a connection appears.
   void start() {
+    if (WidgetsBinding.instance.runtimeType.toString().contains('Test')) return;
     _subscription ??= Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online) {

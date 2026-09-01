@@ -230,6 +230,10 @@ class AuraButton extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
+                  style: (size == AuraButtonSize.small ? AppType.bodyMedium : AppType.button).copyWith(
+                    color: enabled ? fg : p.onDisabled,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

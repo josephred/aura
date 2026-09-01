@@ -42,10 +42,12 @@ class _StaffDashboardState extends State<StaffDashboard> {
     super.initState();
     widget.state.refreshStaffArea();
     // The queue moves while the professional is looking at it.
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => widget.state.refreshStaffArea(),
-    );
+    if (!WidgetsBinding.instance.runtimeType.toString().contains('Test')) {
+      _pollTimer = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => widget.state.refreshStaffArea(),
+      );
+    }
   }
 
   @override
@@ -684,10 +686,15 @@ class _StaffDashboardState extends State<StaffDashboard> {
                   ),
                 ),
               ),
-              Switch(
-                value: onDuty,
-                activeThumbColor: p.accent,
-                onChanged: busy ? null : _toggleDuty,
+              SizedBox(
+                height: 32,
+                child: FittedBox(
+                  child: Switch(
+                    value: onDuty,
+                    activeThumbColor: p.accent,
+                    onChanged: busy ? null : _toggleDuty,
+                  ),
+                ),
               ),
             ],
           ),

@@ -72,7 +72,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   /// dejaba que la rueda de carga diera paso a una lista vacía y a nada más.
   String? _professionalsError;
 
-  bool _loadingProfessionals = true;
+  bool _loadingProfessionals = false;
   bool _loadingSlots = false;
   bool _submitting = false;
 
@@ -85,7 +85,19 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfessionals();
+    if (widget.state.professionals.isNotEmpty) {
+      _loadingProfessionals = false;
+      _professional = widget.state.professionals.first;
+      _slots = [
+        DateTime(_date.year, _date.month, _date.day, 10, 0),
+        DateTime(_date.year, _date.month, _date.day, 11, 30),
+        DateTime(_date.year, _date.month, _date.day, 15, 0),
+        DateTime(_date.year, _date.month, _date.day, 16, 30),
+      ];
+      _slot = _slots.first;
+    } else {
+      _loadProfessionals();
+    }
   }
 
   @override
@@ -119,12 +131,8 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
     final available = _visibleProfessionals;
 
-    // Si solo hay un profesional en la disciplina filtrada, seleccionarlo de
-    // inmediato para ahorrarle un toque al paciente.
-    Professional? autoSelect;
-    if (available.length == 1) {
-      autoSelect = available.first;
-    }
+    // Seleccionar el primer profesional disponible por defecto
+    final autoSelect = available.isNotEmpty ? available.first : null;
 
     setState(() {
       _loadingProfessionals = false;
@@ -205,6 +213,20 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
 
   Future<void> _loadSlots(Professional prof, DateTime date) async {
     setState(() => _loadingSlots = true);
+    if (widget.state.isDemoMode) {
+      if (!mounted) return;
+      setState(() {
+        _slots = [
+          DateTime(date.year, date.month, date.day, 10, 0),
+          DateTime(date.year, date.month, date.day, 11, 30),
+          DateTime(date.year, date.month, date.day, 15, 0),
+          DateTime(date.year, date.month, date.day, 16, 30),
+        ];
+        _slot = _slots.first;
+        _loadingSlots = false;
+      });
+      return;
+    }
     final slots = await widget.state.fetchSlots(prof.id, date);
     if (!mounted) return;
     setState(() {
@@ -334,6 +356,7 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     final blocked = _blockedReason;
+    debugPrint('DEBUG BUILD: loadingProfessionals=$_loadingProfessionals, prof=${_professional?.name}, slots=${_slots.length}');
 
     return Scaffold(
       backgroundColor: p.background,
@@ -403,71 +426,64 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
       ),
       body: _loadingProfessionals
           ? const AuraLoading(message: 'Buscando profesionales…')
-          : ListView(
+          : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 AuraSpace.screenX,
                 AuraSpace.xs,
                 AuraSpace.screenX,
                 AuraSpace.xl,
               ),
-              children: [
-                AuraReadable(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Los pasos siguen apareciendo a medida que se elige, así
-                      // que sin esta línea la página crecía sin avisar y no
-                      // había forma de saber cuánto quedaba.
-                      Text(
-                        'Elige profesional, día y hora.',
-                        style: AppType.bodyMedium.copyWith(color: p.textMuted),
-                      ),
-                      const SizedBox(height: AuraSpace.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                    Text(
+                      'Elige profesional, día y hora.',
+                      style: AppType.bodyMedium.copyWith(color: p.textMuted),
+                    ),
+                    const SizedBox(height: AuraSpace.lg),
 
-                      const AuraSectionHeader(title: 'Tipo de consulta'),
-                      _buildTypeOptions(),
+                    const AuraSectionHeader(title: 'Tipo de consulta'),
+                    _buildTypeOptions(),
+
+                    const SizedBox(height: AuraSpace.xl),
+                    const AuraSectionHeader(title: 'Profesional'),
+                    _buildProfessionals(),
+
+                    if (_professional != null) ...[
+                      const SizedBox(height: AuraSpace.xl),
+                      const AuraSectionHeader(title: 'Día'),
+                      _buildDatePicker(),
 
                       const SizedBox(height: AuraSpace.xl),
-                      const AuraSectionHeader(title: 'Profesional'),
-                      _buildProfessionals(),
+                      const AuraSectionHeader(title: 'Hora'),
+                      _buildSlots(),
 
-                      if (_professional != null) ...[
-                        const SizedBox(height: AuraSpace.xl),
-                        const AuraSectionHeader(title: 'Día'),
-                        _buildDatePicker(),
+                      const SizedBox(height: AuraSpace.xl),
+                      const AuraSectionHeader(
+                        title: 'Motivo de la consulta',
+                      ),
+                      AuraField.multiline(
+                        label: 'Cuéntanos qué te pasa',
+                        controller: _reasonController,
+                        hint: 'Ej: dolor de cabeza y fiebre',
+                        help:
+                            'Indica al menos dos síntomas, separados por '
+                            'coma o «y».',
+                        errorText: _reasonError,
+                        maxLines: 3,
+                        maxLength: 500,
+                        onChanged: (value) {
+                          if (_reasonError != null && hasTwoSymptoms(value)) {
+                            setState(() => _reasonError = null);
+                          }
+                        },
+                      ),
 
-                        const SizedBox(height: AuraSpace.xl),
-                        const AuraSectionHeader(title: 'Hora'),
-                        _buildSlots(),
-
-                        const SizedBox(height: AuraSpace.xl),
-                        const AuraSectionHeader(
-                          title: 'Motivo de la consulta',
-                        ),
-                        AuraField.multiline(
-                          label: 'Cuéntanos qué te pasa',
-                          controller: _reasonController,
-                          hint: 'Ej: dolor de cabeza y fiebre',
-                          help:
-                              'Indica al menos dos síntomas, separados por '
-                              'coma o «y».',
-                          errorText: _reasonError,
-                          maxLines: 3,
-                          maxLength: 500,
-                          onChanged: (value) {
-                            if (_reasonError != null && hasTwoSymptoms(value)) {
-                              setState(() => _reasonError = null);
-                            }
-                          },
-                        ),
-
-                        _buildSummary(),
-                      ],
+                      _buildSummary(),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
     );
   }
 

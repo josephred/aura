@@ -32,32 +32,32 @@ class AppType {
   /// 34 — la pregunta de un paso del flujo guiado. Es el rol más grande de la
   /// app y solo se usa cuando en la pantalla no hay nada que compita con él:
   /// «¿Para quién es la atención?», «¿Qué necesitas hoy?».
-  static const hero = TextStyle(fontSize: 34, height: 1.15, letterSpacing: -0.8);
+  static const hero = TextStyle(fontFamily: 'Roboto', fontSize: 34, height: 1.15, letterSpacing: -0.8);
 
   /// 30 — cifras y titulares de portada.
-  static const display = TextStyle(fontSize: 30, height: 1.2, letterSpacing: -0.6);
+  static const display = TextStyle(fontFamily: 'Roboto', fontSize: 30, height: 1.2, letterSpacing: -0.6);
 
-  static const titleLarge = TextStyle(fontSize: 24, height: 1.25, letterSpacing: -0.4);
-  static const titleMedium = TextStyle(fontSize: 19, height: 1.3, letterSpacing: -0.2);
-  static const titleSmall = TextStyle(fontSize: 17, height: 1.35);
+  static const titleLarge = TextStyle(fontFamily: 'Roboto', fontSize: 24, height: 1.25, letterSpacing: -0.4);
+  static const titleMedium = TextStyle(fontFamily: 'Roboto', fontSize: 19, height: 1.3, letterSpacing: -0.2);
+  static const titleSmall = TextStyle(fontFamily: 'Roboto', fontSize: 17, height: 1.35);
 
   // ------------------------------------------------------------------- cuerpo
 
   /// El interlineado de 1.5 no es decoración: en párrafos de tres líneas es lo
   /// que más reduce el esfuerzo de lectura, y hasta ahora solo 42 de ~396
   /// estilos declaraban `height`; el resto usaba el ~1.2 del tipo.
-  static const bodyLarge = TextStyle(fontSize: 18, height: 1.5);
-  static const bodyMedium = TextStyle(fontSize: 16, height: 1.5);
+  static const bodyLarge = TextStyle(fontFamily: 'Roboto', fontSize: 18, height: 1.5);
+  static const bodyMedium = TextStyle(fontFamily: 'Roboto', fontSize: 16, height: 1.5);
 
   /// 15 — era 14. Es el estilo más usado de la app con diferencia: subirlo un
   /// punto es el cambio de legibilidad más barato que había disponible.
-  static const bodySmall = TextStyle(fontSize: 15, height: 1.45);
+  static const bodySmall = TextStyle(fontFamily: 'Roboto', fontSize: 15, height: 1.45);
 
   // ---------------------------------------------------------------- etiquetas
 
   /// Texto de botones. 17 y no 15: la acción principal de una pantalla no
   /// debería tener la letra más pequeña que el párrafo que la explica.
-  static const button = TextStyle(fontSize: 17, height: 1.2, letterSpacing: -0.1);
+  static const button = TextStyle(fontFamily: 'Roboto', fontSize: 17, height: 1.2, letterSpacing: -0.1);
 
   /// 13 — metadatos y rótulos cortos: la fecha de una tarjeta, el nombre de
   /// una insignia, la unidad junto a una cifra. Era 12.
@@ -66,11 +66,12 @@ class AppType {
   /// la descripción de una opción, un mensaje de error— el rol correcto es
   /// [bodySmall]. Ese es exactamente el mal uso que este comentario intenta
   /// evitar que vuelva: el aviso de riesgo vital del inicio estuvo en 12 pt.
-  static const label = TextStyle(fontSize: 13, height: 1.35);
+  static const label = TextStyle(fontFamily: 'Roboto', fontSize: 13, height: 1.35);
 
   /// 13 en versalitas. Para los rótulos de sección en mayúsculas, que sin
   /// `letterSpacing` positivo se leen como un grito apelmazado.
   static const overline = TextStyle(
+    fontFamily: 'Roboto',
     fontSize: 13,
     height: 1.3,
     letterSpacing: 0.8,
@@ -79,6 +80,7 @@ class AppType {
   /// Cifras tabulares: precios y contadores que se apilan y tienen que
   /// alinearse por la coma.
   static const numeric = TextStyle(
+    fontFamily: 'Roboto',
     fontSize: 24,
     height: 1.2,
     letterSpacing: -0.5,
