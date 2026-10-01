@@ -484,7 +484,9 @@ class _ServiceGrid extends StatelessWidget {
           label: serviceShortName(service.id, service.shortTitle),
           hint: serviceOneLiner(service.id, service.subtitle),
           icon: serviceIconFor(service.iconName, serviceId: service.id),
-          emphasis: service.id == 'ambulancia',
+          badge: service.id == 'ambulancia'
+              ? const AuraBadge(label: 'Programado')
+              : null,
           onTap: () => onSelectService(service),
         ),
       );
